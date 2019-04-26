@@ -1,4 +1,4 @@
-# ColumnModelOptimization
+# The column model optimzation project
 
 We are attempting to optimize column models for the turbulent ocean surface boundary layer.
 
@@ -9,3 +9,5 @@ Our method is to estimate the optimal parameters (and their pdf's) by comparing 
 An example of the kind of data we will use to optimze column models is shown below.
 
 ![Data example](assets/data_example.png "Data example")
+
+This project is part of the Climate Modeling Alliance.
