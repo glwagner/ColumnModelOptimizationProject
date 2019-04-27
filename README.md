@@ -1,4 +1,4 @@
-# The column model optimzation project
+# An ocean column model optimzation project
 
 We are attempting to optimize column models for the turbulent ocean surface boundary layer.
 
