@@ -4,6 +4,8 @@ export
     DefaultFreeParameters,
     FreeConvectionParameters,
     ShearUnstableParameters,
+    ShearNeutralParameters,
+    SensitiveParameters,
 
     simple_flux_model,
     compare_with_data,
@@ -17,9 +19,10 @@ using
     Printf,
     PyPlot
 
-import OceanTurb: KPP
-
+import Base: similar
 import PyCall: pyimport
+import ColumnModelOptimizationProject: ColumnModel
+import OceanTurb: set!
 
 include("kpp_visualization.jl")
 
@@ -27,22 +30,28 @@ include("kpp_visualization.jl")
 # Parameter sets
 #
 
-struct SensitiveParameters{T} <: FieldVector{4, T}
+abstract type FreeParameters{N, T} <: FieldVector{N, T} end
+
+function similar(p::FreeParameters{N, T}) where {N, T}
+    return eval(Expr(:call, typeof(p), (zero(T) for i = 1:N)...))
+end
+
+mutable struct SensitiveParameters{T} <: FreeParameters{4, T}
      CRi :: T
      CNL :: T
      CKE :: T  # Unresolved turbulence parameter
 end
 
-struct ShearNeutralParameters{T}
-    CSL   :: T  # Surface layer fraction
-    Cτ    :: T  # Von Karman constant
-    CNL   :: T  # Non-local flux proportionality constant
-    CRi   :: T  # Critical bulk Richardson number
-    K₀    :: T  # Background diffusivity
+mutable struct ShearNeutralParameters{T} <: FreeParameters{6, T}
+    CSL :: T  # Surface layer fraction
+    CNL :: T  # Non-local flux proportionality constant
+    CRi :: T  # Critical bulk Richardson number
+    Cτ  :: T  # Von Karman constant
+    KU₀ :: T  # Background diffusivity for U
+    KT₀ :: T  # Background diffusivity for T
 end
 
-struct FreeConvectionParameters{T} <: FieldVector{6, T}
-     CRi :: T
+mutable struct FreeConvectionParameters{T} <: FreeParameters{6, T}
      CNL :: T
      CKE :: T
       Cτ :: T
@@ -51,7 +60,7 @@ struct FreeConvectionParameters{T} <: FieldVector{6, T}
       K₀ :: T
 end
 
-struct ShearUnstableParameters{T} <: FieldVector{12, T}
+mutable struct ShearUnstableParameters{T} <: FreeParameters{12, T}
     CSL   :: T  # Surface layer fraction
     Cτ    :: T  # Von Karman constant
     CNL   :: T  # Non-local flux proportionality constant
@@ -69,9 +78,23 @@ end
 
 function DefaultFreeParameters(freeparamtype)
     allparams = KPP.Parameters()
-    freeparams = (getproperty(allparameters, name) for name in fieldnames(freeparamtype))
-    eval(Expr(:call, type, freeparams...))
+    freeparams = (getproperty(allparams, name) for name in fieldnames(freeparamtype))
+    eval(Expr(:call, freeparamtype, freeparams...))
 end
+
+function ColumnModel(cd::ColumnData, Δt; kwargs...)
+    model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu, kwargs...)
+    return ColumnModel(model, Δt)
+end
+
+function set!(cm::ColumnModel{<:KPP.Model}, cd, i)
+    set!(cm.model.solution.U, cd.U[i])
+    set!(cm.model.solution.V, cd.V[i])
+    set!(cm.model.solution.T, cd.T[i])
+    set!(cm.model.solution.S, cd.S[i])
+    return nothing
+end
+
 
 #
 # Loss functions

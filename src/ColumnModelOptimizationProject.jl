@@ -15,19 +15,29 @@ export
 
     # data_analysis.jl
     removespines,
-    summarize_data
+    summarize_data,
+
+    # column_models.jl
+    ColumnData,
+    ColumnModel,
+
+    KPPOptimization
 
 using
+    StaticArrays,
     OceanTurb,
     JLD2,
     PyCall,
     Printf,
     PyPlot
 
-dictify(p) = Dict((k, getproperty(params, k)) for k in propertynames(p))
+import Base: getproperty, setproperty!
+
+dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
 
 include("file_wrangling.jl")
 include("data_analysis.jl")
+include("column_models.jl")
 
 include("models/kpp_optimization.jl")
 

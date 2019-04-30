@@ -1,10 +1,10 @@
-function compare_with_data(datapath; N=nothing, initial_idata=2, idata=[12, 22, 32], parameters=KPP.Parameters(), Δt=10*minute)
+function compare_with_data(datapath; N=nothing, idata_init=2, idata=[12, 22, 32], parameters=KPP.Parameters(), Δt=10*minute)
     model = simple_flux_model(datapath, N=N)
     model.parameters = parameters
 
     alltimes = times(datapath)
     compare_times = [alltimes[i] for i in idata]
-    initial_time = alltimes[initial_idata]
+    initial_time = alltimes[idata_init]
 
     N, L = getgridparams(datapath)
     grid = UniformGrid(N, L)
@@ -14,9 +14,11 @@ function compare_with_data(datapath; N=nothing, initial_idata=2, idata=[12, 22, 
 
     # Set initial condition
     for fld in fields
-        OceanTurb.set!(datafields[fld], getdata(fld, datapath, initial_idata))
+        OceanTurb.set!(datafields[fld], getdata(fld, datapath, idata_init))
         OceanTurb.set!(getproperty(model.solution, fld), datafields[fld])
     end
+
+    model.clock.time = alltimes[idata_init]
 
     solution_dict(model) = Dict((fld, deepcopy(getproperty(model.solution, fld))) for fld in fields)
 
@@ -35,7 +37,7 @@ function compare_with_data(datapath; N=nothing, initial_idata=2, idata=[12, 22, 
     end
 
     t = cat([initial_time], compare_times, dims=1)
-    i = cat([initial_idata], idata, dims=1)
+    i = cat([idata_init], idata, dims=1)
 
     return modeloutput, data, t, i
 end
