@@ -13,4 +13,10 @@ at the top of the domain to a fluid initialized at rest with a linear temperatur
 
 ![Data example](assets/data_example.png "Data example")
 
+An example comparison between large eddy simulation and the solution to [`OceanTurb.jl`]'s one-dimensional implementation of
+the K-profile-parameterization of Large et al. (1994) is shown below.
+
+![Free convection example](examples/free_convection_kpp_les_comparison.png "Free convection comparison")
+![Shear neutral example](examples/shear_neutral_kpp_les_comparison.png "Shear neutral example")
+
 This project is part of the Climate Modeling Alliance.
