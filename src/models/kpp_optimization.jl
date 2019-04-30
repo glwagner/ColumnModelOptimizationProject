@@ -7,7 +7,7 @@ export
     ShearNeutralParameters,
     SensitiveParameters,
 
-    compute_temperature_nll,
+    temperature_based_nll,
     simple_flux_model,
     compare_with_data,
     visualize_compare_with_data
@@ -77,7 +77,7 @@ mutable struct ShearUnstableParameters{T} <: FreeParameters{12, T}
     K₀    :: T  # Background diffusivity
 end
 
-
+function DefaultFreeParameters(freeparamtype)
     allparams = KPP.Parameters()
     freeparams = (getproperty(allparams, name) for name in fieldnames(freeparamtype))
     eval(Expr(:call, freeparamtype, freeparams...))
@@ -98,10 +98,10 @@ end
 
 
 #
-# Loss functions
+# Negative log likelihood functions
+#
 
-
-function compute_temperature_nll(params, column_model, column_data)
+function temperature_based_nll(params, column_model, column_data)
 
     # Initialize the model
     kpp_parameters = KPP.Parameters(; dictify(params)...)
