@@ -76,7 +76,7 @@ function visualize_compare_with_data(filepath; kwargs...)
         plot(Tdata, "-", color=defaultcolors[i], label=@sprintf("\$ t = %.2f \$ days", t/day), linewidth=4, alpha=0.4)
         plot(Tmodel, "--", color=defaultcolors[i], alpha=0.6, linewidth=2)
         xlabel(L"T \, \mathrm{(K)}")
-        ylabel(L"z")
+        ylabel(L"z \, \mathrm{(m)}")
 
         sca(axs[2])
         plot(Edata, "-", color=defaultcolors[i], label=@sprintf("\$ t = %.2f \$ days", t/day), linewidth=4, alpha=0.4)
