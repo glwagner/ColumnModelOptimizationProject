@@ -28,6 +28,7 @@ dictify(p) = Dict((k, getproperty(params, k)) for k in propertynames(p))
 
 include("file_wrangling.jl")
 include("data_analysis.jl")
-include("models/kpp_utils.jl")
+
+include("models/kpp_optimization.jl")
 
 end # module

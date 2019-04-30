@@ -16,10 +16,10 @@ uuid = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
 version = "0.8.10"
 
 [[BinaryProvider]]
-deps = ["Libdl", "Pkg", "SHA", "Test"]
-git-tree-sha1 = "055eb2690182ebc31087859c3dd8598371d3ef9e"
+deps = ["Libdl", "SHA"]
+git-tree-sha1 = "c7361ce8a2129f20b0e05a89f7070820cfed6648"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-version = "0.5.3"
+version = "0.5.4"
 
 [[CSTParser]]
 deps = ["LibGit2", "Test", "Tokenize"]
@@ -199,8 +199,8 @@ version = "0.7.3"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Reexport", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "c6f44f0c5645e5989d44d26ebe72061f8eafd5c7"
-repo-rev = "master"
+git-tree-sha1 = "fb63a6f4539d4e0187bdfd553da2b72310303d0d"
+repo-rev = "error-metrics"
 repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
 version = "0.1.0"

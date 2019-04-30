@@ -6,15 +6,22 @@ export
     ShearUnstableParameters,
 
     simple_flux_model,
-    compare_with_data
+    compare_with_data,
+    visualize_compare_with_data
 
 using
     ColumnModelOptimizationProject,
     OceanTurb,
     StaticArrays,
-    JLD2
+    JLD2,
+    Printf,
+    PyPlot
 
 import OceanTurb: KPP
+
+import PyCall: pyimport
+
+include("kpp_visualization.jl")
 
 #
 # Parameter sets
@@ -131,54 +138,11 @@ end
 
 function simple_flux_model(datapath::AbstractString; N=nothing)
     data_params, constants_dict = getdataparams(datapath)
-    @show constants_dict
     constants = KPP.Constants(; constants_dict...)
     if N != nothing
         data_params[:N] = N
     end
     simple_flux_model(constants; data_params...)
-end
-
-function compare_with_data(datapath; N=nothing, initial_idata=2, idata=[12, 22, 32], parameters=KPP.Parameters(), Δt=10*minute)
-    model = simple_flux_model(datapath, N=N)
-    model.parameters = parameters
-
-    alltimes = times(datapath)
-    compare_times = [alltimes[i] for i in idata]
-    initial_time = alltimes[initial_idata]
-
-    N, L = getgridparams(datapath)
-    grid = UniformGrid(N, L)
-
-    fields = [:U, :V, :T, :S]
-    datafields = Dict((fld, CellField(grid)) for fld in fields)
-
-    # Set initial condition
-    for fld in fields
-        OceanTurb.set!(datafields[fld], getdata(fld, datapath, initial_idata))
-        OceanTurb.set!(getproperty(model.solution, fld), datafields[fld])
-    end
-
-    solution_dict(model) = Dict((fld, deepcopy(getproperty(model.solution, fld))) for fld in fields)
-
-    # Store results in a dict.
-    modeloutput = [solution_dict(model)]
-    data = [deepcopy(datafields)]
-
-    for (i, ti) in enumerate(compare_times)
-        run_until!(model, Δt, ti)
-
-        push!(modeloutput, solution_dict(model))
-
-        # Load and store data at the points of comparison.
-        [ OceanTurb.set!(datafields[fld], getdata(fld, datapath, idata[i])) for fld in fields ]
-        push!(data, deepcopy(datafields))
-    end
-
-    t = cat([initial_time], compare_times, dims=1)
-    i = cat([initial_idata], idata, dims=1)
-
-    return modeloutput, data, t, i
 end
 
 end # module
