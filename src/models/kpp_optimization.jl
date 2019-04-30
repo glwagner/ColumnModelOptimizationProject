@@ -7,6 +7,7 @@ export
     ShearNeutralParameters,
     SensitiveParameters,
 
+    compute_temperature_nll,
     simple_flux_model,
     compare_with_data,
     visualize_compare_with_data
@@ -76,7 +77,7 @@ mutable struct ShearUnstableParameters{T} <: FreeParameters{12, T}
     K₀    :: T  # Background diffusivity
 end
 
-function DefaultFreeParameters(freeparamtype)
+
     allparams = KPP.Parameters()
     freeparams = (getproperty(allparams, name) for name in fieldnames(freeparamtype))
     eval(Expr(:call, freeparamtype, freeparams...))
@@ -98,33 +99,25 @@ end
 
 #
 # Loss functions
-#
 
-"""
-    temperature_loss(params, model, data; iters=1)
 
-Compute the error between model and data for one iteration of
-the `model.turbmodel`.
-"""
-function temperature_loss(params, model, data; iters=1)
-    kpp_parameters = KPP_Parameters(params, data.K₀)
-    turbmodel = model.turbmodel
-    turbmodel.parameters = kpp_parameters
+function compute_temperature_nll(params, column_model, column_data)
 
-    # Set initial condition as first non-trivial time-step
-    turbmodel.solution.U = data.U[2]
-    turbmodel.solution.V = data.V[2]
-    turbmodel.solution.T = data.T[2]
+    # Initialize the model
+    kpp_parameters = KPP.Parameters(; dictify(params)...)
+    column_model.model.parameters = kpp_parameters
 
-    loss = 0.0
+    set!(column_model, column_data, column_data.i_initial)
+    column_model.model.clock.time = column_data.t[column_data.i_initial]
+    column_model.model.clock.iter = 0
 
-    for i = 3:3+iters
-        run_until!(turbmodel, model.dt, data.t[i])
-        T_model = OceanTurb.data(turbmodel.solution.T)
-        loss += mean(data.T[i].^2 .- T_model.^2)
+    err = 0.0
+    for i in column_data.i_compare
+        run_until!(column_model.model, column_model.Δt, column_data.t[i])
+        err += relative_error(column_model.model.solution.T, column_data.T[i]) / length(column_data.i_compare)
     end
 
-    return loss
+    return err
 end
 
 #
