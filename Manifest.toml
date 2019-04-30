@@ -199,8 +199,8 @@ version = "0.7.3"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Reexport", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "3f87d474eaaa2006c763e8b2c8da2670b447d87f"
-repo-rev = "master"
+git-tree-sha1 = "aab20e60634e8b2d6b928d47c1dd361e3650c901"
+repo-rev = "complex-w-scale"
 repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
 version = "0.1.0"

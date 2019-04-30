@@ -55,7 +55,7 @@ function getgridparams(datapath::String)
 end
 
 
-function get_data_params(datapath)
+function getdataparams(datapath)
     data_params = Dict{Symbol, Any}()
     constants = Dict{Symbol, Float64}()
 
