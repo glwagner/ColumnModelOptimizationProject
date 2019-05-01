@@ -1,6 +1,7 @@
 struct ColumnData{T, G, C, F, N}
            Fb :: T
            Fu :: T
+           Bz :: T
             κ :: T
             ν :: T
          grid :: G
@@ -11,8 +12,8 @@ struct ColumnData{T, G, C, F, N}
             S :: Array{F, 1}
             E :: Array{F, 1}
             t :: Array{T, 1}
-    i_initial :: Int
-    i_compare :: NTuple{N, Int}
+    initial :: Int
+    targets :: NTuple{N, Int}
 end
 
 """
@@ -21,11 +22,12 @@ end
 Construct ColumnData, a time-series of 1D profiles from observations or LES,
 from a standardized dataset.
 """
-function ColumnData(datapath; i_initial=2, i_compare=(10, 18, 26))
+function ColumnData(datapath; initial=2, targets=(10, 18, 26))
     iters = iterations(datapath)
 
     Fb = getbc("Fb", datapath)
     Fu = getbc("Fu", datapath)
+    Bz = getic("Bz", datapath)
 
      α = getconstant("α", datapath)
      g = getconstant("g", datapath)
@@ -46,7 +48,7 @@ function ColumnData(datapath; i_initial=2, i_compare=(10, 18, 26))
 
     E = [ CellField(0.5*(U[i].data.^2 .+ V[i].data.^2), grid)  for i in 1:length(iters) ]
 
-    ColumnData(Fb, Fu, κ, ν, grid, constants, U, V, T, S, E, t, i_initial, i_compare)
+    ColumnData(Fb, Fu, Bz, κ, ν, grid, constants, U, V, T, S, E, t, initial, targets)
 end
 
 struct ColumnModel{M, T}
