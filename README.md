@@ -17,6 +17,6 @@ An example comparison between large eddy simulation and the solution to [`OceanT
 the K-profile-parameterization of Large et al. (1994) is shown below.
 
 ![Free convection example](examples/free_convection_kpp_les_comparison.png "Free convection comparison")
-![Shear neutral example](examples/shear_neutral_kpp_les_comparison.png "Shear neutral example")
+![Shear neutral example](assets/shear_neutral_kpp_les_comparison_N200.png "Shear neutral example")
 
 This project is part of the Climate Modeling Alliance.
