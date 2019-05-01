@@ -71,7 +71,9 @@ version = "0.5.1"
 
 [[Dao]]
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
-path = "/Users/gregorywagner/Projects/Dao.jl"
+git-tree-sha1 = "1fa3c91646ee323c27fd67e059babe56f8312cbd"
+repo-rev = "master"
+repo-url = "https://github.com/glwagner/Dao.jl.git"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
 version = "0.1.0"
 
@@ -197,7 +199,9 @@ version = "0.7.3"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Reexport", "StaticArrays", "Statistics", "Test"]
-path = "/Users/gregorywagner/Projects/OceanTurb.jl"
+git-tree-sha1 = "b480570d945debfc9680cf9812349cba4af4d4e9"
+repo-rev = "master"
+repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
 version = "0.1.0"
 
