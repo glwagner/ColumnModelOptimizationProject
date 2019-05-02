@@ -36,9 +36,11 @@ using
     Printf,
     PyPlot
 
+import OceanTurb: set!, absolute_error
+
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
 
-set!(::Nothing, args...) = nothing
+set!(::Nothing, args...) = nothing # placeholder
 
 include("file_wrangling.jl")
 include("data_analysis.jl")
