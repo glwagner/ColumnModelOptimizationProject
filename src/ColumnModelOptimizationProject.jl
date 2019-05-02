@@ -21,6 +21,11 @@ export
     ColumnData,
     ColumnModel,
 
+    # visualization.jl
+    visualize_targets,
+    visualize_realization,
+
+    # models/kpp_optimization.jl
     KPPOptimization
 
 using
@@ -31,13 +36,15 @@ using
     Printf,
     PyPlot
 
-import Base: getproperty, setproperty!
-
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
+
+set!(::Nothing, args...) = nothing
 
 include("file_wrangling.jl")
 include("data_analysis.jl")
 include("column_models.jl")
+include("loss_functions.jl")
+include("visualization.jl")
 
 include("models/kpp_optimization.jl")
 

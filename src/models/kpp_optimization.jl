@@ -2,6 +2,7 @@ module KPPOptimization
 
 export
     DefaultFreeParameters,
+    DefaultStdFreeParameters,
     FreeConvectionParameters,
     ShearUnstableParameters,
     ShearNeutralParameters,
@@ -9,29 +10,19 @@ export
 
     temperature_cost,
     weighted_cost,
-    simple_flux_model,
-    compare_with_data,
-    visualize_compare_with_data,
-    visualize_target,
-    visualize_realization
+    simple_flux_model
 
 using
     ColumnModelOptimizationProject,
     OceanTurb,
-    StaticArrays,
-    JLD2,
-    Printf,
-    PyPlot
+    StaticArrays
 
 import Base: similar
-import PyCall: pyimport
 import ColumnModelOptimizationProject: ColumnModel
 import OceanTurb: set!
 
-include("kpp_visualization.jl")
-
 #
-# Parameter sets
+# Basic functionality
 #
 
 abstract type FreeParameters{N, T} <: FieldVector{N, T} end
@@ -40,17 +31,34 @@ function similar(p::FreeParameters{N, T}) where {N, T}
     return eval(Expr(:call, typeof(p), (zero(T) for i = 1:N)...))
 end
 
+function set!(cm::ColumnModel{<:KPP.Model}, params::FreeParameters)
+    cm.model.parameters = KPP.Parameters(; dictify(params)...)
+    return nothing
+end
+
+function set!(cm::ColumnModel{<:KPP.Model}, cd::ColumnData, i)
+    set!(cm.model.solution.U, cd.U[i])
+    set!(cm.model.solution.V, cd.V[i])
+    set!(cm.model.solution.T, cd.T[i])
+    set!(cm.model.solution.S, cd.S[i])
+    cm.model.clock.time = cd.t[i]
+    return nothing
+end
+
+#
+# Parameter sets
+#
+
 Base.@kwdef mutable struct ShearNeutralParameters{T} <: FreeParameters{3, T}
     CSL :: T  # Surface layer fraction
     CRi :: T  # Critical bulk Richardson number
     Cτ  :: T  # Von Karman constant
 end
 
-Base.@kwdef mutable struct FreeConvectionParameters{T} <: FreeParameters{5, T}
+Base.@kwdef mutable struct FreeConvectionParameters{T} <: FreeParameters{4, T}
+     CSL :: T  # Surface layer fraction
      CNL :: T
      CKE :: T
-      Cτ :: T
-    Cb_U :: T
     Cb_T :: T
 end
 
@@ -75,77 +83,16 @@ function DefaultFreeParameters(freeparamtype)
     eval(Expr(:call, freeparamtype, freeparams...))
 end
 
+function DefaultStdFreeParameters(relative_std, freeparamtype)
+    allparams = KPP.Parameters()
+    param_stds = (relative_std * getproperty(allparams, name) for name in fieldnames(freeparamtype))
+    eval(Expr(:call, freeparamtype, param_stds...))
+end
+
 function ColumnModel(cd::ColumnData, Δt; kwargs...)
     model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu, Bz=cd.Bz, kwargs...)
     return ColumnModel(model, Δt)
 end
-
-function set!(cm::ColumnModel{<:KPP.Model}, cd, i)
-    set!(cm.model.solution.U, cd.U[i])
-    set!(cm.model.solution.V, cd.V[i])
-    set!(cm.model.solution.T, cd.T[i])
-    set!(cm.model.solution.S, cd.S[i])
-    cm.model.clock.time = cd.t[i]
-    return nothing
-end
-
-#
-# Negative log likelihood functions
-#
-
-function temperature_cost(params, column_model, column_data)
-
-    # Initialize the model
-    kpp_parameters = KPP.Parameters(; dictify(params)...)
-    column_model.model.parameters = kpp_parameters
-
-    set!(column_model, column_data, column_data.initial)
-
-    err = zero(eltype(column_model.model.solution.U))
-    for i in column_data.targets
-        run_until!(column_model.model, column_model.Δt, column_data.t[i])
-        err += absolute_error(column_model.model.solution.T, column_data.T[i])
-    end
-
-    if isnan(err)
-        err = Inf
-    end
-
-    return err / length(column_data.targets)
-end
-
-function weighted_cost(params, column_model, column_data, weights)
-
-    # Initialize the model
-    kpp_parameters = KPP.Parameters(; KU₀=column_data.ν, KT₀=column_data.κ, KS₀=column_data.κ,
-                                      dictify(params)...)
-    column_model.model.parameters = kpp_parameters
-
-    set!(column_model, column_data, column_data.initial)
-
-    fields = (:U, :V, :T, :S)
-    total_err = zero(eltype(column_model.model.solution.U))
-
-    for i in column_data.targets
-        run_until!(column_model.model, column_model.Δt, column_data.t[i])
-
-        for (j, fld) in enumerate(fields)
-            field_err = absolute_error(
-                getproperty(column_model.model.solution, fld),
-                getproperty(column_data, fld)[i])
-
-            # accumulate error
-            total_err += weights[j] * field_err
-        end
-    end
-
-    if isnan(total_err)
-        total_err = Inf
-    end
-
-    return total_err / length(column_data.targets)
-end
-
 
 #
 # Models
