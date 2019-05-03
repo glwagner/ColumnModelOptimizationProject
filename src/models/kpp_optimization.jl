@@ -8,6 +8,8 @@ export
     ShearNeutralParameters,
     SensitiveParameters,
 
+    set!,
+
     temperature_cost,
     weighted_cost,
     simple_flux_model
@@ -24,8 +26,6 @@ import OceanTurb: set!
 #
 # Basic functionality
 #
-
-abstract type FreeParameters{N, T} <: FieldVector{N, T} end
 
 function similar(p::FreeParameters{N, T}) where {N, T}
     return eval(Expr(:call, typeof(p), (zero(T) for i = 1:N)...))

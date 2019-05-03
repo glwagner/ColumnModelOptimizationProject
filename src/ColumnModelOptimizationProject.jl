@@ -2,6 +2,7 @@ module ColumnModelOptimizationProject
 
 export
     dictify,
+    FreeParameters,
 
     # file_wrangling.jl
     iterations,
@@ -19,11 +20,17 @@ export
 
     # column_models.jl
     ColumnData,
+    target_times,
+    initial_time,
     ColumnModel,
 
     # visualization.jl
     visualize_targets,
     visualize_realization,
+
+    # loss_functions.jl
+    temperature_loss,
+    weighted_fields_loss,
 
     # models/kpp_optimization.jl
     KPPOptimization
@@ -37,6 +44,8 @@ using
     PyPlot
 
 import OceanTurb: set!, absolute_error
+
+abstract type FreeParameters{N, T} <: FieldVector{N, T} end
 
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
 

@@ -51,6 +51,9 @@ function ColumnData(datapath; initial=2, targets=(10, 18, 26))
     ColumnData(Fb, Fu, Bz, κ, ν, grid, constants, U, V, T, S, E, t, initial, targets)
 end
 
+target_times(cd::ColumnData) = [cd.t[i] for i in cd.targets]
+initial_time(cd::ColumnData) = cd.t[cd.initial]
+
 struct ColumnModel{M, T}
     model :: M
     Δt :: T
