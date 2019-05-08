@@ -11,24 +11,10 @@ cases = ("unstable_weak", "unstable_strong", "stable_weak", "stable_strong", "ne
 
 datadir = joinpath("..", "data", "perfect_model")
 filepaths = Dict((case, joinpath(datadir, case * ".jld2")) for case in cases)
-datasets = Dict(
-    (case, ColumnData(filepaths[case]; initial=initial_data, targets=target_data)) for case in cases) 
-models = Dict(
-    (case, KPPOptimization.ColumnModel(datasets[case], model_dt, N=model_N)) for case in cases) 
+datasets = Dict((case, ColumnData(filepaths[case]; initial=initial_data, targets=target_data)) for case in cases) 
+models = Dict((case, KPPOptimization.ColumnModel(datasets[case], model_dt, N=model_N)) for case in cases) 
 
-Base.@kwdef mutable struct InterestingParameters{T} <: FreeParameters{9, T}
-    CRi   :: T # Critical bulk Richardson number
-    CKE   :: T # Unresolved kinetic energy constant
-    CNL   :: T # Non-local flux constant
-    Cτ    :: T # Von Karman constant
-    Cunst :: T # Unstable buoyancy flux parameter for wind-driven turbulence
-    Cb_U  :: T # Buoyancy flux parameter for convective turbulence
-    Cb_T  :: T # Buoyancy flux parameter for convective turbulence
-    Cd_U  :: T # Wind mixing regime threshold for momentum
-    Cd_T  :: T # Wind mixing regime threshold for tracers
-end
-
-defaults = DefaultFreeParameters(InterestingParameters)
+defaults = DefaultFreeParameters(BasicParameters)
 ratios = Dict()
 
 # Obtain an estimate of the relative size of velocity versus temperature error
@@ -46,7 +32,7 @@ for case in cases
     ratios[case] = error_ratio
 end
 
-@show "ratio of velocity error to temperature error" ratios
+@show "Ratio of velocity error to temperature error" ratios
 
 # Normalize temperature error relative to velocity error
 weights = (1, 1, 10*round(Int, mean(values(ratios))/10), 0)
@@ -60,14 +46,34 @@ nll = BatchedNegativeLogLikelihood(
 first_link = MarkovLink(nll, defaults)
 
 @show first_link.error
-nll.scale = first_link.error * 0.1
+nll.scale = first_link.error * 2
 
-std = DefaultStdFreeParameters(0.1, typeof(defaults))
-sampler = MetropolisSampler(NonNegativeNormalPerturbation(std))
+std = DefaultStdFreeParameters(0.05, typeof(defaults))
+sampler = MetropolisSampler(NormalPerturbation(std))
 
-n = 100
-tn = @elapsed chain = MarkovChain(n, first_link, nll, sampler)
-
+ninit = 10^3
+chain = MarkovChain(ninit, first_link, nll, sampler)
 @show chain.acceptance 
 
-@printf "time per link: %.6f s" tn/n
+dsave = 10^3
+chainname = "perfect_batch_markov_chain"
+chainpath = "$chainname.jld2"
+@save chainpath chain
+
+tstart = time()
+for i = 1:10
+    tint = @elapsed extend!(chain, dsave)
+
+    @sprintf("Tc: %.2f seconds. Elapsed wall time: %.4f minutes.", tint, (time() - tstart)/60)
+    println("Optimal parameters:")
+    @show chain[1].param
+    @show optimal(chain).param
+    @show chain[end].param
+
+    println(status(chain))
+
+    oldchainpath = chainname * "_old.jld2"
+    mv(chainpath, oldchainpath, force=true)
+    @save chainpath chain
+    rm(oldchainpath)
+end

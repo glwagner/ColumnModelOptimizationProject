@@ -38,7 +38,7 @@ nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
 
 # Obtain the first link in the Markov chain
 first_link = MarkovLink(nll, defaults)
-nll.scale = first_link.error * 2
+nll.scale = first_link.error * 0.5
 
 # Use a non-negative normal perturbation
 std = DefaultStdFreeParameters(0.05, typeof(defaults))
@@ -53,10 +53,17 @@ chainname = case * "_markov_chain"
 chainpath = "$chainname.jld2"
 @save chainpath chain
 
-#while true
+tstart = time()
 for i = 1:10
-    extend!(chain, dsave)
+#while true
+    tint = @elapsed extend!(chain, dsave)
     println(status(chain))
+
+    @sprintf("Tc: %.2f seconds. Elapsed wall time: %.4f minutes.", tint, (time() - tstart)/60)
+    println("Optimal parameters:")
+    @show chain[1]
+    @show optimal(chain)
+    @show chain[end]
 
     oldchainpath = chainname * "_old.jld2"
     mv(chainpath, oldchainpath, force=true)
