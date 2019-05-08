@@ -7,21 +7,30 @@ export
     ShearUnstableParameters,
     ShearNeutralParameters,
     SensitiveParameters,
+    BasicParameters,
 
     set!,
 
-    temperature_cost,
-    weighted_cost,
-    simple_flux_model
+    smoothstep,
+    simple_flux_model,
+    visualize_model,
+    save_data,
+    init_data,
+    generate_data
 
 using
     ColumnModelOptimizationProject,
     OceanTurb,
-    StaticArrays
+    OceanTurb.Plotting,
+    StaticArrays,
+    PyPlot,
+    JLD2
 
 import Base: similar
 import ColumnModelOptimizationProject: ColumnModel
 import OceanTurb: set!
+
+include("kpp_utils.jl")
 
 #
 # Basic functionality
@@ -77,6 +86,19 @@ Base.@kwdef mutable struct ShearUnstableParameters{T} <: FreeParameters{12, T}
     CKE   :: T  # Unresolved turbulence parameter
 end
 
+Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{10, T}
+    CRi   :: T # Critical bulk Richardson number
+    CKE   :: T # Unresolved kinetic energy constant
+    CNL   :: T # Non-local flux constant
+    Cτ    :: T # Von Karman constant
+    Cstab :: T # Stable buoyancy flux parameter for wind-driven turbulence
+    Cunst :: T # Unstable buoyancy flux parameter for wind-driven turbulence
+    Cb_U  :: T # Buoyancy flux parameter for convective turbulence
+    Cb_T  :: T # Buoyancy flux parameter for convective turbulence
+    Cd_U  :: T # Wind mixing regime threshold for momentum
+    Cd_T  :: T # Wind mixing regime threshold for tracers
+end
+
 function DefaultFreeParameters(freeparamtype)
     allparams = KPP.Parameters()
     freeparams = (getproperty(allparams, name) for name in fieldnames(freeparamtype))
@@ -87,50 +109,6 @@ function DefaultStdFreeParameters(relative_std, freeparamtype)
     allparams = KPP.Parameters()
     param_stds = (relative_std * getproperty(allparams, name) for name in fieldnames(freeparamtype))
     eval(Expr(:call, freeparamtype, param_stds...))
-end
-
-function ColumnModel(cd::ColumnData, Δt; kwargs...)
-    model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu, Bz=cd.Bz, kwargs...)
-    return ColumnModel(model, Δt)
-end
-
-#
-# Models
-#
-
-"""
-    simple_flux_model(constants; N=40, L=400, Bz=0.01, Fb=1e-8, Fu=0,
-                      parameters=KPP.Parameters())
-
-Construct a model forced by 'simple', constant atmospheric buoyancy flux `Fb`
-and velocity flux `Fu`, with resolution `N`, domain size `L`, and
-and initial linear buoyancy gradient `Bz`.
-"""
-function simple_flux_model(constants; N=40, L=400, Bz=0.01, Fb=1e-8, Fu=0, parameters=KPP.Parameters())
-
-    model = KPP.Model(N=N, L=L, parameters=parameters, constants=constants, stepper=:BackwardEuler)
-
-    # Initial condition
-    Tz = model.constants.α * model.constants.g * Bz
-    T₀(z) = 20 + Tz*z
-    model.solution.T = T₀
-
-    # Fluxes
-    Fθ = Fb / (model.constants.α * model.constants.g)
-    model.bcs.U.top = FluxBoundaryCondition(Fu)
-    model.bcs.T.top = FluxBoundaryCondition(Fθ)
-    model.bcs.T.bottom = GradientBoundaryCondition(Tz)
-
-    return model
-end
-
-function simple_flux_model(datapath::AbstractString; N=nothing)
-    data_params, constants_dict = getdataparams(datapath)
-    constants = KPP.Constants(; constants_dict...)
-    if N != nothing
-        data_params[:N] = N
-    end
-    simple_flux_model(constants; data_params...)
 end
 
 end # module

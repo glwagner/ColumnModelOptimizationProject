@@ -71,7 +71,9 @@ version = "0.5.1"
 
 [[Dao]]
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
-path = "/Users/gregorywagner/Projects/Dao.jl"
+git-tree-sha1 = "cc349f04722a296ec30bbb6d320428ec8fa0a171"
+repo-rev = "batched-nlls"
+repo-url = "/Users/gregorywagner/Projects/Dao.jl"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
 version = "0.1.0"
 
@@ -196,18 +198,16 @@ uuid = "30363a11-5582-574a-97bb-aa9a979735b9"
 version = "0.7.3"
 
 [[OceanTurb]]
-deps = ["LinearAlgebra", "OffsetArrays", "Reexport", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "d60143bd6ba22c1505be83453a4cd624b2501f37"
-repo-rev = "master"
-repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
+deps = ["LinearAlgebra", "OffsetArrays", "Plots", "PyPlot", "Reexport", "StaticArrays", "Statistics", "Test"]
+path = "/Users/gregorywagner/Projects/OceanTurb.jl"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
 version = "0.1.0"
 
 [[OffsetArrays]]
-deps = ["DelimitedFiles", "Test"]
-git-tree-sha1 = "e6893807f09c1d5517861ded8b203cb96cb7d44a"
+deps = ["DelimitedFiles"]
+git-tree-sha1 = "49a6d9b5b3dedec18035e4d97ce77e2b2a182c05"
 uuid = "6fe1bfb0-de20-5000-8ca7-80f57d26f881"
-version = "0.10.0"
+version = "0.11.0"
 
 [[OrderedCollections]]
 deps = ["Random", "Serialization", "Test"]

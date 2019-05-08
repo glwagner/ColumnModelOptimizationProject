@@ -16,12 +16,23 @@ function times(datapath)
     return t
 end
 
-function getdata(varname, datapath, i)
+function getdata(varname, datapath, i; reversed=false)
     iter = iterations(datapath)[i]
     file = jldopen(datapath, "r")
-    var = dropdims(file["timeseries/$varname/$iter"], dims=(1, 2))
+    var = file["timeseries/$varname/$iter"]
     close(file)
-    reverse!(var)
+
+    # Drop extra singleton dimensions if they exist
+    if ndims(var) > 1
+        droplist = []
+        for d = 1:ndims(var)
+           size(var, d) == 1 && push!(droplist, d)
+       end
+       var = dropdims(var, dims=Tuple(droplist))
+    end
+
+    reversed && reverse!(var)
+
     return var
 end
 

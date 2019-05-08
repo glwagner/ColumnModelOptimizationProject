@@ -1,14 +1,3 @@
-import PyPlot: plot
-
-plot(f::AbstractField, args...; kwargs...) = plot(data(f), nodes(f), args...; kwargs...)
-
-function removespine(side; ax=gca())
-    ax.spines[side].set_visible(false)
-    return nothing
-end
-
-removespines(sides...; ax=gca()) = for s in sides; removespine(s; ax=ax); end
-
 function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
                         figaxs=subplots(ncols=2, sharey=true, figsize=(8, 4)),
                         title=nothing)
