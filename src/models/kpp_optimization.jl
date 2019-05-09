@@ -30,6 +30,19 @@ import Base: similar
 import ColumnModelOptimizationProject: ColumnModel
 import OceanTurb: set!
 
+latexparams = Dict(
+      :CRi => L"C^\mathrm{Ri}",
+      :CKE => L"C^\mathcal{E}",
+      :CNL => L"C^{NL}",
+      :Cτ  => L"C^\tau",
+    :Cstab => L"C^\mathrm{stab}",
+    :Cunst => L"C^\mathrm{unst}",
+     :Cb_U => L"C^b_U",
+     :Cb_T => L"C^b_T",
+     :Cd_U => L"C^d_U",
+     :Cd_T => L"C^d_T"
+)
+
 include("kpp_utils.jl")
 
 #
@@ -86,7 +99,7 @@ Base.@kwdef mutable struct ShearUnstableParameters{T} <: FreeParameters{12, T}
     CKE   :: T  # Unresolved turbulence parameter
 end
 
-Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{10, T}
+Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{8, T}
     CRi   :: T # Critical bulk Richardson number
     CKE   :: T # Unresolved kinetic energy constant
     CNL   :: T # Non-local flux constant
@@ -95,8 +108,6 @@ Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{10, T}
     Cunst :: T # Unstable buoyancy flux parameter for wind-driven turbulence
     Cb_U  :: T # Buoyancy flux parameter for convective turbulence
     Cb_T  :: T # Buoyancy flux parameter for convective turbulence
-    Cd_U  :: T # Wind mixing regime threshold for momentum
-    Cd_T  :: T # Wind mixing regime threshold for tracers
 end
 
 function DefaultFreeParameters(freeparamtype)

@@ -71,7 +71,7 @@ version = "0.5.1"
 
 [[Dao]]
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "ef415452453f1361040a5e5cf9faec19bf8c827c"
+git-tree-sha1 = "fa274264e77f411e8f2a9fcd8f359995f4d7f28c"
 repo-rev = "markov-abstractions"
 repo-url = "https://github.com/glwagner/Dao.jl.git"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
@@ -199,7 +199,7 @@ version = "0.7.3"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Plots", "PyPlot", "Reexport", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "ba35625aba87df71236c4dfc5c30e579c54881df"
+git-tree-sha1 = "e83865dd59d2e44df908f4d7e71dc84201890332"
 repo-rev = "gotm-comparison"
 repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
