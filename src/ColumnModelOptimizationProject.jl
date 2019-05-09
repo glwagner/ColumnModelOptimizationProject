@@ -22,7 +22,7 @@ export
     ColumnData,
     target_times,
     initial_time,
-    ColumnModel,
+    ColumnModel ,
 
     # visualization.jl
     visualize_targets,
@@ -30,6 +30,7 @@ export
 
     # loss_functions.jl
     temperature_loss,
+    velocity_loss,
     weighted_fields_loss,
 
     # models/kpp_optimization.jl
@@ -38,6 +39,7 @@ export
 using
     StaticArrays,
     OceanTurb,
+    OceanTurb.Plotting,
     JLD2,
     PyCall,
     Printf,
