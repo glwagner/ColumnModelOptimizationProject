@@ -73,7 +73,7 @@ version = "0.5.1"
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
 git-tree-sha1 = "ef415452453f1361040a5e5cf9faec19bf8c827c"
 repo-rev = "markov-abstractions"
-repo-url = "/Users/gregorywagner/Projects/Dao.jl"
+repo-url = "https://github.com/glwagner/Dao.jl.git"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
 version = "0.1.0"
 
