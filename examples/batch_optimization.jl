@@ -1,6 +1,6 @@
 using Pkg; Pkg.activate("..")
 
-using PyPlot, Printf, Statistics, OceanTurb, Dao, 
+using PyPlot, Printf, Statistics, OceanTurb, Dao, JLD2,
         ColumnModelOptimizationProject, ColumnModelOptimizationProject.KPPOptimization
 
 model_N = 50
@@ -32,10 +32,8 @@ for case in cases
     ratios[case] = error_ratio
 end
 
-@show "Ratio of velocity error to temperature error" ratios
-
 # Normalize temperature error relative to velocity error
-weights = (1, 1, 10*round(Int, mean(values(ratios))/10), 0)
+@show weights = (1, 1, 10*round(Int, mean(values(ratios))/10), 0)
 
 # Build the batch of NLLs.
 nll = BatchedNegativeLogLikelihood(
@@ -46,29 +44,32 @@ nll = BatchedNegativeLogLikelihood(
 first_link = MarkovLink(nll, defaults)
 
 @show first_link.error
-nll.scale = first_link.error * 2
+nll.scale = first_link.error * 0.5
 
 std = DefaultStdFreeParameters(0.05, typeof(defaults))
 sampler = MetropolisSampler(NormalPerturbation(std))
 
-ninit = 10^3
-chain = MarkovChain(ninit, first_link, nll, sampler)
+dsave = 10^3
+chain = MarkovChain(dsave, first_link, nll, sampler)
 @show chain.acceptance 
 
-dsave = 10^3
 chainname = "perfect_batch_markov_chain"
 chainpath = "$chainname.jld2"
+
+isfile(chainpath) && rm(chainpath)
+
 @save chainpath chain
 
 tstart = time()
-for i = 1:10
+while true
     tint = @elapsed extend!(chain, dsave)
 
-    @sprintf("Tc: %.2f seconds. Elapsed wall time: %.4f minutes.", tint, (time() - tstart)/60)
-    println("Optimal parameters:")
-    @show chain[1].param
-    @show optimal(chain).param
-    @show chain[end].param
+    @printf("tᵢ: %.2f seconds. Elapsed wall time: %.4f minutes.\n", tint, (time() - tstart)/60)
+    @printf("First, optimal, and last links:\n")
+    println((chain[1].error, chain[1].param))
+    println((optimal(chain).error, optimal(chain).param))
+    println((chain[end].error, chain[end].param))
+    println(" ")
 
     println(status(chain))
 
