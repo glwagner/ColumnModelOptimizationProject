@@ -1,7 +1,5 @@
 using Oceananigans, Printf, PyPlot
 
-ConstantIsotropicDiffusivity = TurbulenceClosures.ConstantIsotropicDiffusivity
-
 include("utils.jl")
 
 removespine(side; ax=gca()) = ax.spines[side].set_visible(false)
@@ -12,7 +10,6 @@ function makeplot(axs, model)
     wb = model.velocities.w * model.tracers.T
     wc = model.velocities.w * model.tracers.S
      e = turbulent_kinetic_energy(model)
-    c² = fluctuation_variance(model.tracers.S)
      b = fluctuation(model.tracers.T)
 
     # Top row
@@ -73,12 +70,12 @@ end
 # 
 
 arch = CPU()
-@hascuda arch = GPU() # use GPU if it's available
+#@hascuda arch = GPU() # use GPU if it's available
 
 model = Model(
      arch = arch, 
-        N = (128,  1,   64), 
-        L = (300, 100, 100), 
+        N = (256,   1, 128), 
+        L = (200, 200, 100), 
   closure = ConstantIsotropicDiffusivity(ν=1e-4, κ=1e-4),
       eos = LinearEquationOfState(βS=0.),
 constants = PlanetaryConstants(f=0.)
@@ -94,9 +91,9 @@ Fu = 0.0
 
 # Temperature initial condition
 const dTdz = N² / (model.constants.g * model.eos.βT)
-const T₀₀, zᵐ, δᵐ = 20, -10, 2 # deg C
+const T₀₀, h₀, δₕ = 20, -10, 2 # deg C
 
-T₀★(z) = T₀₀ + dTdz * z * step(z-zᵐ, δᵐ) 
+T₀★(z) = T₀₀ + dTdz * (z+h₀+δₕ) * step(z+h₀, δₕ) 
 
 # Add a bit of surface-concentrated noise to the initial condition
 ξ(z) = 1e-1 * rand() * exp(10z/model.grid.Lz) 
@@ -111,17 +108,10 @@ const zˢ = -8 * model.grid.Lz / 10
 @inline step(z, δ) = (1 - tanh(z/δ)) / 2
 @inline μ(z) = μ₀ * step(z-zˢ, δˢ) # sponge function
 
-Base.@propagate_inbounds Fuˢ(grid, u, v, w, T, S, i, j, k) = 
-    -μ(grid.zC[k]) * u[i, j, k]
-
-Base.@propagate_inbounds Fvˢ(grid, u, v, w, T, S, i, j, k) = 
-    -μ(grid.zC[k]) * v[i, j, k]
-
-Base.@propagate_inbounds Fwˢ(grid, u, v, w, T, S, i, j, k) = 
-    -μ(grid.zC[k]) * w[i, j, k]
-
-Base.@propagate_inbounds FTˢ(grid, u, v, w, T, S, i, j, k) = 
-    μ(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
+@inline Fuˢ(grid, u, v, w, T, S, i, j, k) = @inbounds -μ(grid.zC[k]) * u[i, j, k] 
+@inline Fvˢ(grid, u, v, w, T, S, i, j, k) = @inbounds -μ(grid.zC[k]) * v[i, j, k]
+@inline Fwˢ(grid, u, v, w, T, S, i, j, k) = @inbounds -μ(grid.zC[k]) * w[i, j, k]
+@inline FTˢ(grid, u, v, w, T, S, i, j, k) = @inbounds  μ(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
 
 # Passive tracer initial condition and forcing
 const δ = model.grid.Lz/6
@@ -175,7 +165,7 @@ cp = 3993.0
 
 for i = 1:100
     Δt = safe_Δt(model, αu, αν)
-    walltime = @elapsed time_step!(model, 1000, Δt)
+    walltime = @elapsed time_step!(model, 1, Δt)
 
     makeplot(axs, model)
 
