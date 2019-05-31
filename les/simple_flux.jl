@@ -2,94 +2,6 @@ using Oceananigans, Printf, PyPlot
 
 include("utils.jl")
 
-removespine(side; ax=gca()) = ax.spines[side].set_visible(false)
-removespines(sides...; ax=gca()) = [removespine(side, ax=ax) for side in sides]
-usecmbright()
-
-match_yaxes!(ax1, ax2) = nothing
-
-#=
-function match_yaxes!(ax1, ax2)
-    pos1 = ax1.get_position()
-    pos2 = ax2.get_position()
-    pos1[2] = pos2[2]
-    pos1[4] = pos2[4]
-    ax1.set_positition(pos1)
-    return nothing
-end
-=#
-
-function makeplot(axs, model)
-
-    wb = model.velocities.w * model.tracers.T
-    wc = model.velocities.w * model.tracers.S
-     e = turbulent_kinetic_energy(model)
-     b = fluctuation(model.tracers.T)
-
-    # Top row
-    sca(axs[1, 1])
-    cla()
-    plot_xzslice(e, cmap="YlGnBu_r")
-    title(L"e")
-
-    sca(axs[1, 2])
-    cla()
-    plot_hmean(e)
-    removespines("left", "top")
-    axs[1, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    ylim(-model.grid.Lz, 0)
-    title(L"\bar{e}")
-
-    match_yaxes!(axs[1, 2], axs[1, 1])
-
-    # Middle row
-    sca(axs[2, 1])
-    cla()
-    plot_xzslice(b, cmap="RdBu_r")
-    title(L"b")
-
-    sca(axs[2, 2])
-    cla()
-    plot_hmean(model.velocities.u)
-    plot_hmean(model.velocities.v)
-    removespines("left", "top")
-    axs[2, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    ylim(-model.grid.Lz, 0)
-    title(L"U, V")
-
-    match_yaxes!(axs[2, 2], axs[2, 1])
-
-    # Bottom row
-    sca(axs[3, 1])
-    cla()
-    plot_xzslice(wc, cmap="RdBu_r")
-    title(L"wc")
-
-    sca(axs[3, 2])
-    cla()
-    plot_hmean(model.tracers.T, normalize=true, label=L"T")
-    plot_hmean(model.tracers.S, normalize=true, label=L"C")
-    plot_hmean(wb, normalize=true, label=L"\overline{wb}")
-    removespines("left", "top")
-    xlim(-1, 1)
-    ylim(-model.grid.Lz, 0)
-    axs[3, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    title(L"T, S, \overline{wb}")
-    legend()
-
-    match_yaxes!(axs[3, 2], axs[3, 1])
-
-    for ax in axs[1:3, 1]
-        ax.axis("off")
-        ax.set_aspect(1)
-        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
-    end
-
-    tight_layout()
-
-    return nothing
-end
-
 # 
 # Model setup
 # 
@@ -99,9 +11,9 @@ arch = CPU()
 
 model = Model(
      arch = arch, 
-        N = (128, 128, 64), 
-        L = (128, 128, 64), 
-  closure = ConstantIsotropicDiffusivity(ν=1e-4, κ=1e-4),
+        N = (64, 64, 32), 
+        L = (32, 32, 16), 
+  closure = ConstantIsotropicDiffusivity(ν=1e-5, κ=1e-5),
       eos = LinearEquationOfState(βS=0.),
 constants = PlanetaryConstants(f=1e-4)
 )
@@ -111,9 +23,9 @@ constants = PlanetaryConstants(f=1e-4)
 #
 
 N² = 1e-8
-Fb = 1e-9
-Fu = -1e-6
-filename = "weak_winds"
+Fb = 5e-9
+Fu = 0.0 #-1e-6
+filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Nz%d_nu%.0e", Fb, Fu, model.grid.Nz, model.closure.ν)
 
 # Temperature initial condition
 const dTdz = N² / (model.constants.g * model.eos.βT)
@@ -126,7 +38,7 @@ T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * step(z+h₀, δh)
 T₀(x, y, z) = T₀★(z) + dTdz*model.grid.Lz * ξ(z)
 
 # Sponges
-const μ₀ = 10 * Fb / N² / model.grid.Lz^2
+const μ₀ = 1e-1 * Fb / N² / model.grid.Lz^2
 const δˢ = model.grid.Lz / 10
 const zˢ = -9 * model.grid.Lz / 10
 
@@ -182,8 +94,8 @@ w(model)  = Array(data(model.velocities.w))
 c(model)  = Array(data(model.tracers.S))
 
 U(model)  = havg(model.velocities.u)
-V(model)  = havg(model.velocities.u)
-W(model)  = havg(model.velocities.u)
+V(model)  = havg(model.velocities.v)
+W(model)  = havg(model.velocities.w)
 T(model)  = havg(model.tracers.T)
 C(model)  = havg(model.tracers.S)
 e(model)  = havg(turbulent_kinetic_energy(model))
@@ -192,10 +104,12 @@ wT(model) = havg(model.velocities.w * model.tracers.T)
 profiles = Dict(:U=>U, :V=>V, :W=>W, :T=>T, :C=>C, :e=>e, :wT=>wT)
   fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :c=>c)
 
-profile_writer = JLD2OutputWriter(model, profiles; dir="data", prefix=filename*"_profiles", 
+profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
+                                  prefix=filename(model)*"_profiles", 
                                   init=savebcs, frequency=100, force=true)
                                   
-field_writer = JLD2OutputWriter(model, fields; dir="data", prefix=filename*"_fields", 
+field_writer = JLD2OutputWriter(model, fields; dir="data", 
+                                prefix=filename(model)*"_fields", 
                                 init=savebcs, frequency=1000, force=true)
 
 push!(model.output_writers, profile_writer, field_writer)
@@ -226,7 +140,7 @@ cp = 3993.0
 )
 
 # Sensible initial time-step
-αν = 1e-2
+αν = 2e-2
 αu = 1e-1
 
 for i = 1:100

@@ -1,5 +1,98 @@
 using Plots, Oceananigans, Statistics, OceananigansAnalysis, JLD2
 
+removespine(side; ax=gca()) = ax.spines[side].set_visible(false)
+removespines(sides...; ax=gca()) = [removespine(side, ax=ax) for side in sides]
+usecmbright()
+
+match_yaxes!(ax1, ax2) = nothing
+
+#=
+function match_yaxes!(ax1, ax2)
+    pos1 = ax1.get_position()
+    pos2 = ax2.get_position()
+    pos1[2] = pos2[2]
+    pos1[4] = pos2[4]
+    ax1.set_positition(pos1)
+    return nothing
+end
+=#
+
+function makeplot(axs, model)
+
+    wb = model.velocities.w * model.tracers.T
+    wc = model.velocities.w * model.tracers.S
+     e = turbulent_kinetic_energy(model)
+     b = fluctuation(model.tracers.T)
+     @. b.data *= model.constants.g * model.eos.βT
+
+     bmax = maxabs(b)
+     emax = maxabs(e)
+    wcmax = maxabs(wc)
+
+    # Top row
+    sca(axs[1, 1])
+    cla()
+    plot_xzslice(e, cmap="YlGnBu_r", vmin=-emax, vmax=emax)
+    title(L"e")
+
+    sca(axs[1, 2])
+    cla()
+    plot_hmean(e)
+    removespines("left", "top")
+    axs[1, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    ylim(-model.grid.Lz, 0)
+    title(L"\bar{e}")
+
+    match_yaxes!(axs[1, 2], axs[1, 1])
+
+    # Middle row
+    sca(axs[2, 1])
+    cla()
+    plot_xzslice(b, cmap="RdBu_r", vmin=-bmax, vmax=bmax)
+    title(L"b")
+
+    sca(axs[2, 2])
+    cla()
+    plot_hmean(model.velocities.u)
+    plot_hmean(model.velocities.v)
+    removespines("left", "top")
+    axs[2, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    ylim(-model.grid.Lz, 0)
+    title(L"U, V")
+
+    match_yaxes!(axs[2, 2], axs[2, 1])
+
+    # Bottom row
+    sca(axs[3, 1])
+    cla()
+    plot_xzslice(wc, cmap="RdBu_r", vmin=-wcmax, vmax=wcmax)
+    title(L"wc")
+
+    sca(axs[3, 2])
+    cla()
+    plot_hmean(model.tracers.T, normalize=true, label=L"T")
+    plot_hmean(model.tracers.S, normalize=true, label=L"C")
+    plot_hmean(wb, normalize=true, label=L"\overline{wb}")
+    removespines("left", "top")
+    xlim(-1, 1)
+    ylim(-model.grid.Lz, 0)
+    axs[3, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    title(L"T, S, \overline{wb}")
+    legend()
+
+    match_yaxes!(axs[3, 2], axs[3, 1])
+
+    for ax in axs[1:3, 1]
+        ax.axis("off")
+        ax.set_aspect(1)
+        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
+    end
+
+    tight_layout()
+
+    return nothing
+end
+
 cfl(Δt, model) = Δt * Umax(model) / Δmin(model.grid)
 
 function safe_Δt(model, αu, αν=0.01)
