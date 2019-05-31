@@ -13,7 +13,7 @@ model = Model(
      arch = arch, 
         N = (64, 64, 32) .* 4, 
         L = (32, 32, 16) .* 4, 
-  closure = ConstantIsotropicDiffusivity(ν=1e-4, κ=1e-4),
+  closure = ConstantIsotropicDiffusivity(ν=5e-5, κ=5e-5),
       eos = LinearEquationOfState(βS=0.),
 constants = PlanetaryConstants(f=1e-4)
 )
