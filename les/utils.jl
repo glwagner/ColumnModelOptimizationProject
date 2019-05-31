@@ -25,14 +25,13 @@ function makeplot(axs, model)
      b = fluctuation(model.tracers.T)
      @. b.data *= model.constants.g * model.eos.βT
 
+     wmax = maxabs(model.velocities.w)
      bmax = maxabs(b)
-     emax = maxabs(e)
-    wcmax = maxabs(wc)
 
     # Top row
     sca(axs[1, 1])
     cla()
-    plot_xzslice(e, cmap="YlGnBu_r", vmin=-emax, vmax=emax)
+    plot_xzslice(e, cmap="YlGnBu_r")
     title(L"e")
 
     sca(axs[1, 2])
@@ -65,14 +64,15 @@ function makeplot(axs, model)
     # Bottom row
     sca(axs[3, 1])
     cla()
-    plot_xzslice(wc, cmap="RdBu_r", vmin=-wcmax, vmax=wcmax)
-    title(L"wc")
+    plot_xzslice(model.velocities.w, cmap="RdBu_r", vmin=-wmax, vmax=wmax)
+    title(L"w")
 
     sca(axs[3, 2])
     cla()
     plot_hmean(model.tracers.T, normalize=true, label=L"T")
     plot_hmean(model.tracers.S, normalize=true, label=L"C")
     plot_hmean(wb, normalize=true, label=L"\overline{wb}")
+    plot_hmean(wc, normalize=true, label=L"\overline{wc}")
     removespines("left", "top")
     xlim(-1, 1)
     ylim(-model.grid.Lz, 0)
@@ -87,8 +87,6 @@ function makeplot(axs, model)
         ax.set_aspect(1)
         ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
     end
-
-    tight_layout()
 
     return nothing
 end

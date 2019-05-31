@@ -12,7 +12,7 @@ arch = CPU()
 model = Model(
      arch = arch, 
         N = (64, 64, 32), 
-        L = (32, 32, 16), 
+        L = (32, 32, 16) .* 2, 
   closure = ConstantIsotropicDiffusivity(ν=1e-5, κ=1e-5),
       eos = LinearEquationOfState(βS=0.),
 constants = PlanetaryConstants(f=1e-4)
@@ -23,7 +23,7 @@ constants = PlanetaryConstants(f=1e-4)
 #
 
 N² = 1e-8
-Fb = 5e-9
+Fb = 2.5e-9
 Fu = 0.0 #-1e-6
 filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Nz%d_nu%.0e", Fb, Fu, model.grid.Nz, model.closure.ν)
 
@@ -38,7 +38,7 @@ T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * step(z+h₀, δh)
 T₀(x, y, z) = T₀★(z) + dTdz*model.grid.Lz * ξ(z)
 
 # Sponges
-const μ₀ = 1e-1 * Fb / N² / model.grid.Lz^2
+const μ₀ = 1e-1 * (Fb / model.grid.Lz^2)^(1/3)
 const δˢ = model.grid.Lz / 10
 const zˢ = -9 * model.grid.Lz / 10
 
@@ -145,7 +145,7 @@ cp = 3993.0
 
 for i = 1:100
     Δt = safe_Δt(model, αu, αν)
-    walltime = @elapsed time_step!(model, 100, Δt)
+    walltime = @elapsed time_step!(model, 10, Δt)
 
     makeplot(axs, model)
 
