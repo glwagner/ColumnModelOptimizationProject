@@ -11,9 +11,9 @@ arch = CPU()
 
 model = Model(
      arch = arch, 
-        N = (64, 64, 32), 
-        L = (32, 32, 16) .* 2, 
-  closure = ConstantIsotropicDiffusivity(ν=1e-5, κ=1e-5),
+        N = (64, 64, 32) .* 4, 
+        L = (32, 32, 16) .* 4, 
+  closure = ConstantIsotropicDiffusivity(ν=1e-4, κ=1e-4),
       eos = LinearEquationOfState(βS=0.),
 constants = PlanetaryConstants(f=1e-4)
 )
@@ -23,15 +23,16 @@ constants = PlanetaryConstants(f=1e-4)
 #
 
 N² = 1e-8
-Fb = 2.5e-9
+Fb = 5e-10
 Fu = 0.0 #-1e-6
-filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Nz%d_nu%.0e", Fb, Fu, model.grid.Nz, model.closure.ν)
+filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d_nu%.0e", 
+                           Fb, Fu, model.grid.Lz, model.grid.Nz, model.closure.ν)
 
 # Temperature initial condition
 const dTdz = N² / (model.constants.g * model.eos.βT)
-const T₀₀, h₀, δh = 20, -5, 2 # deg C
+const T₀₀, h₀, δh = 20, 5, 2 # deg C
 
-T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * step(z+h₀, δh) 
+T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * step(z+h₀, δh)
 
 # Add a bit of surface-concentrated noise to the initial condition
 ξ(z) = 1e-1 * rand() * exp(10z/model.grid.Lz) 
@@ -57,17 +58,19 @@ const ν = model.closure.ν
 const λ = ν / δ^2
 const c₀₀ = 1
 
-c₀(x, y, z) = c₀₀ * exp(z/δ) 
+c₀(x, y, z) = c₀₀ * (1 + z/model.grid.Lz) #exp(z/δ) 
 ν_∂z²_c★(z) = ν/δ^2 * c₀(0, 0, z)
 
 #
 # Set passive tracer forcing, boundary conditions and initial conditions
 #
 
-Fc(grid, u, v, w, T, S, i, j, k) = @inbounds -ν_∂z²_c★(grid.zC[k])
-model.forcing = Forcing(Fu=Fuˢ, Fv=Fvˢ, Fw=Fwˢ, FT=FTˢ, FS=Fc)
+#Fc(grid, u, v, w, T, S, i, j, k) = @inbounds -ν_∂z²_c★(grid.zC[k])
+#model.forcing = Forcing(Fu=Fuˢ, Fv=Fvˢ, Fw=Fwˢ, FT=FTˢ, FS=Fc)
+model.forcing = Forcing(Fu=Fuˢ, Fv=Fvˢ, Fw=Fwˢ, FT=FTˢ) #, FS=Fc)
 
-model.boundary_conditions.T.z.top    = BoundaryCondition(Flux, Fb)
+Fθ = Fb / (model.constants.g * model.eos.βT)
+model.boundary_conditions.T.z.top    = BoundaryCondition(Flux, Fθ)
 model.boundary_conditions.T.z.bottom = BoundaryCondition(Gradient, dTdz)
 model.boundary_conditions.S.z.top    = BoundaryCondition(Value, c₀₀)
 model.boundary_conditions.S.z.bottom = BoundaryCondition(Value, 0)
@@ -140,12 +143,19 @@ cp = 3993.0
 )
 
 # Sensible initial time-step
-αν = 2e-2
-αu = 1e-1
+αν = 1e-2
+αu = 5e-1
 
+# spinup
 for i = 1:100
     Δt = safe_Δt(model, αu, αν)
-    walltime = @elapsed time_step!(model, 10, Δt)
+    walltime = @elapsed time_step!(model, 1, Δt)
+end
+
+# main loop
+for i = 1:100
+    Δt = safe_Δt(model, αu, αν)
+    walltime = @elapsed time_step!(model, 20, Δt)
 
     makeplot(axs, model)
 
