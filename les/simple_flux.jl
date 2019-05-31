@@ -99,9 +99,9 @@ arch = CPU()
 
 model = Model(
      arch = arch, 
-        N = (256,   1, 128), 
-        L = (200, 200, 100), 
-  closure = ConstantIsotropicDiffusivity(ν=2e-4, κ=2e-4),
+        N = (128, 128, 64), 
+        L = (128, 128, 64), 
+  closure = ConstantIsotropicDiffusivity(ν=1e-4, κ=1e-4),
       eos = LinearEquationOfState(βS=0.),
 constants = PlanetaryConstants(f=1e-4)
 )
@@ -110,9 +110,10 @@ constants = PlanetaryConstants(f=1e-4)
 # Initial condition, boundary condition, and tracer forcing
 #
 
-N² = 1e-10
-Fb = 5e-9
+N² = 1e-8
+Fb = 1e-9
 Fu = -1e-6
+filename = "weak_winds"
 
 # Temperature initial condition
 const dTdz = N² / (model.constants.g * model.eos.βT)
@@ -174,6 +175,12 @@ function savebcs(file, model)
     return nothing
 end
 
+u(model)  = Array(data(model.velocities.u))
+v(model)  = Array(data(model.velocities.v))
+w(model)  = Array(data(model.velocities.w))
+θ(model)  = Array(data(model.tracers.T))
+c(model)  = Array(data(model.tracers.S))
+
 U(model)  = havg(model.velocities.u)
 V(model)  = havg(model.velocities.u)
 W(model)  = havg(model.velocities.u)
@@ -182,12 +189,16 @@ C(model)  = havg(model.tracers.S)
 e(model)  = havg(turbulent_kinetic_energy(model))
 wT(model) = havg(model.velocities.w * model.tracers.T)
 
-outputs = Dict(:U=>U, :V=>V, :W=>W, :T=>T, :C=>C, :e=>e, :wT=>wT)
+profiles = Dict(:U=>U, :V=>V, :W=>W, :T=>T, :C=>C, :e=>e, :wT=>wT)
+  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :c=>c)
 
-jld2_writer = JLD2OutputWriter(model, outputs; dir="data", prefix="test", init=savebcs, 
-                               frequency=1000, force=true)
+profile_writer = JLD2OutputWriter(model, profiles; dir="data", prefix=filename*"_profiles", 
+                                  init=savebcs, frequency=100, force=true)
+                                  
+field_writer = JLD2OutputWriter(model, fields; dir="data", prefix=filename*"_fields", 
+                                init=savebcs, frequency=1000, force=true)
 
-push!(model.output_writers, jld2_writer)
+push!(model.output_writers, profile_writer, field_writer)
 
 gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
 fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(8, 10), gridspec_kw=gridspec)
