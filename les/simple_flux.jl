@@ -6,8 +6,8 @@ include("utils.jl")
 # Initial condition, boundary condition, and tracer forcing
 #
 
-N² = 1e-6
-Fb = 1e-16
+N² = 1e-8
+Fb = 1e-10
 Fu = -0.0 #1e-6
  g = 9.81
 βT = 2e-4
@@ -33,6 +33,8 @@ ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     bottom = DefaultBC()
    ))
 
+@inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
+
 #
 # Sponges and forcing
 #
@@ -43,7 +45,6 @@ const δˢ = model.grid.Lz / 10
 const zˢ = -9 * model.grid.Lz / 10
 
 "A step function which is 0 above z=0 and 1 below."
-@inline step(z, δ) = (1 - tanh(z/δ)) / 2
 @inline μ(z) = μ₀ * step(z-zˢ, δˢ) # sponge function
 
 @inline Fuˢ(grid, u, v, w, T, S, i, j, k) = 
@@ -84,7 +85,7 @@ filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d",
 
 # Temperature initial condition
 
-T₀★(z) = T₀₀ + dTdz * z #(z+h₀+δh) * step(z+h₀, δh)
+T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * smoothstep(z+h₀, δh)
 
 # Add a bit of surface-concentrated noise to the initial condition
 ξ(z) = 1e-1 * rand() * exp(10z/model.grid.Lz) 
