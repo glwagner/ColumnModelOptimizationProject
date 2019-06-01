@@ -6,21 +6,9 @@ usecmbright()
 
 match_yaxes!(ax1, ax2) = nothing
 
-#=
-function match_yaxes!(ax1, ax2)
-    pos1 = ax1.get_position()
-    pos2 = ax2.get_position()
-    pos1[2] = pos2[2]
-    pos1[4] = pos2[4]
-    ax1.set_positition(pos1)
-    return nothing
-end
-=#
-
 function makeplot(axs, model)
 
     wb = model.velocities.w * model.tracers.T
-    wc = model.velocities.w * model.tracers.S
      e = turbulent_kinetic_energy(model)
      b = fluctuation(model.tracers.T)
      @. b.data *= model.constants.g * model.eos.βT
@@ -57,7 +45,6 @@ function makeplot(axs, model)
     removespines("left", "top")
     axs[2, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
     ylim(-model.grid.Lz, 0)
-    title(L"U, V")
 
     match_yaxes!(axs[2, 2], axs[2, 1])
 
@@ -70,14 +57,11 @@ function makeplot(axs, model)
     sca(axs[3, 2])
     cla()
     plot_hmean(model.tracers.T, normalize=true, label=L"T")
-    plot_hmean(model.tracers.S, normalize=true, label=L"C")
     plot_hmean(wb, normalize=true, label=L"\overline{wb}")
-    plot_hmean(wc, normalize=true, label=L"\overline{wc}")
     removespines("left", "top")
     xlim(-1, 1)
     ylim(-model.grid.Lz, 0)
     axs[3, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    title(L"T, S, \overline{wb}")
     legend()
 
     match_yaxes!(axs[3, 2], axs[3, 1])
@@ -93,9 +77,12 @@ end
 
 cfl(Δt, model) = Δt * Umax(model) / Δmin(model.grid)
 
+get_ν(c::ConstantSmagorinsky) = c.ν_background
+get_ν(c) = c.ν
+
 function safe_Δt(model, αu, αν=0.01)
     τu = Δmin(model.grid) / Umax(model)
-    τν = Δmin(model.grid)^2 / model.closure.ν
+    τν = Δmin(model.grid)^2 / get_ν(model.closure)
 
     return min(αν*τν, αu*τu)
 end
