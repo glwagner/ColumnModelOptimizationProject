@@ -7,7 +7,7 @@ include("utils.jl")
 #
 
 N² = 1e-6
-Fb = 1e-9
+Fb = 1e-16
 Fu = -0.0 #1e-6
  g = 9.81
 βT = 2e-4
@@ -70,10 +70,10 @@ arch = CPU()
 
 model = Model(
      arch = arch, 
-        N = (64, 64, 32) .* 2, 
-        L = (64, 64, 32) .* 2, 
+        N = (32, 32, 32) .* 2, 
+        L = (32, 32, 32) .* 1, 
   #closure = ConstantIsotropicDiffusivity(ν=2e-4, κ=2e-4),
-  closure = ConstantSmagorinsky(Cs=0.2, Cb=10.0, ν_background=1e-6, κ_background=1e-6),
+  closure = ConstantSmagorinsky(Cs=0.2, Cb=1.0, ν_background=1e-6, κ_background=1e-6),
       eos = LinearEquationOfState(βT=βT, βS=0.),
 constants = PlanetaryConstants(f=1e-4, g=g),
       bcs = BoundaryConditions(u=ubcs, T=Tbcs, S=cbcs)
@@ -161,7 +161,7 @@ cp = 3993.0
 
 # Sensible initial time-step
 αν = 1e-2
-αu = 5e-1
+αu = 1e-2
 
 # Spinup
 for i = 1:100
