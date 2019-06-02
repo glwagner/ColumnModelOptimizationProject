@@ -1,9 +1,12 @@
+using Distributed
+
 using JLD2
 
 mutable struct JLD2OutputWriter{O} <: OutputWriter
             filepath :: String
              outputs :: O
     output_frequency :: Int
+        asynchronous :: Bool
 end
 
 function savesubstruct!(file, model, name, flds=propertynames(getproperty(model, name)))
@@ -13,18 +16,10 @@ function savesubstruct!(file, model, name, flds=propertynames(getproperty(model,
     return nothing
 end
 
-function saveoutputs!(file, model, outputs)
-    i = model.clock.iteration
-    file["timeseries/t/$i"] = model.clock.time
-    for (o, f) in outputs
-        file["timeseries/$o/$i"] = f(model)
-    end
-    return nothing
-end
-
 noinit(args...) = nothing
 
-function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=noinit, force=false)
+function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=noinit, force=false,
+                          asynchronous=false)
     mkpath(dir)
     filepath = joinpath(dir, prefix*".jld2")
     force && isfile(filepath) && rm(filepath, force=true)
@@ -35,16 +30,34 @@ function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=
         savesubstruct!(file, model, :constants)
         savesubstruct!(file, model, :closure)
     end
-    return JLD2OutputWriter(filepath, outputs, frequency)
+    return JLD2OutputWriter(filepath, outputs, frequency, asynchronous)
 end
 
 function Oceananigans.write_output(model, fw::JLD2OutputWriter)
     @info @sprintf("Writing JLD2 output %s to %s...", keys(fw.outputs), fw.filepath)
-    @time begin
-        jldopen(fw.filepath, "r+") do file
-            saveoutputs!(file, model, fw.outputs)
+
+    data = Dict((name, f(model) for (name, f) in fw.outputs))
+    iter = model.clock.iteration
+    time = model.clock.time
+    path = fw.fiilepath
+
+    if fw.asynchronous
+        @async remotecall(jld2output!, 2, path, iter, time, data)
+    else
+        jld2output!(path, iter, time, data)
+    end
+end
+
+function jld2output!(filepath, iter, time, data)
+    jldopen(filepath, "r+") do file
+        file["timeseries/t/$iter"] = time
+        for (name, datum) in data
+            file["timeseries/$name/$iter"] = datum
         end
     end
     return nothing
 end
+
+
+    
 

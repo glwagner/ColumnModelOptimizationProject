@@ -6,7 +6,41 @@ removespine(side; ax=gca()) = ax.spines[side].set_visible(false)
 removespines(sides...; ax=gca()) = [removespine(side, ax=ax) for side in sides]
 usecmbright()
 
-match_yaxes!(ax1, ax2) = nothing
+function match_yaxes!(ax1, ax2)
+
+    pos1 = [a for a in ax1.get_position().bounds]
+    pos2 = [a for a in ax2.get_position().bounds]
+
+    # Set y-position of pos1 to pos2
+    pos1[2] = pos2[2]
+    pos1[4] = pos2[4]
+
+    ax1.set_position(pos1)
+
+    return nothing
+end
+
+function nice_three_plots(axs)
+    # pcolor plots
+    for ax in axs[1:3, 1]
+        ax.axis("off")
+        ax.set_aspect(1)
+        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
+    end
+
+    # Right hand horizontal-mean plots
+    for (i, ax) in enumerate(axs[1:3, 2])
+        sca(ax)
+        ax.tick_params(left=false, labelleft=false, right=true, labelright=true,
+                       bottom=false, labelbottom=false)
+        removespines("left", "top", "bottom")
+        ylim(-model.grid.Lz, 0)
+        ax.yaxis.set_label_position("right")
+        ylabel(L"z")
+        match_yaxes!(ax, axs[i, 2])
+    end
+    return nothing
+end
 
 function makeplot(axs, model)
 
@@ -27,12 +61,7 @@ function makeplot(axs, model)
     sca(axs[1, 2])
     cla()
     plot_hmean(e)
-    removespines("left", "top")
-    axs[1, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    ylim(-model.grid.Lz, 0)
     title(L"\bar{e}")
-
-    match_yaxes!(axs[1, 2], axs[1, 1])
 
     # Middle row
     sca(axs[2, 1])
@@ -44,11 +73,6 @@ function makeplot(axs, model)
     cla()
     plot_hmean(model.velocities.u)
     plot_hmean(model.velocities.v)
-    removespines("left", "top")
-    axs[2, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    ylim(-model.grid.Lz, 0)
-
-    match_yaxes!(axs[2, 2], axs[2, 1])
 
     # Bottom row
     sca(axs[3, 1])
@@ -60,20 +84,11 @@ function makeplot(axs, model)
     cla()
     plot_hmean(model.tracers.T, normalize=true, label=L"T")
     plot_hmean(wb, normalize=true, label=L"\overline{wb}")
-    removespines("left", "top")
     xlim(-1, 1)
-    ylim(-model.grid.Lz, 0)
-    axs[3, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
     legend()
 
-    match_yaxes!(axs[3, 2], axs[3, 1])
-
-    for ax in axs[1:3, 1]
-        ax.axis("off")
-        ax.set_aspect(1)
-        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
-    end
-
+    nice_three_plots(axs)
+    
     return nothing
 end
 
@@ -201,11 +216,11 @@ end
 
 function channelplot(axs, model)
 
-     e = turbulent_kinetic_energy(model)
+    e = turbulent_kinetic_energy(model)
 
-     umax = maxabs(model.velocities.u)
-     wmax = maxabs(model.velocities.w)
-     cmax = maxabs(model.tracers.S)
+    umax = maxabs(model.velocities.u)
+    wmax = maxabs(model.velocities.w)
+    cmax = maxabs(model.tracers.S)
 
     # Top row
     sca(axs[1, 1])
@@ -216,14 +231,8 @@ function channelplot(axs, model)
     sca(axs[1, 2])
     cla()
     plot_hmean(model.velocities.v, label=L"\bar v")
-    plot_hmean(model.velocities.w, label=L"\bar w")
-    #plot_hmean(e, label=L"\bar{e}")
-    removespines("left", "top")
-    axs[1, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    ylim(-model.grid.Lz, 0)
+    plot_hmean(√, e, label=L"\sqrt{\bar{e}}")
     legend()
-
-    match_yaxes!(axs[1, 2], axs[1, 1])
 
     # Middle row
     sca(axs[2, 1])
@@ -234,34 +243,20 @@ function channelplot(axs, model)
     sca(axs[2, 2])
     cla()
     plot_hmean(model.velocities.u)
-    removespines("left", "top")
-    axs[2, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    ylim(-model.grid.Lz, 0)
-
-    match_yaxes!(axs[2, 2], axs[2, 1])
 
     # Bottom row
     sca(axs[3, 1])
     cla()
-    plot_xzslice(model.tracers.S, cmap="RdBu_r", vmin=-cmax, vmax=cmax)
-    title(L"c")
+    plot_xzslice(model.velocities.w, cmap="RdBu_r", vmin=-wmax, vmax=wmax)
+    title(L"w")
 
     sca(axs[3, 2])
     cla()
-    plot_hmean(model.tracers.S, normalize=true, label=L"c")
-    removespines("left", "top")
+    plot_hmean(model.tracers.T, normalize=true, label=L"b")
     xlim(-1, 1)
-    ylim(-model.grid.Lz, 0)
-    axs[3, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    legend()
+    xlabel(L"b")
 
-    match_yaxes!(axs[3, 2], axs[3, 1])
-
-    for ax in axs[1:3, 1]
-        ax.axis("off")
-        ax.set_aspect(1)
-        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
-    end
+    nice_three_plots(axs)
 
     return nothing
 end

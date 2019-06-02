@@ -6,9 +6,9 @@ include("utils.jl")
 # Initial condition, boundary condition, and tracer forcing
 #
 
-N² = 1e-8
-Fb = 1e-10
-Fu = -0.0 #1e-6
+N² = 1e-6
+Fb = 5e-9
+Fu = -1e-5
  g = 9.81
 βT = 2e-4
 
@@ -70,11 +70,12 @@ arch = CPU()
 #@hascuda arch = GPU() # use GPU if it's available
 
 model = Model(
-     arch = arch, 
-        N = (32, 32, 32) .* 2, 
-        L = (32, 32, 32) .* 1, 
+     arch = arch,
+        N = (128, 128, 256),
+        L = (1, 1, 2) .* 32, 
   #closure = ConstantIsotropicDiffusivity(ν=2e-4, κ=2e-4),
-  closure = ConstantSmagorinsky(Cs=0.2, Cb=1.0, ν_background=1e-6, κ_background=1e-6),
+  #closure = ConstantSmagorinsky(Cs=0.3, Cb=1.0, ν_background=1e-5, κ_background=1e-5),
+  closure = AnisotropicMinimumDissipation(C=0.3, ν_background=1e-5, κ_background=1e-5),
       eos = LinearEquationOfState(βT=βT, βS=0.),
 constants = PlanetaryConstants(f=1e-4, g=g),
       bcs = BoundaryConditions(u=ubcs, T=Tbcs, S=cbcs)
@@ -88,7 +89,7 @@ filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d",
 T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * smoothstep(z+h₀, δh)
 
 # Add a bit of surface-concentrated noise to the initial condition
-ξ(z) = 1e-1 * rand() * exp(10z/model.grid.Lz) 
+ξ(z) = 1e-1 * rand() * exp(4z/model.grid.Lz) 
 T₀(x, y, z) = T₀★(z) + dTdz*model.grid.Lz * ξ(z)
 c₀(x, y, z) = c₀₀ * (1 + z/model.grid.Lz)
 
@@ -98,7 +99,6 @@ set_ic!(model, T=T₀, S=c₀)
 # Output
 #
 
-#=
 function savebcs(file, model)
     file["bcs/Fb"] = Fb
     file["bcs/Fu"] = Fu
@@ -133,7 +133,6 @@ field_writer = JLD2OutputWriter(model, fields; dir="data",
                                 init=savebcs, frequency=1000, force=true)
 
 push!(model.output_writers, profile_writer, field_writer)
-=#
 
 gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
 fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(8, 10), gridspec_kw=gridspec)
@@ -162,7 +161,7 @@ cp = 3993.0
 
 # Sensible initial time-step
 αν = 1e-2
-αu = 1e-2
+αu = 1e-1
 
 # Spinup
 for i = 1:100
