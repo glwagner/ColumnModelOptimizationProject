@@ -1,7 +1,5 @@
 using Plots, Oceananigans, Statistics, OceananigansAnalysis
 
-include("flux_utils.jl")
-
 removespine(side; ax=gca()) = ax.spines[side].set_visible(false)
 removespines(sides...; ax=gca()) = [removespine(side, ax=ax) for side in sides]
 usecmbright()
@@ -113,8 +111,9 @@ function channelplot(axs, model)
     # Top row
     sca(axs[1, 1])
     cla()
-    plot_xzslice(e, cmap="YlGnBu_r")
-    title(L"e")
+    #plot_xzslice(e, cmap="YlGnBu_r")
+    plot_xzslice(log10, CellField(model.diffusivities.κₑ.T, model.grid), cmap="YlGnBu_r")
+    title(L"\log_\mathrm{10}(\kappa_{Te})")
 
     sca(axs[1, 2])
     cla()
@@ -136,13 +135,63 @@ function channelplot(axs, model)
     sca(axs[3, 1])
     cla()
     plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
-    title(L"log_\mathrm{10}(\nu_e)")
+    title(L"\log_\mathrm{10}(\nu_e)")
 
     sca(axs[3, 2])
     cla()
     plot_hmean(model.tracers.T, normalize=true, label=L"b")
     xlim(-1, 1)
     xlabel(L"b")
+
+    nice_three_plots(axs, model)
+
+    return nothing
+end
+
+
+function boundarylayerplot(axs, model)
+
+     e = turbulent_kinetic_energy(model)
+    T′ = fluctuation(model.tracers.T)
+    wT = model.velocities.w * model.tracers.T
+
+    umax = maxabs(model.velocities.u)
+    wmax = maxabs(model.velocities.w)
+    Tmax = maxabs(T′)
+
+    # Top row
+    sca(axs[1, 1])
+    cla()
+    plot_xzslice(model.velocities.w, cmap="RdBu_r", vmin=-wmax, vmax=wmax)
+    title(L"w")
+
+    sca(axs[1, 2])
+    cla()
+    plot_hmean(wT, normalize=true, label=L"\overline{wT}")
+
+    # Middle row
+    sca(axs[2, 1])
+    cla()
+    plot_xzslice(T′, cmap="RdBu_r", vmin=-Tmax, vmax=Tmax)
+    title(L"T'")
+
+    sca(axs[2, 2])
+    cla()
+    plot_hmean(model.tracers.T, normalize=true, label=L"T")
+
+    # Bottom row
+    sca(axs[3, 1])
+    cla()
+    plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
+    title(L"\log_\mathrm{10}(\nu_e)")
+
+    sca(axs[3, 2])
+    cla()
+    plot_hmean(model.velocities.u, label=L"\bar u")
+    plot_hmean(model.velocities.v, label=L"\bar v")
+    plot_hmean(√, e, label=L"\sqrt{\bar{e}}")
+    xlim(-1, 1)
+    legend()
 
     nice_three_plots(axs, model)
 
