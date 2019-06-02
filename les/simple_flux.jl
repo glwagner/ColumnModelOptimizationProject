@@ -74,8 +74,8 @@ model = Model(
         N = (128, 128, 256),
         L = (1, 1, 2) .* 32, 
   #closure = ConstantIsotropicDiffusivity(ν=2e-4, κ=2e-4),
-  #closure = ConstantSmagorinsky(Cs=0.3, Cb=1.0, ν_background=1e-5, κ_background=1e-5),
-  closure = AnisotropicMinimumDissipation(C=0.3, ν_background=1e-5, κ_background=1e-5),
+  #closure = ConstantSmagorinsky(Cs=0.3, Cb=1.0, ν=1e-5, κ=1e-5),
+  closure = AnisotropicMinimumDissipation(C=0.3, ν=1e-5, κ=1e-5),
       eos = LinearEquationOfState(βT=βT, βS=0.),
 constants = PlanetaryConstants(f=1e-4, g=g),
       bcs = BoundaryConditions(u=ubcs, T=Tbcs, S=cbcs)
