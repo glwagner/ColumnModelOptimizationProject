@@ -78,6 +78,7 @@ end
 cfl(Δt, model) = Δt * Umax(model) / Δmin(model.grid)
 
 get_ν(c::ConstantSmagorinsky) = c.ν_background
+get_ν(c::AnisotropicMinimumDissipation) = c.ν_background
 get_ν(c) = c.ν
 
 function safe_Δt(model, αu, αν=0.01)
@@ -253,3 +254,71 @@ function make_avg_temperature_profile_movie()
 
     mp4(animation, filename_prefix * "$(round(Int, time())).mp4", fps=30)
 end
+
+function channelplot(axs, model)
+
+     e = turbulent_kinetic_energy(model)
+
+     umax = maxabs(model.velocities.u)
+     wmax = maxabs(model.velocities.w)
+     cmax = maxabs(model.tracers.S)
+
+    # Top row
+    sca(axs[1, 1])
+    cla()
+    plot_xzslice(e, cmap="YlGnBu_r")
+    title(L"e")
+
+    sca(axs[1, 2])
+    cla()
+    plot_hmean(model.velocities.v, label=L"\bar v")
+    plot_hmean(model.velocities.w, label=L"\bar w")
+    #plot_hmean(e, label=L"\bar{e}")
+    removespines("left", "top")
+    axs[1, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    ylim(-model.grid.Lz, 0)
+    legend()
+
+    match_yaxes!(axs[1, 2], axs[1, 1])
+
+    # Middle row
+    sca(axs[2, 1])
+    cla()
+    plot_xzslice(model.velocities.u, cmap="RdBu_r", vmin=-umax, vmax=umax)
+    title(L"u")
+
+    sca(axs[2, 2])
+    cla()
+    plot_hmean(model.velocities.u)
+    removespines("left", "top")
+    axs[2, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    ylim(-model.grid.Lz, 0)
+
+    match_yaxes!(axs[2, 2], axs[2, 1])
+
+    # Bottom row
+    sca(axs[3, 1])
+    cla()
+    plot_xzslice(model.tracers.S, cmap="RdBu_r", vmin=-cmax, vmax=cmax)
+    title(L"c")
+
+    sca(axs[3, 2])
+    cla()
+    plot_hmean(model.tracers.S, normalize=true, label=L"c")
+    removespines("left", "top")
+    xlim(-1, 1)
+    ylim(-model.grid.Lz, 0)
+    axs[3, 2].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    legend()
+
+    match_yaxes!(axs[3, 2], axs[3, 1])
+
+    for ax in axs[1:3, 1]
+        ax.axis("off")
+        ax.set_aspect(1)
+        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
+    end
+
+    return nothing
+end
+
