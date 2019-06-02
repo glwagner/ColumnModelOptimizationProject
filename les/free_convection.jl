@@ -13,16 +13,17 @@ include("jld2_writer.jl")
 # Initial condition, boundary condition, and tracer forcing
 #
 
-N = 128
-L = 128
+ N = 128
+ L = 64
 N² = 1e-6
 Fb = 1e-9
 Fu = 0.0
  g = 9.81
 βT = 2e-4
 
-ν = 1e-5
-κ = 1e-5
+hour = 3600
+day = 24*hour
+tfinal = 8*day
 
 const dTdz = N² / (g * βT)
 const T₀₀ = 20.0
@@ -193,7 +194,7 @@ end
 
 @sync begin
     # Main loop
-    for i = 1:100
+    while model.clock.time < tfinal
         Δt = new_Δt(model, cfl)
         walltime = @elapsed time_step!(model, 100, Δt)
 

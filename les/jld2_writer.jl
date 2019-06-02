@@ -34,7 +34,7 @@ function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=
 end
 
 function Oceananigans.write_output(model, fw::JLD2OutputWriter)
-    @info @sprintf("Writing JLD2 output %s to %s...", keys(fw.outputs), fw.filepath)
+    @info @sprintf("Writing JLD2 output %s", keys(fw.outputs))
 
     data = Dict((name, f(model)) for (name, f) in fw.outputs)
     iter = model.clock.iteration
@@ -46,6 +46,8 @@ function Oceananigans.write_output(model, fw::JLD2OutputWriter)
     else
         jld2output!(path, iter, time, data)
     end
+
+    @info "Done writing."
 
     return nothing
 end

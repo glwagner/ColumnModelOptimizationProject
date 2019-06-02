@@ -14,26 +14,27 @@ end
 
 Base.@kwdef mutable struct CFLUtility{T}
            cfl :: T = 0.1
-            rν :: T = 2e-2
+          νcfl :: T = 2e-2
     max_change :: T = 2.0
     min_change :: T = 0.5
         max_Δt :: T = Inf
             Δt :: T = 1.0
 end
 
-function new_Δt(model, cfl_util)
-    new_Δt_u = cfl_util.cfl * Δmin(model.grid) / Umax(model)
-    new_Δt_ν = cfl_util.rν * Δmin(model.grid)^2 / model.closure.ν
+nan2inf(a) = isnan(a) ? Inf : a
 
-    if isnan(new_Δt)
-        new_Δt = cfl_util.Δt
-    end
+function new_Δt(model, util)
+    Δt_velocity = util.cfl * Δmin(model.grid) / Umax(model)
+    Δt_diffusivity = util.νcfl * Δmin(model.grid)^2 / max(model.closure.ν, model.closure.κ)
 
-    new_Δt = min(cfl_util.max_change * cfl_util.Δt, new_Δt)
-    new_Δt = max(cfl_util.min_change * cfl_util.Δt, new_Δt)
-    new_Δt = min(max_Δt, new_Δt)
+    Δt = min(nan2inf(Δt_velocity), 
+             nan2inf(Δt_diffusivity))
 
-    cfl_util.Δt = Δt
+    Δt = min(util.max_change * util.Δt, Δt)
+    Δt = max(util.min_change * util.Δt, Δt)
+    Δt = min(util.max_Δt, Δt)
+
+    util.Δt = Δt
 
     return Δt
 end

@@ -1,3 +1,5 @@
 *.nc
 *.ipynb_checkpoints
 *.swp
+les/data
+data/gcloud
