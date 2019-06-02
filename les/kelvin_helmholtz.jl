@@ -9,13 +9,13 @@ include("utils.jl")
 # Initial condition, boundary condition, and tracer forcing
 #
 
- N = 128
+ N = 192
  L = 1.0
- h = 0.02 * L
+ h = 0.05 * L
  R = 1.1
 ΔU = 1.0
-Ri = 0.2
-Re = 10^5
+Ri = 0.01
+Re = 10^6
 Pr = 1.0
 
 # Computed parameters
