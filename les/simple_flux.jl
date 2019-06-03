@@ -20,35 +20,35 @@ hour = 3600
 #
 # Initial condition, boundary condition, and tracer forcing
 #
+      Ny = 64
+      Ly = 64
 
-      Ny = 16
-      Ly = 32
-
-      Nx = 4Ny
-      Lx = 4Ly
-      Nz = 4Ny
-      Lz = 2Ly
+      Nx = 2Ny
+      Lx = 2Ly
+      Nz = 2Ny
+      Lz =  Ly
 
       Δx = Lx / Nx
       Δz = Lz / Nz
 
-  tfinal = 1*day
+  tfinal = 7*day
 
       N² = 1e-6
-const Fb = 0.0 #1e-9
-const Fu = -1e-4
+const Fb = 1e-9
+const Fu = 0.0 #-1e-4
 
-const T₀₀  = 20.0
-const c₀₀  = 1
-const kᵘ   = 2π / 4Δx   # wavelength of horizontal divergent surface flux
-const aᵘ   = 0.01       # relative amplitude of horizontal divergent surface flux
-const dδ = 5Δz          # momentum forcing smoothing scale
-const τˢ = 1000.0       # sponge damping timescale
-const δˢ = Lz / 10      # sponge layer width
-const zˢ = -Lz + δˢ     # sponge layer central depth
+const T₀₀ = 20.0
+const c₀₀ = 1
+const kᵘ  = 2π / 4Δx   # wavelength of horizontal divergent surface flux
+const aᵘ  = 0.01       # relative amplitude of horizontal divergent surface flux
+const dδu = 5Δz        # momentum forcing smoothing scale
+const dδθ = 3Δz        # buoyancy forcing smoothing scale
+const τˢ = 1000.0      # sponge damping timescale
+const δˢ = Lz / 10     # sponge layer width
+const zˢ = -Lz + δˢ    # sponge layer central depth
 
 # Buoyancy → temperature
-        Fθ = Fb / (g*βT)
+const Fθ   = Fb / (g*βT)
 const dTdz = N² / (g * βT)
 
 filename(model) = @sprintf(
@@ -63,7 +63,7 @@ cbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Flux, Fθ),
+    top    = DefaultBC(), #BoundaryCondition(Flux, Fθ),
     bottom = BoundaryCondition(Gradient, dTdz)
    ))
 
@@ -82,7 +82,8 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 c₀(x, y, z) = 1e-6 * Ξ(z)
 
 "A regularized delta function."
-@inline δ(z) = √(π) / (2dδ) * exp(-z^2 / (2dδ^2))
+@inline δu(z) = √(π) / (2dδu) * exp(-z^2 / (2dδu^2))
+@inline δθ(z) = √(π) / (2dδθ) * exp(-z^2 / (2dδθ^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
@@ -96,11 +97,11 @@ sponges with timescale τˢ.
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
 @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δ(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
+    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 # Relax bottom temperature field to background profile
 @inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
+    @inbounds -Fθ * δθ(grid.zC[k]) + sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
 
 # 
 # Model setup
@@ -167,7 +168,7 @@ push!(model.output_writers, profile_writer, field_writer)
 =#
 
 gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
-fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(8, 10), gridspec_kw=gridspec)
+fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(16, 10), gridspec_kw=gridspec)
 
 ρ₀ = 1035.0
 cp = 3993.0
