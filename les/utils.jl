@@ -158,6 +158,7 @@ function boundarylayerplot(axs, model)
     umax = maxabs(model.velocities.u)
     wmax = maxabs(model.velocities.w)
     Tmax = maxabs(T′)
+    #Tmax = maxabs(T′)
 
     # Top row
     sca(axs[1, 1])
@@ -173,6 +174,7 @@ function boundarylayerplot(axs, model)
     sca(axs[2, 1])
     cla()
     plot_xzslice(T′, cmap="RdBu_r", vmin=-Tmax, vmax=Tmax)
+    #plot_xzslice(model.tracers.T, cmap="YlGnBu")
     title(L"T'")
 
     sca(axs[2, 2])
@@ -190,7 +192,6 @@ function boundarylayerplot(axs, model)
     plot_hmean(model.velocities.u, label=L"\bar u")
     plot_hmean(model.velocities.v, label=L"\bar v")
     plot_hmean(√, e, label=L"\sqrt{\bar{e}}")
-    xlim(-1, 1)
     legend()
 
     nice_three_plots(axs, model)

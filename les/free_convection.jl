@@ -1,7 +1,7 @@
 using Distributed
 addprocs(1)
 
-@everywhere using Oceananigans, JLD2, Printf
+@everywhere using Oceananigans, JLD2, Printf, CUDAdrv, CUDAnative, CuArrays
 
 using Printf, PyPlot
 
