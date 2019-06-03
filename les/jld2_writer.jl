@@ -34,20 +34,22 @@ function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=
 end
 
 function Oceananigans.write_output(model, fw::JLD2OutputWriter)
-    @info @sprintf("Writing JLD2 output %s", keys(fw.outputs))
+    @info @sprintf("Collecting JLD2 output %s...", keys(fw.outputs))
 
-    data = Dict((name, f(model)) for (name, f) in fw.outputs)
+    @time data = Dict((name, f(model)) for (name, f) in fw.outputs)
+
     iter = model.clock.iteration
     time = model.clock.time
     path = fw.filepath
 
-    if fw.asynchronous
-        @async remotecall(jld2output!, 2, path, iter, time, data)
-    else
-        jld2output!(path, iter, time, data)
+    @info println("Writing JLD2 output...")
+    @time begin
+        if fw.asynchronous
+            @async remotecall(jld2output!, 2, path, iter, time, data)
+        else
+            jld2output!(path, iter, time, data)
+        end
     end
-
-    @info "Done writing."
 
     return nothing
 end

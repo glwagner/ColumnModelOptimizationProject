@@ -1,19 +1,32 @@
-using Oceananigans, Printf, PyPlot
+using Distributed
+addprocs(1)
+
+@everywhere using Oceananigans, JLD2, Printf, Distributions, Random
+
+using Printf, PyPlot
 
 include("utils.jl")
+include("cfl_util.jl")
+include("jld2_writer.jl")
 
 #
 # Initial condition, boundary condition, and tracer forcing
 #
 
-N² = 1e-6
-Fb = 5e-9
-Fu = -1e-5
+ N = 64
+ L = 16
+N² = 1e-8
+Fb = 0.0 #1e-9
+const Fu = -1e-4
  g = 9.81
 βT = 2e-4
 
+hour = 3600
+day = 24*hour
+tfinal = 1*day
+
 const dTdz = N² / (g * βT)
-const T₀₀, h₀, δh = 20, 5, 2 # deg C
+const T₀₀ = 20.0
 const c₀₀ = 1
 
 Fθ = Fb / (g*βT)
@@ -28,10 +41,12 @@ Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     bottom = BoundaryCondition(Gradient, dTdz)
    ))
 
+#=
 ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     top    = BoundaryCondition(Flux, Fu),
     bottom = DefaultBC()
    ))
+=#
 
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
 
@@ -59,8 +74,17 @@ const zˢ = -9 * model.grid.Lz / 10
 @inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
     @inbounds  μ(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
 
-forcing = Forcing(Fu=Fuˢ, Fv=Fvˢ, Fw=Fwˢ, FT=FTˢ) #, FS=Fc)
 =#
+
+Δ = L / 2N
+const dδ = 4Δ
+
+@inline δ(z) = √(π) / (2dδ) * exp(-z^2 / (2dδ^2))
+
+@inline FFu(grid, u, v, w, T, S, i, j, k) = 
+    @inbounds -Fu * δ(grid.zC[k]) * (1 + 0.01*rand(Normal(0, 1)))
+
+forcing = Forcing(Fu=FFu)
 
 # 
 # Model setup
@@ -70,30 +94,33 @@ arch = CPU()
 #@hascuda arch = GPU() # use GPU if it's available
 
 model = Model(
-     arch = arch,
-        N = (128, 128, 256),
-        L = (1, 1, 2) .* 32, 
-  #closure = ConstantIsotropicDiffusivity(ν=2e-4, κ=2e-4),
-  #closure = ConstantSmagorinsky(Cs=0.3, Cb=1.0, ν=1e-5, κ=1e-5),
-  closure = AnisotropicMinimumDissipation(C=0.3, ν=1e-5, κ=1e-5),
-      eos = LinearEquationOfState(βT=βT, βS=0.),
-constants = PlanetaryConstants(f=1e-4, g=g),
-      bcs = BoundaryConditions(u=ubcs, T=Tbcs, S=cbcs)
+         arch = arch,
+            N = (N, N, 2N),
+            L = (L, L, L), 
+            closure = AnisotropicMinimumDissipation(ν=1e-3, κ=1e-3),
+          eos = LinearEquationOfState(βT=βT, βS=0.),
+    constants = PlanetaryConstants(f=1e-4, g=g),
+      forcing = forcing,
+          #bcs = BoundaryConditions(u=ubcs, T=Tbcs, S=cbcs)
+          bcs = BoundaryConditions(T=Tbcs, S=cbcs)
 )
 
 filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d",
                            Fb, Fu, model.grid.Lz, model.grid.Nz)
 
 # Temperature initial condition
-
-T₀★(z) = T₀₀ + dTdz * (z+h₀+δh) * smoothstep(z+h₀, δh)
+h₀, δh = 4, 2
+T₀★(z) = T₀₀ + dTdz * z  #(z + h₀ - 2δh) * smoothstep(z+h₀, δh)
 
 # Add a bit of surface-concentrated noise to the initial condition
-ξ(z) = 1e-1 * rand() * exp(4z/model.grid.Lz) 
-T₀(x, y, z) = T₀★(z) + dTdz*model.grid.Lz * ξ(z)
-c₀(x, y, z) = c₀₀ * (1 + z/model.grid.Lz)
+ξ(z) = 1e-4 * rand() * z / model.grid.Lz * (1 + z/model.grid.Lz) #exp(4z/model.grid.Lz) 
 
-set_ic!(model, T=T₀, S=c₀)
+T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * (1 + ξ(z))
+u₀(x, y, z) = ξ(z)
+v₀(x, y, z) = ξ(z)
+c₀(x, y, z) = ξ(z)
+
+set_ic!(model, u=u₀, v=v₀, T=T₀, S=c₀)
 
 #
 # Output
@@ -107,17 +134,18 @@ function savebcs(file, model)
     return nothing
 end
 
+#=
 u(model)  = Array(data(model.velocities.u))
 v(model)  = Array(data(model.velocities.v))
 w(model)  = Array(data(model.velocities.w))
 θ(model)  = Array(data(model.tracers.T))
 c(model)  = Array(data(model.tracers.S))
 
-U(model)  = havg(model.velocities.u)
-V(model)  = havg(model.velocities.v)
-W(model)  = havg(model.velocities.w)
-T(model)  = havg(model.tracers.T)
-C(model)  = havg(model.tracers.S)
+U(model)  = Array(havg(model.velocities.u))
+V(model)  = Array(havg(model.velocities.v))
+W(model)  = Array(havg(model.velocities.w))
+T(model)  = Array(havg(model.tracers.T))
+C(model)  = Array(havg(model.tracers.S))
 #e(model)  = havg(turbulent_kinetic_energy(model))
 #wT(model) = havg(model.velocities.w * model.tracers.T)
 
@@ -126,13 +154,16 @@ profiles = Dict(:U=>U, :V=>V, :W=>W, :T=>T, :C=>C) #, :e=>e, :wT=>wT)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=100, force=true)
+                                  init=savebcs, frequency=100, force=true,
+                                  asynchronous=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=1000, force=true)
+                                init=savebcs, frequency=1000, force=true,
+                                asynchronous=true)
 
 push!(model.output_writers, profile_writer, field_writer)
+=#
 
 gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
 fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(8, 10), gridspec_kw=gridspec)
@@ -159,24 +190,33 @@ cp = 3993.0
              sqrt(1/N²) / 60, model.eos.βT
 )
 
-# Sensible initial time-step
-αν = 1e-2
-αu = 1e-1
+# Sensible CFL number
+cfl = CFLUtility(cfl=5e-2, Δt=1.0)
+
+@time time_step!(model, 1, 1e-16) # time first time-step
+boundarylayerplot(axs, model)
 
 # Spinup
 for i = 1:100
-    Δt = safe_Δt(model, αu, αν)
+    Δt = new_Δt(model, cfl)
     walltime = @elapsed time_step!(model, 1, Δt)
+
+    @printf("i: %d, t: %.4f hours, Δt: %.1f s, cfl: %.2e, wall: %s\n", 
+            model.clock.iteration, model.clock.time/3600, Δt,
+            get_cfl(Δt, model), prettytime(1e9*walltime))
 end
 
-# Main loop
-for i = 1:100
-    Δt = safe_Δt(model, αu, αν)
-    walltime = @elapsed time_step!(model, 100, Δt)
 
-    makeplot(axs, model)
+@sync begin
+    # Main loop
+    while model.clock.time < tfinal
+        Δt = new_Δt(model, cfl)
+        walltime = @elapsed time_step!(model, 100, Δt)
 
-    @printf("i: %d, t: %.2f hours, Δt: %.1f s, cfl: %.2e, wall: %s\n", 
-            model.clock.iteration, model.clock.time/3600, Δt,
-            cfl(Δt, model), prettytime(1e9*walltime))
+        @printf("i: %d, t: %.4f hours, Δt: %.1f s, cfl: %.2e, wall: %s\n", 
+                model.clock.iteration, model.clock.time/3600, Δt,
+                get_cfl(Δt, model), prettytime(1e9*walltime))
+
+        boundarylayerplot(axs, model)
+    end
 end
