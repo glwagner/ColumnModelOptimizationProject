@@ -9,27 +9,30 @@ include("utils.jl")
 include("cfl_util.jl")
 include("jld2_writer.jl")
 
+# Constants
+hour = 3600
+ day = 24*hour
+   g = 9.81
+  βT = 2e-4
+
 #
 # Initial condition, boundary condition, and tracer forcing
 #
 
- N = 64
- L = 32
-N² = 1e-8
+ N = 128
+ L = 64
+N² = 1e-6
 Fb = 0.0 #1e-9
-const Fu = -1e-6
- g = 9.81
-βT = 2e-4
-
-hour = 3600
-day = 24*hour
+const Fu = -5e-5
 tfinal = 1*day
 
+Fθ = Fb / (g*βT)
 const dTdz = N² / (g * βT)
 const T₀₀ = 20.0
 const c₀₀ = 1
 
-Fθ = Fb / (g*βT)
+filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d",
+                           Fb, Fu, model.grid.Lz, model.grid.Nz)
 
 cbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     top    = BoundaryCondition(Value, c₀₀),
@@ -64,13 +67,23 @@ ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     @inbounds -μ(grid.zC[k]) * w[i, j, k]
 =#
 
-Δ = L / 2N
-
-const μ₀ = 1e-1 * (Fb / model.grid.Lz^2)^(1/3)
-const δˢ = model.grid.Lz / 20
-const zˢ = -9 * model.grid.Lz / 10
-
+       Δ = L / 2N
 const dδ = 5Δ
+const τˢ = 1000.0 # sponge damping timescale
+const δˢ = L / 10
+const zˢ = -L + 2δˢ
+const Lξ = L
+
+# Temperature initial condition
+T₀★(z) = T₀₀ + dTdz * z #* smoothstep(z+2dδ, dδ)
+
+# Add a bit of noise to the initial condition
+Ξ(z) = rand(Normal(0, 1)) * z / Lξ * (1 + z / Lξ)
+
+T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
+u₀(x, y, z) = 1e-4 * Ξ(z)
+v₀(x, y, z) = 1e-4 * Ξ(z)
+c₀(x, y, z) = 1e-6 * Ξ(z)
 
 "A regularized delta function."
 @inline δ(z) = √(π) / (2dδ) * exp(-z^2 / (2dδ^2))
@@ -78,13 +91,13 @@ const dδ = 5Δ
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
 
-@inline μ(z) = μ₀ * smoothstep(z-zˢ, δˢ) # sponge function
+@inline sponge(z) = 1/τˢ * smoothstep(z-zˢ, δˢ) # sponge function
 
 @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δ(grid.zC[k]) #* (1 + 0.01*rand(Normal(0, 1)))
+    @inbounds -Fu * δ(grid.zC[k]) * (1 + 0.5 * sin(8π/grid.Lx * grid.xC[i] + 2π*rand()))
 
 @inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds  μ(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
+    @inbounds sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
 
 forcing = Forcing(Fu=FFu, FT=FTˢ)
 
@@ -97,30 +110,14 @@ arch = CPU()
 
 model = Model(
          arch = arch,
-            N = (N, 16, 2N),
+            N = (N,  8, 2N),
             L = (2L, L,  L), 
-            closure = AnisotropicMinimumDissipation(), 
+      closure = AnisotropicMinimumDissipation(), 
           eos = LinearEquationOfState(βT=βT, βS=0.),
     constants = PlanetaryConstants(f=1e-4, g=g),
       forcing = forcing,
-          #bcs = BoundaryConditions(u=ubcs, T=Tbcs, S=cbcs)
           bcs = BoundaryConditions(T=Tbcs, S=cbcs)
 )
-
-filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d",
-                           Fb, Fu, model.grid.Lz, model.grid.Nz)
-
-# Temperature initial condition
-h₀, δh = 4, 2
-T₀★(z) = T₀₀ + dTdz * z  #(z + h₀ - 2δh) * smoothstep(z+h₀, δh)
-
-# Add a bit of surface-concentrated noise to the initial condition
-ξ(z) = 1e-9 * rand() * z / model.grid.Lz * (1 + z/model.grid.Lz) #exp(4z/model.grid.Lz) 
-
-T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * (1 + ξ(z))
-u₀(x, y, z) = ξ(z)
-v₀(x, y, z) = ξ(z)
-c₀(x, y, z) = ξ(z)
 
 set_ic!(model, u=u₀, v=v₀, T=T₀, S=c₀)
 
@@ -193,32 +190,32 @@ cp = 3993.0
 )
 
 # Sensible CFL number
-cfl = CFLUtility(cfl=1e-1, Δt=1.0)
+wizard = TimeStepWizard(cfl=2e-1, Δt=1.0)
 
 @time time_step!(model, 1, 1e-16) # time first time-step
 boundarylayerplot(axs, model)
 
-# Spinup
-for i = 1:100
-    Δt = new_Δt(model, cfl)
-    walltime = @elapsed time_step!(model, 1, Δt)
-
-    @printf("i: %d, t: %.4f hours, Δt: %.1f s, cfl: %.2e, wall: %s\n", 
-            model.clock.iteration, model.clock.time/3600, Δt,
-            get_cfl(Δt, model), prettytime(1e9*walltime))
+function nice_message(model, walltime, Δt) 
+    return @sprintf("i: %05d, t: %.4f hours, Δt: %.1f s, wall: %s\n", 
+                    model.clock.iteration, model.clock.time/3600, Δt, 
+                    prettytime(1e9*walltime))
 end
 
+# Spinup
+for i = 1:100
+    update_Δt!(wizard, model)
+    walltime = @elapsed time_step!(model, 1, wizard.Δt)
+    @printf "%s" nice_message(model, walltime, wizard.Δt)
+end
+
+boundarylayerplot(axs, model)
 
 @sync begin
     # Main loop
     while model.clock.time < tfinal
-        Δt = new_Δt(model, cfl)
-        walltime = @elapsed time_step!(model, 100, Δt)
-
-        @printf("i: %d, t: %.4f hours, Δt: %.1f s, cfl: %.2e, wall: %s\n", 
-                model.clock.iteration, model.clock.time/3600, Δt,
-                get_cfl(Δt, model), prettytime(1e9*walltime))
-
+        update_Δt!(wizard, model)
+        walltime = @elapsed time_step!(model, 100, wizard.Δt)
+        @printf "%s" nice_message(model, walltime, wizard.Δt)
         boundarylayerplot(axs, model)
     end
 end

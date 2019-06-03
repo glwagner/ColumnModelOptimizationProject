@@ -29,14 +29,15 @@ function nice_three_plots(axs, model)
     for ax in axs[1:3, 1]
         ax.axis("off")
         ax.set_aspect(1)
-        ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
     end
+
+    axs[1, 1].tick_params(top=true, labeltop=true, bottom=false, labelbottom=false)
+    axs[2, 1].tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
 
     # Right hand horizontal-mean plots
     for (i, ax) in enumerate(axs[1:3, 2])
         sca(ax)
-        ax.tick_params(left=false, labelleft=false, right=true, labelright=true,
-                       bottom=false, labelbottom=false)
+        ax.tick_params(left=false, labelleft=false, right=true, labelright=true)
         removespines("left", "top", "bottom")
         ylim(-model.grid.Lz, 0)
         ax.yaxis.set_label_position("right")
@@ -46,6 +47,15 @@ function nice_three_plots(axs, model)
     for i = 1:3
         match_yaxes!(axs[i, 2], axs[i, 1])
     end
+
+    axs[1, 2].spines["top"].set_visible(true)
+    axs[1, 2].tick_params(top=true, labeltop=true, bottom=false, labelbottom=false)
+    axs[1, 2].xaxis.set_label_position("top")
+
+    axs[2, 2].tick_params(bottom=false, labelbottom=false)
+
+    axs[3, 2].spines["bottom"].set_visible(true)
+    axs[3, 2].tick_params(bottom=true, labelbottom=true)
 
     return nothing
 end
@@ -152,13 +162,10 @@ end
 function boundarylayerplot(axs, model)
 
      e = turbulent_kinetic_energy(model)
-    T′ = fluctuation(model.tracers.T)
     wT = model.velocities.w * model.tracers.T
 
-    umax = maxabs(model.velocities.u)
     wmax = maxabs(model.velocities.w)
-    Tmax = maxabs(T′)
-    #Tmax = maxabs(T′)
+    umax = maxabs(model.velocities.u)
 
     # Top row
     sca(axs[1, 1])
@@ -168,24 +175,25 @@ function boundarylayerplot(axs, model)
 
     sca(axs[1, 2])
     cla()
-    plot_hmean(wT, normalize=true, label=L"\overline{wT}")
+    plot_hmean(wT, label=L"\overline{wT}")
+    xlabel(L"\overline{wT}")
 
     # Middle row
     sca(axs[2, 1])
     cla()
-    plot_xzslice(T′, cmap="RdBu_r", vmin=-Tmax, vmax=Tmax)
-    #plot_xzslice(model.tracers.T, cmap="YlGnBu")
-    title(L"T'")
+    plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
+    title(L"\log_\mathrm{10}(\nu_e)")
 
     sca(axs[2, 2])
     cla()
     plot_hmean(model.tracers.T, normalize=true, label=L"T")
+    ylabel(L"\bar T")
 
     # Bottom row
     sca(axs[3, 1])
     cla()
-    plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
-    title(L"\log_\mathrm{10}(\nu_e)")
+    plot_xzslice(model.velocities.u, cmap="RdBu_r", vmin=-umax, vmax=umax)
+    title(L"u")
 
     sca(axs[3, 2])
     cla()
