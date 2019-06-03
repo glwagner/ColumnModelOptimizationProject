@@ -1,5 +1,3 @@
-using Plots, Oceananigans, Statistics, OceananigansAnalysis
-
 removespine(side; ax=gca()) = ax.spines[side].set_visible(false)
 removespines(sides...; ax=gca()) = [removespine(side, ax=ax) for side in sides]
 usecmbright()

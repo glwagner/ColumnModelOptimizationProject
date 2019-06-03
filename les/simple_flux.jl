@@ -1,9 +1,11 @@
 using Distributed
 addprocs(1)
 
-@everywhere using Oceananigans, JLD2, Printf, Distributions, Random
-
-using Printf, PyPlot
+@everywhere begin
+    using Oceananigans, JLD2, Printf, Distributions, 
+          Random, Printf, PyPlot, OceananigansAnalysis,
+          Statistics
+end
 
 include("utils.jl")
 include("cfl_util.jl")
@@ -200,7 +202,7 @@ end
 wizard = TimeStepWizard(cfl=2e-1, Δt=1.0)
 
 @time time_step!(model, 1, 1e-16) # time first time-step
-remotecall(boundarylayerplot, 2, axs, model)
+boundarylayerplot(axs, model)
 
 # Spinup
 for i = 1:100
@@ -209,7 +211,7 @@ for i = 1:100
     @printf "%s" nice_message(model, walltime, wizard.Δt)
 end
 
-remotecall(boundarylayerplot, 2, axs, model)
+boundarylayerplot(axs, model)
 
 @sync begin
     # Main loop
@@ -217,6 +219,6 @@ remotecall(boundarylayerplot, 2, axs, model)
         update_Δt!(wizard, model)
         walltime = @elapsed time_step!(model, 100, wizard.Δt)
         @printf "%s" nice_message(model, walltime, wizard.Δt)
-        remotecall(boundarylayerplot, 2, axs, model)
+        boundarylayerplot(axs, model)
     end
 end
