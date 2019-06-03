@@ -14,10 +14,10 @@ include("jld2_writer.jl")
 #
 
  N = 64
- L = 16
+ L = 32
 N² = 1e-8
 Fb = 0.0 #1e-9
-const Fu = -1e-4
+const Fu = -1e-6
  g = 9.81
 βT = 2e-4
 
@@ -48,20 +48,12 @@ ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 =#
 
-@inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
 
 #
 # Sponges and forcing
 #
 
 #=
-const μ₀ = 1e-1 * (Fb / model.grid.Lz^2)^(1/3)
-const δˢ = model.grid.Lz / 10
-const zˢ = -9 * model.grid.Lz / 10
-
-"A step function which is 0 above z=0 and 1 below."
-@inline μ(z) = μ₀ * step(z-zˢ, δˢ) # sponge function
-
 @inline Fuˢ(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -μ(grid.zC[k]) * u[i, j, k] 
 
@@ -70,21 +62,31 @@ const zˢ = -9 * model.grid.Lz / 10
 
 @inline Fwˢ(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -μ(grid.zC[k]) * w[i, j, k]
-
-@inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds  μ(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
-
 =#
 
 Δ = L / 2N
+
+const μ₀ = 1e-1 * (Fb / model.grid.Lz^2)^(1/3)
+const δˢ = model.grid.Lz / 20
+const zˢ = -9 * model.grid.Lz / 10
+
 const dδ = 5Δ
 
+"A regularized delta function."
 @inline δ(z) = √(π) / (2dδ) * exp(-z^2 / (2dδ^2))
+
+"A step function which is 0 above z=0 and 1 below."
+@inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
+
+@inline μ(z) = μ₀ * smoothstep(z-zˢ, δˢ) # sponge function
 
 @inline FFu(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -Fu * δ(grid.zC[k]) #* (1 + 0.01*rand(Normal(0, 1)))
 
-forcing = Forcing(Fu=FFu)
+@inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
+    @inbounds  μ(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
+
+forcing = Forcing(Fu=FFu, FT=FTˢ)
 
 # 
 # Model setup
@@ -96,8 +98,8 @@ arch = CPU()
 model = Model(
          arch = arch,
             N = (N, 16, 2N),
-            L = (L, L,   L), 
-            closure = AnisotropicMinimumDissipation(ν=1e-4, κ=1e-4),
+            L = (2L, L,  L), 
+            closure = AnisotropicMinimumDissipation(), 
           eos = LinearEquationOfState(βT=βT, βS=0.),
     constants = PlanetaryConstants(f=1e-4, g=g),
       forcing = forcing,
@@ -113,7 +115,7 @@ h₀, δh = 4, 2
 T₀★(z) = T₀₀ + dTdz * z  #(z + h₀ - 2δh) * smoothstep(z+h₀, δh)
 
 # Add a bit of surface-concentrated noise to the initial condition
-ξ(z) = 1e-4 * rand() * z / model.grid.Lz * (1 + z/model.grid.Lz) #exp(4z/model.grid.Lz) 
+ξ(z) = 1e-9 * rand() * z / model.grid.Lz * (1 + z/model.grid.Lz) #exp(4z/model.grid.Lz) 
 
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * (1 + ξ(z))
 u₀(x, y, z) = ξ(z)
@@ -191,7 +193,7 @@ cp = 3993.0
 )
 
 # Sensible CFL number
-cfl = CFLUtility(cfl=2e-1, Δt=1.0)
+cfl = CFLUtility(cfl=1e-1, Δt=1.0)
 
 @time time_step!(model, 1, 1e-16) # time first time-step
 boundarylayerplot(axs, model)
