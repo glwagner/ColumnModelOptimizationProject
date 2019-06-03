@@ -19,20 +19,41 @@ hour = 3600
 # Initial condition, boundary condition, and tracer forcing
 #
 
- N = 128
- L = 64
-N² = 1e-6
-Fb = 0.0 #1e-9
-const Fu = -5e-5
-tfinal = 1*day
+      Ny = 16
+      Ly = 32
 
-Fθ = Fb / (g*βT)
+      Nx = 4Ny
+      Lx = 4Ly
+      Nz = 4Ny
+      Lz = 2Ly
+
+      Δx = Lx / Nx
+      Δz = Lz / Nz
+
+  tfinal = 1*day
+
+      N² = 1e-6
+const Fb = 0.0 #1e-9
+const Fu = -1e-4
+
+const T₀₀  = 20.0
+const c₀₀  = 1
+const kᵘ   = 2π / 4Δx   # wavelength of horizontal divergent surface flux
+const aᵘ   = 0.01       # relative amplitude of horizontal divergent surface flux
+const dδ = 5Δz          # momentum forcing smoothing scale
+const τˢ = 1000.0       # sponge damping timescale
+const δˢ = Lz / 10      # sponge layer width
+const zˢ = -Lz + δˢ     # sponge layer central depth
+
+# Buoyancy → temperature
+        Fθ = Fb / (g*βT)
 const dTdz = N² / (g * βT)
-const T₀₀ = 20.0
-const c₀₀ = 1
 
-filename(model) = @sprintf("simple_flux_Fb%.1e_Fu%.1e_Lz%d_Nz%d",
-                           Fb, Fu, model.grid.Lz, model.grid.Nz)
+filename(model) = @sprintf(
+                           "simple_flux_Fb%.0e_Fu%.0e_Lz%d_Nz%d",
+                           model.attributes.Fb, model.attributes.Fu, 
+                           model.grid.Lz, model.grid.Nz
+                          )
 
 cbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     top    = BoundaryCondition(Value, c₀₀),
@@ -44,42 +65,15 @@ Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     bottom = BoundaryCondition(Gradient, dTdz)
    ))
 
-#=
-ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Flux, Fu),
-    bottom = DefaultBC()
-   ))
-=#
-
-
 #
-# Sponges and forcing
+# Sponges, momentum flux, and initial conditions
 #
 
-#=
-@inline Fuˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -μ(grid.zC[k]) * u[i, j, k] 
-
-@inline Fvˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -μ(grid.zC[k]) * v[i, j, k]
-
-@inline Fwˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -μ(grid.zC[k]) * w[i, j, k]
-=#
-
-       Δ = L / 2N
-const dδ = 5Δ
-const τˢ = 1000.0 # sponge damping timescale
-const δˢ = L / 10
-const zˢ = -L + 2δˢ
-const Lξ = L
-
-# Temperature initial condition
-T₀★(z) = T₀₀ + dTdz * z #* smoothstep(z+2dδ, dδ)
-
-# Add a bit of noise to the initial condition
+# Vertical noise profile for initial condition
+const Lξ = Lz 
 Ξ(z) = rand(Normal(0, 1)) * z / Lξ * (1 + z / Lξ)
 
+T₀★(z) = T₀₀ + dTdz * z
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
@@ -91,32 +85,38 @@ c₀(x, y, z) = 1e-6 * Ξ(z)
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
 
-@inline sponge(z) = 1/τˢ * smoothstep(z-zˢ, δˢ) # sponge function
+"""
+A sponging function that is zero above zˢ, has width δˢ, and 
+sponges with timescale τˢ.
+"""
+@inline sponge(z) = 1/τˢ * smoothstep(z-zˢ, δˢ)
 
+# Momentum forcing: smoothed over surface grid points, plus 
+# horizontally-divergence component to stimulate turbulence.
 @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δ(grid.zC[k]) * (1 + 0.5 * sin(8π/grid.Lx * grid.xC[i] + 2π*rand()))
+    @inbounds -Fu * δ(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
+# Relax bottom temperature field to background profile
 @inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
     @inbounds sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
-
-forcing = Forcing(Fu=FFu, FT=FTˢ)
 
 # 
 # Model setup
 # 
 
 arch = CPU()
-#@hascuda arch = GPU() # use GPU if it's available
+@hascuda arch = GPU() # use GPU if it's available
 
 model = Model(
          arch = arch,
-            N = (N,  8, 2N),
-            L = (2L, L,  L), 
+            N = (Nx, Ny, Nz),
+            L = (Lx, Ly, Lz), 
       closure = AnisotropicMinimumDissipation(), 
           eos = LinearEquationOfState(βT=βT, βS=0.),
     constants = PlanetaryConstants(f=1e-4, g=g),
-      forcing = forcing,
-          bcs = BoundaryConditions(T=Tbcs, S=cbcs)
+      forcing = Forcing(Fu=FFu, FT=FTˢ),
+          bcs = BoundaryConditions(T=Tbcs, S=cbcs),
+   attributes = (Fb=Fb, Fu=Fu)
 )
 
 set_ic!(model, u=u₀, v=v₀, T=T₀, S=c₀)
@@ -125,6 +125,7 @@ set_ic!(model, u=u₀, v=v₀, T=T₀, S=c₀)
 # Output
 #
 
+#=
 function savebcs(file, model)
     file["bcs/Fb"] = Fb
     file["bcs/Fu"] = Fu
@@ -133,7 +134,6 @@ function savebcs(file, model)
     return nothing
 end
 
-#=
 u(model)  = Array(data(model.velocities.u))
 v(model)  = Array(data(model.velocities.v))
 w(model)  = Array(data(model.velocities.w))
@@ -181,25 +181,26 @@ cp = 3993.0
           |τ| : %.2e
           1/N : %.1f min
            βT : %.2e
+     filename : %s
     
     Let's spin the gears.
     
     """, model.grid.Nx, model.grid.Ny, model.grid.Nz, Fb, Fu, 
              -ρ₀*cp*Fb/(model.constants.g*model.eos.βT), abs(ρ₀*Fu),
-             sqrt(1/N²) / 60, model.eos.βT
+             sqrt(1/N²) / 60, model.eos.βT, filename(model)
 )
-
-# Sensible CFL number
-wizard = TimeStepWizard(cfl=2e-1, Δt=1.0)
-
-@time time_step!(model, 1, 1e-16) # time first time-step
-boundarylayerplot(axs, model)
 
 function nice_message(model, walltime, Δt) 
     return @sprintf("i: %05d, t: %.4f hours, Δt: %.1f s, wall: %s\n", 
                     model.clock.iteration, model.clock.time/3600, Δt, 
                     prettytime(1e9*walltime))
 end
+
+# CFL wizard
+wizard = TimeStepWizard(cfl=2e-1, Δt=1.0)
+
+@time time_step!(model, 1, 1e-16) # time first time-step
+remotecall(boundarylayerplot, 2, axs, model)
 
 # Spinup
 for i = 1:100
@@ -208,7 +209,7 @@ for i = 1:100
     @printf "%s" nice_message(model, walltime, wizard.Δt)
 end
 
-boundarylayerplot(axs, model)
+remotecall(boundarylayerplot, 2, axs, model)
 
 @sync begin
     # Main loop
@@ -216,6 +217,6 @@ boundarylayerplot(axs, model)
         update_Δt!(wizard, model)
         walltime = @elapsed time_step!(model, 100, wizard.Δt)
         @printf "%s" nice_message(model, walltime, wizard.Δt)
-        boundarylayerplot(axs, model)
+        remotecall(boundarylayerplot, 2, axs, model)
     end
 end
