@@ -51,7 +51,7 @@ function Oceananigans.write_output(model, fw::JLD2OutputWriter)
     else
         jld2output!(path, iter, time, data)
     end
-    @info "Done writing (t: $(prettytime(time_ns()-t0))"
+    @info "Done writing (t: $(prettytime(time_ns()-t0)))"
 
     return nothing
 end
