@@ -77,12 +77,12 @@ const zˢ = -9 * model.grid.Lz / 10
 =#
 
 Δ = L / 2N
-const dδ = 4Δ
+const dδ = 5Δ
 
 @inline δ(z) = √(π) / (2dδ) * exp(-z^2 / (2dδ^2))
 
 @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δ(grid.zC[k]) * (1 + 0.01*rand(Normal(0, 1)))
+    @inbounds -Fu * δ(grid.zC[k]) #* (1 + 0.01*rand(Normal(0, 1)))
 
 forcing = Forcing(Fu=FFu)
 
@@ -95,9 +95,9 @@ arch = CPU()
 
 model = Model(
          arch = arch,
-            N = (N, N, 2N),
-            L = (L, L, L), 
-            closure = AnisotropicMinimumDissipation(ν=1e-3, κ=1e-3),
+            N = (N, 16, 2N),
+            L = (L, L,   L), 
+            closure = AnisotropicMinimumDissipation(ν=1e-4, κ=1e-4),
           eos = LinearEquationOfState(βT=βT, βS=0.),
     constants = PlanetaryConstants(f=1e-4, g=g),
       forcing = forcing,
@@ -191,7 +191,7 @@ cp = 3993.0
 )
 
 # Sensible CFL number
-cfl = CFLUtility(cfl=5e-2, Δt=1.0)
+cfl = CFLUtility(cfl=2e-1, Δt=1.0)
 
 @time time_step!(model, 1, 1e-16) # time first time-step
 boundarylayerplot(axs, model)
