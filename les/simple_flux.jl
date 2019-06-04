@@ -13,8 +13,6 @@ end
 
 @hascuda @everywhere using CuArrays, CUDAnative, CuArrays.CURAND
 
-#@hascuda CURAND.seed!()
-
 @doesnothavecuda include("plot_utils.jl")
 include("time_step_wizard.jl")
 include("jld2_writer.jl")
@@ -53,12 +51,7 @@ const S₀₀ = FT( 1     )
 # Surface momentum forcing
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
-
-# Sponges
 const hδu = FT( 3Δz      )  # momentum forcing smoothing height
-const τˢ  = FT( 1000.0   )  # sponge damping timescale
-const δˢ  = FT( Lz / 20  )  # sponge layer width
-const zˢ  = FT( -Lz + δˢ )  # sponge layer central depth
 
 # Buoyancy → temperature
 const Fθ   = FT( Fb / (g*βT)   ) 
@@ -124,12 +117,14 @@ struct UForcing{A}
     randomness :: A
 end
 
-Adapt.adapt_structure(to, fu::UForcing) = UForcing(Adapt.adapt(to, fu.randomness))
+Adapt.adapt_structure(to, f::UForcing) = UForcing(Adapt.adapt(to, fu.randomness))
 
 @inline function (fu::UForcing)(grid, u, v, w, T, S, i, j, k, iter)
-    ξ = fu.randomness[iter % nrand + 1]
+    ξ = f.randomness[iter % nrand + 1]
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
+
+FFu = UForcing(randomness)
 
 #=
 @hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
@@ -138,7 +133,6 @@ end
 end
 =#
 
-FFu = UForcing(randomness)
 
 # 
 # Model setup
