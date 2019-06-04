@@ -42,7 +42,7 @@ hour = 3600
   tfinal = 7*day
 
 # Boundary conditioons and initial condition
-      N²  = FT( 1e-6 ) 
+      N²  = FT( 1e-5 ) 
 const Fb  = FT( 1e-9 )
 const Fu  = FT( 0.0  )#-1e-4
 const T₀₀ = FT( 20.0     ) 
@@ -53,10 +53,7 @@ const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flu
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
 
 # Sponges
-const dδu = FT( 5Δz      )  # momentum forcing smoothing scale
-const dδθ = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const dδS = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const τS  = FT( 1000.0   )  # sponge damping timescale
+const hδu = FT( 5Δz      )  # momentum forcing smoothing height
 const τˢ  = FT( 1000.0   )  # sponge damping timescale
 const δˢ  = FT( Lz / 20  )  # sponge layer width
 const zˢ  = FT( -Lz + δˢ )  # sponge layer central depth
@@ -97,10 +94,7 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
-@inline δu(z) = √(π) / (2dδu) * exp(-z^2 / (2dδu^2))
-@inline δθ(z) = √(π) / (2dδθ) * exp(-z^2 / (2dδθ^2))
-
-@inline top_sponge(z) = 1/τS * exp(-z^2 / (2dδS^2))
+@inline δu(z) = √(π) / (2hδu) * exp(-z^2 / (2hδu^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
