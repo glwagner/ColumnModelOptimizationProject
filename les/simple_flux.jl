@@ -30,7 +30,7 @@ hour = 3600
 #
       FT = Float32
        Δ = 1.0
-      Ny = 16 
+      Ny = 128
       Ly = Δ * Ny
 
       Nx = 2Ny
