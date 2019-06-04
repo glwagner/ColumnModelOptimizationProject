@@ -66,8 +66,8 @@ const Fθ   = FT( Fb / (g*βT)   )
 const dTdz = FT( N² / (g * βT) )
 
 filename(model) = @sprintf(
-                           "simple_flux_Fb%.0e_Fu%.0e_Lz%d_Nz%d",
-                           model.attributes.Fb, model.attributes.Fu, 
+                           "simple_flux_Fb%.0e_Fu%.0e_Nsq%.0e_Lz%d_Nz%d",
+                           model.attributes.Fb, model.attributes.Fu, N²,
                            model.grid.Lz, model.grid.Nz
                           )
 
@@ -117,7 +117,7 @@ sponges with timescale τˢ.
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i])) # + 2π*CUDAnative.rand()))
+    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*CUDAnative.rand()))
 
 # 
 # Model setup
