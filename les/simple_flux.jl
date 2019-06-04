@@ -77,7 +77,6 @@ Sbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    #top    = DefaultBC(), #BoundaryCondition(Flux, Fθ),
     top    = BoundaryCondition(Flux, Fθ),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
    ))
@@ -118,16 +117,7 @@ sponges with timescale τˢ.
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*CuArrays.rand()))
-
-# Relax bottom temperature field to background profile
-@inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fθ * δθ(grid.zC[k]) #+ sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
-
-    #=
-@inline FSˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds top_sponge(grid.zC[k]) * ( S₀★(grid.zC[k]) - S[i, j, k] )
-    =#
+    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*CUDAnative.rand()))
 
 # 
 # Model setup
@@ -144,7 +134,7 @@ model = Model(
       closure = AnisotropicMinimumDissipation(FT), 
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
-    forcing = Forcing(Fu=FFu), #, FT=FTˢ), #, FS=FSˢ), #
+      forcing = Forcing(Fu=FFu),
           bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
