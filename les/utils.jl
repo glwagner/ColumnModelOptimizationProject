@@ -173,19 +173,21 @@ function boundarylayerplot(axs, model)
 
     sca(axs[1, 2])
     cla()
-    plot_hmean(wT, label=L"\overline{wT}")
-    xlabel(L"\overline{wT}")
+    plot_hmean(model.tracers.T, normalize=true, label=L"T")
+    plot_hmean(wT, normalize=true, label=L"\overline{wT}")
+    legend()
 
     # Middle row
     sca(axs[2, 1])
     cla()
-    plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
-    title(L"\log_\mathrm{10}(\nu_e)")
+    #plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
+    plot_xzslice(model.tracers.S, cmap="YlGnBu_r")
+    title(L"C")
 
     sca(axs[2, 2])
     cla()
-    plot_hmean(model.tracers.T, normalize=true, label=L"T")
-    ylabel(L"\bar T")
+    plot_hmean(model.tracers.S, label=L"C")
+    legend()
 
     # Bottom row
     sca(axs[3, 1])
