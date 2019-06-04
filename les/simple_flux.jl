@@ -11,7 +11,7 @@ macro doesnothavecuda(ex)
     return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
 end
 
-@hascuda @everywhere using CuArrays
+@hascuda @everywhere using CuArrays, CUDAnative
 
 @doesnothavecuda include("plot_utils.jl")
 include("time_step_wizard.jl")
@@ -117,7 +117,7 @@ sponges with timescale τˢ.
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*CUDAnative.rand()))
+    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i])) # + 2π*CUDAnative.rand()))
 
 # 
 # Model setup
