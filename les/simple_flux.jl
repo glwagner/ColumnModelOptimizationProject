@@ -44,8 +44,8 @@ hour = 3600
   tfinal = 7*day
 
 # Boundary conditioons and initial condition
-      N²  = FT( 1e-6 ) 
-const Fb  = FT( 1e-8 )
+      N²  = FT( 1e-7 ) 
+const Fb  = FT( 1e-9 )
 const Fu  = FT( 0.0  ) #-1e-4
 const T₀₀ = FT( 20.0 ) 
 const S₀₀ = FT( 1    )
@@ -240,7 +240,7 @@ function nice_message(model, walltime, Δt)
 end
 
 # CFL wizard
-wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.5)
+wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 @info "Completed first timestep."
 
 @time time_step!(model, 1, 1e-16) # time first time-step
@@ -259,6 +259,7 @@ for i = 1:100
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
+max_change = 1.5
 ifig = 1
 
 @sync begin
