@@ -30,7 +30,7 @@ hour = 3600
 #
       FT = Float64
        Δ = 1.0
-      Ny = 32 
+      Ny = 128
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -46,7 +46,7 @@ hour = 3600
 # Boundary conditioons and initial condition
       N²  = FT( 1e-6 ) 
 const Fb  = FT( 1e-8 )
-const Fu  = FT( 0.0  )#-1e-4
+const Fu  = FT( 0.0  ) #-1e-4
 const T₀₀ = FT( 20.0 ) 
 const S₀₀ = FT( 1    )
 
@@ -190,12 +190,12 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=200, force=true,
+                                  init=savebcs, frequency=2000, force=true,
                                   asynchronous=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=800, force=true,
+                                init=savebcs, frequency=4000, force=true,
                                 asynchronous=true)
 
 push!(model.output_writers, profile_writer, field_writer)
