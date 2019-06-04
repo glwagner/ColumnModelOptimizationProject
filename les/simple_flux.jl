@@ -7,14 +7,14 @@ addprocs(1)
           Statistics
 end
 
-macro hasnotcuda(ex)
+macro doesnothavecuda(ex)
     return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
 end
 
-@everywhere @hascuda CuArrays
+@hascuda @everywhere using CuArrays
 
-@hasnotcuda include("utils.jl")
-include("cfl_util.jl")
+@doesnothavecuda include("plot_utils.jl")
+include("time_step_wizard.jl")
 include("jld2_writer.jl")
 
 # Constants
@@ -114,7 +114,7 @@ sponges with timescale τˢ.
 
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-@hasnotcuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
+@doesnothavecuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
@@ -252,7 +252,7 @@ wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.5)
 
 @time time_step!(model, 1, 1e-16) # time first time-step
 
-@hasnotcuda begin
+@doesnothavecuda begin
     gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
     fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(8, 10), gridspec_kw=gridspec)
     boundarylayerplot(axs, model)
@@ -265,9 +265,7 @@ for i = 1:100
     @printf "%s" nice_message(model, walltime, wizard.Δt)
 end
 
-wizard.max_change = 2
-
-@hasnotcuda boundarylayerplot(axs, model)
+@doesnothavecuda boundarylayerplot(axs, model)
 ifig = 1
 
 @sync begin
@@ -280,8 +278,8 @@ ifig = 1
 
         @printf "%s" nice_message(model, walltime, wizard.Δt)
 
-        @hasnotcuda boundarylayerplot(axs, model)
-        @hasnotcuda savefig(joinpath("plots", filename(model) * "_$ifig.png"), dpi=480)
+        @doesnothavecuda boundarylayerplot(axs, model)
+        @doesnothavecuda savefig(joinpath("plots", filename(model) * "_$ifig.png"), dpi=480)
         ifig += 1
     end
 end
