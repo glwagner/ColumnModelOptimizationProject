@@ -27,8 +27,8 @@ hour = 3600
 # Initial condition, boundary condition, and tracer forcing
 #
       FT = Float32
-       Δ = 1.0
-      Ny = 16
+       Δ = 2.0
+      Ny = 32
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -77,7 +77,8 @@ Sbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = DefaultBC(), #BoundaryCondition(Flux, Fθ),
+    #top    = DefaultBC(), #BoundaryCondition(Flux, Fθ),
+    top    = BoundaryCondition(Flux, Fθ),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
    ))
 
@@ -94,7 +95,7 @@ S₀★(z) = S₀₀ * (1 + z/Lξ)
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
-S₀(x, y, z) = 1e-6 * Ξ(z)
+S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
 @inline δu(z) = √(π) / (2dδu) * exp(-z^2 / (2dδu^2))
@@ -143,7 +144,7 @@ model = Model(
       closure = AnisotropicMinimumDissipation(FT), 
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
-      forcing = Forcing(Fu=FFu, FT=FTˢ), #, FS=FSˢ), #
+    forcing = Forcing(Fu=FFu), #, FT=FTˢ), #, FS=FSˢ), #
           bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
@@ -236,13 +237,18 @@ cp = 3993.0
 )
 
 function nice_message(model, walltime, Δt) 
-    return @sprintf("i: %05d, t: %.4f hours, Δt: %.1f s, wall: %s\n", 
+
+    wmax = maximum(abs, model.velocities.w.data.parent)
+    cfl = cell_advection_timescale(model) / Δt
+
+    return @sprintf(
+        "i: %05d, t: %.4f hours, Δt: %.1f s, cfl: %.3f, max w: %.6f m s⁻¹, wall: %s\n", 
                     model.clock.iteration, model.clock.time/3600, Δt, 
-                    prettytime(1e9*walltime))
+                    cfl, wmax, prettytime(1e9*walltime))
 end
 
 # CFL wizard
-wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.1, max_Δt=60.0)
+wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.5)
 @info "Completed first timestep."
 
 @time time_step!(model, 1, 1e-16) # time first time-step

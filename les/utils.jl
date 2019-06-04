@@ -189,6 +189,7 @@ function boundarylayerplot(axs, model)
     sca(axs[2, 2])
     cla()
     plot_hmean(model.tracers.S, label=L"C")
+    xlim(-0.05, 1.05)
     legend()
 
     # Bottom row
