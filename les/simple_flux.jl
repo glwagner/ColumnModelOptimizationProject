@@ -4,7 +4,7 @@ addprocs(1)
 @everywhere begin
     using Oceananigans, JLD2, Printf, Distributions, 
           Random, Printf, OceananigansAnalysis,
-          Statistics
+          Statistics, Adapt
 end
 
 macro doesnothavecuda(ex)
@@ -30,7 +30,7 @@ hour = 3600
 #
       FT = Float64
        Δ = 1.0
-      Ny = 128
+      Ny = 32 
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -44,18 +44,18 @@ hour = 3600
   tfinal = 7*day
 
 # Boundary conditioons and initial condition
-      N²  = FT( 1e-7 ) 
-const Fb  = FT( 1e-9 )
-const Fu  = FT( 0.0  ) #-1e-4
-const T₀₀ = FT( 20.0 ) 
-const S₀₀ = FT( 1    )
+      N²  = FT( 1e-6  ) 
+const Fb  = FT( 0.0   )
+const Fu  = FT( -1e-4 ) #-1e-4
+const T₀₀ = FT( 20.0  ) 
+const S₀₀ = FT( 1     )
 
 # Surface momentum forcing
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
 
 # Sponges
-const hδu = FT( 5Δz      )  # momentum forcing smoothing height
+const hδu = FT( 3Δz      )  # momentum forcing smoothing height
 const τˢ  = FT( 1000.0   )  # sponge damping timescale
 const δˢ  = FT( Lz / 20  )  # sponge layer width
 const zˢ  = FT( -Lz + δˢ )  # sponge layer central depth
@@ -107,15 +107,38 @@ sponges with timescale τˢ.
 """
 @inline sponge(z) = 1/τˢ * smoothstep(z-zˢ, δˢ)
 
+const nrand = 256
+@doesnothavecuda randomness = rand(nrand)
+@hascuda randomness = CuArrays.rand(nrand)
+
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-@doesnothavecuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
+#=
+@doesnothavecuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
+    ξ = randomness[iter % nrand + 1]
+    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
+end
+=#
 
-@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k)
-    ξ = CuArrays.rand() 
+struct UForcing{A}
+    randomness :: A
+end
+
+Adapt.adapt_structure(to, fu::UForcing) = UForcing(Adapt.adapt(to, fu.randomness))
+
+@inline function (fu::UForcing)(grid, u, v, w, T, S, i, j, k, iter)
+    ξ = fu.randomness[iter % nrand + 1]
+    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
+end
+
+#=
+@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
+    ξ = randomness[iter + 1 % nrand]
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
+=#
+
+FFu = UForcing(randomness)
 
 # 
 # Model setup
@@ -238,7 +261,7 @@ function nice_message(model, walltime, Δt)
 end
 
 # CFL wizard
-wizard = TimeStepWizard(cfl=0.05, Δt=1.0, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 @info "Completed first timestep."
 
 @time time_step!(model, 1, 1e-16) # time first time-step
@@ -250,7 +273,7 @@ wizard = TimeStepWizard(cfl=0.05, Δt=1.0, max_change=1.1, max_Δt=90.0)
 end
 
 # Spinup
-for i = 1:100
+for i = 1:20
     update_Δt!(wizard, model)
     walltime = @elapsed time_step!(model, 10, FT(wizard.Δt))
     @printf "%s" nice_message(model, walltime, wizard.Δt)
