@@ -28,7 +28,7 @@ hour = 3600
 #
       FT = Float64
        Δ = 1.0
-      Ny = 32
+      Ny = 128
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -204,19 +204,24 @@ cp = 3993.0
     Crunching a (viscous) ocean surface boundary layer with
     
             n : %d, %d, %d
-           Fb : %.1e
-           Fu : %.1e
-            Q : %.2e
-          |τ| : %.2e
+            L : %d, %d, %d m
+            Δ : %.1f, %.1f, %.1f m
+           Fb : %.1e m² s⁻³
+           Fu : %.1e m² s⁻²
+            Q : %.2e W m⁻²
+          |τ| : %.2e kg m⁻¹ s⁻²
           1/N : %.1f min
-           βT : %.2e
+           βT : %.2e (⁰C)⁻¹
      filename : %s
     
-    Let's spin the gears.
+    Let's spin.
     
-    """, model.grid.Nx, model.grid.Ny, model.grid.Nz, Fb, Fu, 
-             -ρ₀*cp*Fb/(model.constants.g*model.eos.βT), abs(ρ₀*Fu),
-             sqrt(1/N²) / 60, model.eos.βT, filename(model)
+    """, 
+    model.grid.Nx, model.grid.Ny, model.grid.Nz, 
+    model.grid.Lx, model.grid.Ly, model.grid.Lz, 
+    model.grid.Δx, model.grid.Δy, model.grid.Δz, 
+    Fb, Fu, -ρ₀*cp*Fb/(model.constants.g*model.eos.βT), abs(ρ₀*Fu),
+    sqrt(1/N²) / 60, model.eos.βT, filename(model)
 )
 
 function nice_message(model, walltime, Δt) 
