@@ -28,7 +28,7 @@ hour = 3600
 #
       FT = Float64
        Δ = 1.0
-      Ny = 128
+      Ny = 32 
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -42,11 +42,11 @@ hour = 3600
   tfinal = 7*day
 
 # Boundary conditioons and initial condition
-      N²  = FT( 1e-5 ) 
-const Fb  = FT( 1e-9 )
+      N²  = FT( 1e-6 ) 
+const Fb  = FT( 1e-8 )
 const Fu  = FT( 0.0  )#-1e-4
-const T₀₀ = FT( 20.0     ) 
-const S₀₀ = FT( 1        )
+const T₀₀ = FT( 20.0 ) 
+const S₀₀ = FT( 1    )
 
 # Surface momentum forcing
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
