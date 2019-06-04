@@ -74,10 +74,10 @@ struct HorizontalAverages{A}
 end
 
 function HorizontalAverages(arch::CPU, grid::Grid{FT}) where FT
-    U = zeros(FT, 1, 1, grid.Tz)
-    V = zeros(FT, 1, 1, grid.Tz)
-    T = zeros(FT, 1, 1, grid.Tz)
-    S = zeros(FT, 1, 1, grid.Tz)
+    U = zeros(FT, 1, 1, grid.Nz)
+    V = zeros(FT, 1, 1, grid.Nz)
+    T = zeros(FT, 1, 1, grid.Nz)
+    S = zeros(FT, 1, 1, grid.Nz)
 
     HorizontalAverages(U, V, T, S)
 end
@@ -91,6 +91,5 @@ function HorizontalAverages(arch::GPU, grid::Grid{FT}) where FT
     HorizontalAverages(U, V, T, S)
 end
 
-HorizontalAverages(m::Model{A}) where A = 
-    HorizontalAverages(A(), model.grid)
+HorizontalAverages(model) = HorizontalAverages(model.arch, model.grid)
 

@@ -11,7 +11,9 @@ macro doesnothavecuda(ex)
     return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
 end
 
-@hascuda @everywhere using CuArrays, CUDAnative
+@hascuda @everywhere using CuArrays, CUDAnative, CuArrays.CURAND
+
+#@hascuda CURAND.seed!()
 
 @doesnothavecuda include("plot_utils.jl")
 include("time_step_wizard.jl")
@@ -94,7 +96,7 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
-@inline δu(z) = √(π) / (2hδu) * exp(-z^2 / (2hδu^2))
+@inline δu(z) = sqrt(π) / (2hδu) * exp(-z^2 / (2hδu^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
@@ -110,8 +112,10 @@ sponges with timescale τˢ.
 @doesnothavecuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
-@hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*CUDAnative.rand()))
+@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k)
+    ξ = 0.0 #CuArrays.rand() 
+    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
+end
 
 # 
 # Model setup
@@ -148,11 +152,11 @@ function savebcs(file, model)
     return nothing
 end
 
-u(model)  = Array(parentdata(model.velocities.u))
-v(model)  = Array(parentdata(model.velocities.v))
-w(model)  = Array(parentdata(model.velocities.w))
-θ(model)  = Array(parentdata(model.tracers.T))
-s(model)  = Array(parentdata(model.tracers.S))
+u(model) = Array(parentdata(model.velocities.u))
+v(model) = Array(parentdata(model.velocities.v))
+w(model) = Array(parentdata(model.velocities.w))
+θ(model) = Array(parentdata(model.tracers.T))
+s(model) = Array(parentdata(model.tracers.S))
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(parentdata(ϕ), dims=(1, 2))
