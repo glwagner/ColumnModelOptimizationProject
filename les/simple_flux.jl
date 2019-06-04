@@ -5,13 +5,13 @@ addprocs(1)
     using Oceananigans, JLD2, Printf, Distributions, 
           Random, Printf, OceananigansAnalysis,
           Statistics
-
-    @hascuda CuArrays
 end
 
 macro hasnotcuda(ex)
     return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
 end
+
+@everywhere @hascuda CuArrays
 
 @hasnotcuda include("utils.jl")
 include("cfl_util.jl")
@@ -26,14 +26,14 @@ hour = 3600
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float64
+      FT = Float32
        Δ = 1.0
-      Ny = 32
+      Ny = 16
       Ly = Δ * Ny
 
       Nx = 2Ny
       Lx = 2Ly
-      Nz =  Ny
+      Nz = 2Ny
       Lz =  Ly
 
       Δx = Lx / Nx
@@ -41,21 +41,25 @@ hour = 3600
 
   tfinal = 7*day
 
-      N² = FT(1e-6) 
-const Fb = FT(1e-9)
-const Fu = FT(0.0 )#-1e-4
-
+# Boundary conditioons and initial condition
+      N²  = FT( 1e-6 ) 
+const Fb  = FT( 1e-9 )
+const Fu  = FT( 0.0  )#-1e-4
 const T₀₀ = FT( 20.0     ) 
 const S₀₀ = FT( 1        )
+
+# Surface momentum forcing
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
+
+# Sponges
 const dδu = FT( 5Δz      )  # momentum forcing smoothing scale
 const dδθ = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const dδS = FT( 5Δz      )  # buoyancy forcing smoothing scale
-const τS  = FT( 10000.0  )  # sponge damping timescale
-const τˢ  = FT( 1000.0   )   # sponge damping timescale
-const δˢ  = FT( Lz / 10  )   # sponge layer width
-const zˢ  = FT( -Lz + δˢ )   # sponge layer central depth
+const dδS = FT( 3Δz      )  # buoyancy forcing smoothing scale
+const τS  = FT( 1000.0   )  # sponge damping timescale
+const τˢ  = FT( 1000.0   )  # sponge damping timescale
+const δˢ  = FT( Lz / 20  )  # sponge layer width
+const zˢ  = FT( -Lz + δˢ )  # sponge layer central depth
 
 # Buoyancy → temperature
 const Fθ   = FT( Fb / (g*βT)   ) 
@@ -90,12 +94,13 @@ S₀★(z) = S₀₀ * (1 + z/Lξ)
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
-S₀(x, y, z) = S₀★(z) * (1 + 1e-6 * Ξ(z))
+S₀(x, y, z) = 1e-6 * Ξ(z)
 
 "A regularized delta function."
 @inline δu(z) = √(π) / (2dδu) * exp(-z^2 / (2dδu^2))
 @inline δθ(z) = √(π) / (2dδθ) * exp(-z^2 / (2dδθ^2))
-@inline δS(z) = √(π) / (2dδS) * exp(-z^2 / (2dδS^2))
+
+@inline top_sponge(z) = 1/τS * exp(-z^2 / (2dδS^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
@@ -116,10 +121,12 @@ sponges with timescale τˢ.
 
 # Relax bottom temperature field to background profile
 @inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fθ * δθ(grid.zC[k]) + sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
+    @inbounds -Fθ * δθ(grid.zC[k]) #+ sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
 
+    #=
 @inline FSˢ(grid, u, v, w, T, S, i, j, k) = 
-@inbounds 1/τS * δS(grid.zC[k]) * ( S₀★(grid.zC[k]) - S[i, j, k] )
+    @inbounds top_sponge(grid.zC[k]) * ( S₀★(grid.zC[k]) - S[i, j, k] )
+    =#
 
 # 
 # Model setup
@@ -136,7 +143,7 @@ model = Model(
       closure = AnisotropicMinimumDissipation(FT), 
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
-      forcing = Forcing(Fu=FFu, FS=FSˢ), #FT=FTˢ, 
+      forcing = Forcing(Fu=FFu, FT=FTˢ), #, FS=FSˢ), #
           bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
@@ -235,7 +242,7 @@ function nice_message(model, walltime, Δt)
 end
 
 # CFL wizard
-wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.1, max_Δt=120.0)
+wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.1, max_Δt=60.0)
 @info "Completed first timestep."
 
 @time time_step!(model, 1, 1e-16) # time first time-step
@@ -269,7 +276,7 @@ ifig = 1
         @printf "%s" nice_message(model, walltime, wizard.Δt)
 
         @hasnotcuda boundarylayerplot(axs, model)
-        @hasnotcuda savefig(filename(model) * "_$ifig.png", dpi=480)
+        @hasnotcuda savefig(joinpath("plots", filename(model) * "_$ifig.png"), dpi=480)
         ifig += 1
     end
 end
