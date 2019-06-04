@@ -26,9 +26,9 @@ hour = 3600
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float32
+      FT = Float64
        Δ = 2.0
-      Ny = 32
+      Ny = 16
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -212,7 +212,6 @@ field_writer = JLD2OutputWriter(model, fields; dir="data",
 
 push!(model.output_writers, profile_writer, field_writer)
 
-
 ρ₀ = 1035.0
 cp = 3993.0
 
@@ -239,7 +238,7 @@ cp = 3993.0
 function nice_message(model, walltime, Δt) 
 
     wmax = maximum(abs, model.velocities.w.data.parent)
-    cfl = cell_advection_timescale(model) / Δt
+    cfl = Δt / cell_advection_timescale(model)
 
     return @sprintf(
         "i: %05d, t: %.4f hours, Δt: %.1f s, cfl: %.3f, max w: %.6f m s⁻¹, wall: %s\n", 
