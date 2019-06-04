@@ -43,7 +43,7 @@ hour = 3600
 
 # Boundary conditioons and initial condition
       N²  = FT( 1e-6 ) 
-const Fb  = FT( 1e-8 )
+const Fb  = FT( 1e-9 )
 const Fu  = FT( 0.0  )#-1e-4
 const T₀₀ = FT( 20.0     ) 
 const S₀₀ = FT( 1        )
@@ -117,7 +117,7 @@ sponges with timescale τˢ.
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*CUDAnative.rand()))
+    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i]))# + 2π*CUDAnative.rand()))
 
 # 
 # Model setup
