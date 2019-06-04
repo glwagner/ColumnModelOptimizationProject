@@ -190,12 +190,12 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=100, force=true,
+                                  init=savebcs, frequency=200, force=true,
                                   asynchronous=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=200, force=true,
+                                init=savebcs, frequency=2000, force=true,
                                 asynchronous=true)
 
 push!(model.output_writers, profile_writer, field_writer)
