@@ -5,6 +5,8 @@ addprocs(1)
     using Oceananigans, JLD2, Printf, Distributions, 
           Random, Printf, OceananigansAnalysis,
           Statistics
+
+    @hascuda CuArrays
 end
 
 macro hasnotcuda(ex)
@@ -25,7 +27,7 @@ hour = 3600
 # Initial condition, boundary condition, and tracer forcing
 #
       FT = Float64
-       Δ = 2.0
+       Δ = 1.0
       Ny = 32
       Ly = Δ * Ny
 
@@ -49,8 +51,8 @@ const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flu
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
 const dδu = FT( 5Δz      )  # momentum forcing smoothing scale
 const dδθ = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const dδS = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const τS  = FT( 1000.0   )  # sponge damping timescale
+const dδS = FT( 5Δz      )  # buoyancy forcing smoothing scale
+const τS  = FT( 10000.0  )  # sponge damping timescale
 const τˢ  = FT( 1000.0   )   # sponge damping timescale
 const δˢ  = FT( Lz / 10  )   # sponge layer width
 const zˢ  = FT( -Lz + δˢ )   # sponge layer central depth
