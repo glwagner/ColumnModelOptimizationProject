@@ -113,7 +113,7 @@ sponges with timescale τˢ.
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k)
-    ξ = CuArrays.rand() 
+    ξ = 0.0 #CuArrays.rand() 
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
 
@@ -190,11 +190,11 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=100, force=true)
+                                  init=savebcs, frequency=200, force=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=200, force=true)
+                                init=savebcs, frequency=2000, force=true)
 
 push!(model.output_writers, profile_writer, field_writer)
 
