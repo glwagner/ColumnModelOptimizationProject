@@ -28,7 +28,7 @@ hour = 3600
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float32
+      FT = Float64
        Δ = 1.0
       Ny = 128
       Ly = Δ * Ny
@@ -113,7 +113,7 @@ sponges with timescale τˢ.
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
 @hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k)
-    ξ = 0.0 #CuArrays.rand() 
+    ξ = CuArrays.rand() 
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
 
@@ -190,13 +190,11 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=200, force=true,
-                                  asynchronous=true)
+                                  init=savebcs, frequency=100, force=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=2000, force=true,
-                                asynchronous=true)
+                                init=savebcs, frequency=200, force=true)
 
 push!(model.output_writers, profile_writer, field_writer)
 
@@ -240,7 +238,7 @@ function nice_message(model, walltime, Δt)
 end
 
 # CFL wizard
-wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.05, Δt=1.0, max_change=1.1, max_Δt=90.0)
 @info "Completed first timestep."
 
 @time time_step!(model, 1, 1e-16) # time first time-step
@@ -254,12 +252,13 @@ end
 # Spinup
 for i = 1:100
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 1, FT(wizard.Δt))
+    walltime = @elapsed time_step!(model, 10, FT(wizard.Δt))
     @printf "%s" nice_message(model, walltime, wizard.Δt)
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
-max_change = 1.5
+wizard.cfl = 0.2
+wizard.max_change = 1.5
 ifig = 1
 
 @sync begin

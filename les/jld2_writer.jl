@@ -56,8 +56,8 @@ function Oceananigans.write_output(model, fw::JLD2OutputWriter)
     return nothing
 end
 
-function jld2output!(filepath, iter, time, data)
-    jldopen(filepath, "r+") do file
+function jld2output!(path, iter, time, data)
+    jldopen(path, "r+") do file
         file["timeseries/t/$iter"] = time
         for (name, datum) in data
             file["timeseries/$name/$iter"] = datum
