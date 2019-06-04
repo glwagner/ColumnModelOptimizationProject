@@ -11,7 +11,9 @@ macro doesnothavecuda(ex)
     return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
 end
 
-@hascuda @everywhere using CuArrays, CUDAnative
+@hascuda @everywhere using CuArrays, CUDAnative, CuArrays.CURAND
+
+#@hascuda CURAND.seed!()
 
 @doesnothavecuda include("plot_utils.jl")
 include("time_step_wizard.jl")
@@ -43,20 +45,24 @@ hour = 3600
 
 # Boundary conditioons and initial condition
       N²  = FT( 1e-6 ) 
+<<<<<<< HEAD
 const Fb  = FT( 1e-9 )
 const Fu  = FT( 0.0  )#-1e-4
 const T₀₀ = FT( 20.0     ) 
 const S₀₀ = FT( 1        )
+=======
+const Fb  = FT( 1e-8 )
+const Fu  = FT( 0.0  ) #-1e-4
+const T₀₀ = FT( 20.0 ) 
+const S₀₀ = FT( 1    )
+>>>>>>> eabb04ea67c84c7262373f2056c15396efb9f28d
 
 # Surface momentum forcing
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
 
 # Sponges
-const dδu = FT( 5Δz      )  # momentum forcing smoothing scale
-const dδθ = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const dδS = FT( 3Δz      )  # buoyancy forcing smoothing scale
-const τS  = FT( 1000.0   )  # sponge damping timescale
+const hδu = FT( 5Δz      )  # momentum forcing smoothing height
 const τˢ  = FT( 1000.0   )  # sponge damping timescale
 const δˢ  = FT( Lz / 20  )  # sponge layer width
 const zˢ  = FT( -Lz + δˢ )  # sponge layer central depth
@@ -97,10 +103,7 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
-@inline δu(z) = √(π) / (2dδu) * exp(-z^2 / (2dδu^2))
-@inline δθ(z) = √(π) / (2dδθ) * exp(-z^2 / (2dδθ^2))
-
-@inline top_sponge(z) = 1/τS * exp(-z^2 / (2dδS^2))
+@inline δu(z) = sqrt(π) / (2hδu) * exp(-z^2 / (2hδu^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
@@ -116,8 +119,10 @@ sponges with timescale τˢ.
 @doesnothavecuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
 
-@hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
-    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i]))# + 2π*CUDAnative.rand()))
+@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k)
+    ξ = 0.0 #CuArrays.rand() 
+    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
+end
 
 # 
 # Model setup
@@ -154,11 +159,11 @@ function savebcs(file, model)
     return nothing
 end
 
-u(model)  = Array(parentdata(model.velocities.u))
-v(model)  = Array(parentdata(model.velocities.v))
-w(model)  = Array(parentdata(model.velocities.w))
-θ(model)  = Array(parentdata(model.tracers.T))
-s(model)  = Array(parentdata(model.tracers.S))
+u(model) = Array(parentdata(model.velocities.u))
+v(model) = Array(parentdata(model.velocities.v))
+w(model) = Array(parentdata(model.velocities.w))
+θ(model) = Array(parentdata(model.tracers.T))
+s(model) = Array(parentdata(model.tracers.S))
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(parentdata(ϕ), dims=(1, 2))
@@ -192,12 +197,12 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=200, force=true,
+                                  init=savebcs, frequency=2000, force=true,
                                   asynchronous=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=800, force=true,
+                                init=savebcs, frequency=4000, force=true,
                                 asynchronous=true)
 
 push!(model.output_writers, profile_writer, field_writer)
