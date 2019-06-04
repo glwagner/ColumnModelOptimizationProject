@@ -46,7 +46,7 @@ hour = 3600
 # Boundary conditioons and initial condition
       N²  = FT( 1e-6 ) 
 const Fb  = FT( 1e-8 )
-const Fu  = FT( 0.0  )#-1e-4
+const Fu  = FT( 0.0  ) #-1e-4
 const T₀₀ = FT( 20.0 ) 
 const S₀₀ = FT( 1    )
 
