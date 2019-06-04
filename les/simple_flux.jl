@@ -28,9 +28,9 @@ hour = 3600
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float64
+      FT = Float32
        Δ = 1.0
-      Ny = 32 
+      Ny = 16 
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -152,14 +152,14 @@ function savebcs(file, model)
     return nothing
 end
 
-u(model) = Array(parentdata(model.velocities.u))
-v(model) = Array(parentdata(model.velocities.v))
-w(model) = Array(parentdata(model.velocities.w))
-θ(model) = Array(parentdata(model.tracers.T))
-s(model) = Array(parentdata(model.tracers.S))
+u(model) = Array(model.velocities.u.data.parent)
+v(model) = Array(model.velocities.v.data.parent)
+w(model) = Array(model.velocities.w.data.parent)
+θ(model) = Array(model.tracers.T.data.parent)
+s(model) = Array(model.tracers.S.data.parent)
 
 function hmean!(ϕavg, ϕ::Field)
-    ϕavg .= mean(parentdata(ϕ), dims=(1, 2))
+    ϕavg .= mean(ϕ.data.parent, dims=(1, 2))
     return nothing
 end
 
@@ -190,12 +190,12 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=200, force=true,
+                                  init=savebcs, frequency=100, force=true,
                                   asynchronous=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=800, force=true,
+                                init=savebcs, frequency=200, force=true,
                                 asynchronous=true)
 
 push!(model.output_writers, profile_writer, field_writer)
@@ -214,7 +214,7 @@ cp = 3993.0
            Fu : %.1e m² s⁻²
             Q : %.2e W m⁻²
           |τ| : %.2e kg m⁻¹ s⁻²
-          1/N : %.1f min
+           N² : %.1e s⁻²
            βT : %.2e (⁰C)⁻¹
      filename : %s
     
@@ -225,7 +225,7 @@ cp = 3993.0
     model.grid.Lx, model.grid.Ly, model.grid.Lz, 
     model.grid.Δx, model.grid.Δy, model.grid.Δz, 
     Fb, Fu, -ρ₀*cp*Fb/(model.constants.g*model.eos.βT), abs(ρ₀*Fu),
-    sqrt(1/N²) / 60, model.eos.βT, filename(model)
+    N², model.eos.βT, filename(model)
 )
 
 function nice_message(model, walltime, Δt) 
