@@ -3,11 +3,15 @@ addprocs(1)
 
 @everywhere begin
     using Oceananigans, JLD2, Printf, Distributions, 
-          Random, Printf, PyPlot, OceananigansAnalysis,
+          Random, Printf, OceananigansAnalysis,
           Statistics
 end
 
-include("utils.jl")
+macro hasnotcuda(ex)
+    return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
+end
+
+@hasnotcuda include("utils.jl")
 include("cfl_util.jl")
 include("jld2_writer.jl")
 
@@ -20,12 +24,14 @@ hour = 3600
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      Ny = 64
-      Ly = 64
+      FT = Float64
+       Δ = 2.0
+      Ny = 32
+      Ly = Δ * Ny
 
       Nx = 2Ny
       Lx = 2Ly
-      Nz = 2Ny
+      Nz =  Ny
       Lz =  Ly
 
       Δx = Lx / Nx
@@ -33,23 +39,25 @@ hour = 3600
 
   tfinal = 7*day
 
-      N² = 1e-6
-const Fb = 1e-9
-const Fu = 0.0 #-1e-4
+      N² = FT(1e-6) 
+const Fb = FT(1e-9)
+const Fu = FT(0.0 )#-1e-4
 
-const T₀₀ = 20.0
-const c₀₀ = 1
-const kᵘ  = 2π / 4Δx   # wavelength of horizontal divergent surface flux
-const aᵘ  = 0.01       # relative amplitude of horizontal divergent surface flux
-const dδu = 5Δz        # momentum forcing smoothing scale
-const dδθ = 3Δz        # buoyancy forcing smoothing scale
-const τˢ = 1000.0      # sponge damping timescale
-const δˢ = Lz / 10     # sponge layer width
-const zˢ = -Lz + δˢ    # sponge layer central depth
+const T₀₀ = FT( 20.0     ) 
+const S₀₀ = FT( 1        )
+const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
+const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
+const dδu = FT( 5Δz      )  # momentum forcing smoothing scale
+const dδθ = FT( 3Δz      )  # buoyancy forcing smoothing scale
+const dδS = FT( 3Δz      )  # buoyancy forcing smoothing scale
+const τS  = FT( 1000.0   )  # sponge damping timescale
+const τˢ  = FT( 1000.0   )   # sponge damping timescale
+const δˢ  = FT( Lz / 10  )   # sponge layer width
+const zˢ  = FT( -Lz + δˢ )   # sponge layer central depth
 
 # Buoyancy → temperature
-const Fθ   = Fb / (g*βT)
-const dTdz = N² / (g * βT)
+const Fθ   = FT( Fb / (g*βT)   ) 
+const dTdz = FT( N² / (g * βT) )
 
 filename(model) = @sprintf(
                            "simple_flux_Fb%.0e_Fu%.0e_Lz%d_Nz%d",
@@ -57,14 +65,14 @@ filename(model) = @sprintf(
                            model.grid.Lz, model.grid.Nz
                           )
 
-cbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Value, c₀₀),
-    bottom = BoundaryCondition(Value, 0.0)
+Sbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
+    top    = BoundaryCondition(Value, FT(S₀₀)),
+    bottom = BoundaryCondition(Value, -zero(FT))
    ))
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     top    = DefaultBC(), #BoundaryCondition(Flux, Fθ),
-    bottom = BoundaryCondition(Gradient, dTdz)
+    bottom = BoundaryCondition(Gradient, FT(dTdz))
    ))
 
 #
@@ -76,14 +84,16 @@ const Lξ = Lz
 Ξ(z) = rand(Normal(0, 1)) * z / Lξ * (1 + z / Lξ)
 
 T₀★(z) = T₀₀ + dTdz * z
+S₀★(z) = S₀₀ * (1 + z/Lξ)
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
-c₀(x, y, z) = 1e-6 * Ξ(z)
+S₀(x, y, z) = S₀★(z) * (1 + 1e-6 * Ξ(z))
 
 "A regularized delta function."
 @inline δu(z) = √(π) / (2dδu) * exp(-z^2 / (2dδu^2))
 @inline δθ(z) = √(π) / (2dδθ) * exp(-z^2 / (2dδθ^2))
+@inline δS(z) = √(π) / (2dδS) * exp(-z^2 / (2dδS^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
@@ -96,12 +106,18 @@ sponges with timescale τˢ.
 
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-@inline FFu(grid, u, v, w, T, S, i, j, k) = 
+@hasnotcuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*rand()))
+
+@hascuda @inline FFu(grid, u, v, w, T, S, i, j, k) = 
+    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*CuArrays.rand()))
 
 # Relax bottom temperature field to background profile
 @inline FTˢ(grid, u, v, w, T, S, i, j, k) = 
     @inbounds -Fθ * δθ(grid.zC[k]) + sponge(grid.zC[k]) * (T₀★(grid.zC[k]) - T[i, j, k])
+
+@inline FSˢ(grid, u, v, w, T, S, i, j, k) = 
+@inbounds 1/τS * δS(grid.zC[k]) * ( S₀★(grid.zC[k]) - S[i, j, k] )
 
 # 
 # Model setup
@@ -111,64 +127,81 @@ arch = CPU()
 @hascuda arch = GPU() # use GPU if it's available
 
 model = Model(
+   float_type = FT,
          arch = arch,
             N = (Nx, Ny, Nz),
             L = (Lx, Ly, Lz), 
-      closure = AnisotropicMinimumDissipation(), 
-          eos = LinearEquationOfState(βT=βT, βS=0.),
-    constants = PlanetaryConstants(f=1e-4, g=g),
-      forcing = Forcing(Fu=FFu, FT=FTˢ),
-          bcs = BoundaryConditions(T=Tbcs, S=cbcs),
+      closure = AnisotropicMinimumDissipation(FT), 
+          eos = LinearEquationOfState(FT, βT=βT, βS=0.),
+    constants = PlanetaryConstants(FT, f=1e-4, g=g),
+      forcing = Forcing(Fu=FFu, FS=FSˢ), #FT=FTˢ, 
+          bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
 
-set_ic!(model, u=u₀, v=v₀, T=T₀, S=c₀)
+set_ic!(model, u=u₀, v=v₀, T=T₀, S=S₀)
 
 #
 # Output
 #
 
-#=
 function savebcs(file, model)
-    file["bcs/Fb"] = Fb
-    file["bcs/Fu"] = Fu
-    file["bcs/dTdz"] = dTdz
-    file["bcs/c₀₀"] = c₀₀
+    file["boundary_conditions/Fb"] = Fb
+    file["boundary_conditions/Fu"] = Fu
+    file["boundary_conditions/dTdz"] = dTdz
+    file["boundary_conditions/Bz"] = dTdz * g * βT
+    file["boundary_conditions/S₀₀"] = S₀₀
     return nothing
 end
 
-u(model)  = Array(data(model.velocities.u))
-v(model)  = Array(data(model.velocities.v))
-w(model)  = Array(data(model.velocities.w))
-θ(model)  = Array(data(model.tracers.T))
-c(model)  = Array(data(model.tracers.S))
+u(model)  = Array(parentdata(model.velocities.u))
+v(model)  = Array(parentdata(model.velocities.v))
+w(model)  = Array(parentdata(model.velocities.w))
+θ(model)  = Array(parentdata(model.tracers.T))
+c(model)  = Array(parentdata(model.tracers.S))
 
-U(model)  = Array(havg(model.velocities.u))
-V(model)  = Array(havg(model.velocities.v))
-W(model)  = Array(havg(model.velocities.w))
-T(model)  = Array(havg(model.tracers.T))
-C(model)  = Array(havg(model.tracers.S))
-#e(model)  = havg(turbulent_kinetic_energy(model))
-#wT(model) = havg(model.velocities.w * model.tracers.T)
+function hmean!(ϕavg, ϕ::Field)
+    ϕavg .= mean(parentdata(ϕ), dims=(1, 2))
+    return nothing
+end
 
-profiles = Dict(:U=>U, :V=>V, :W=>W, :T=>T, :C=>C) #, :e=>e, :wT=>wT)
-  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :c=>c)
+const avgs = HorizontalAverages(model)
+
+function U(model)
+    hmean!(avgs.U, model.velocities.u)
+    return Array(avgs.U)
+end
+
+function V(model)
+    hmean!(avgs.V, model.velocities.v)
+    return Array(avgs.V)
+end
+
+function T(model)
+    hmean!(avgs.T, model.tracers.T)
+    return Array(avgs.T)
+end
+
+function S(model)
+    hmean!(avgs.S, model.tracers.S)
+    return Array(avgs.S)
+end
+
+profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
+  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>c)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=100, force=true,
+                                  init=savebcs, frequency=200, force=true,
                                   asynchronous=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=1000, force=true,
+                                init=savebcs, frequency=800, force=true,
                                 asynchronous=true)
 
 push!(model.output_writers, profile_writer, field_writer)
-=#
 
-gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
-fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(16, 10), gridspec_kw=gridspec)
 
 ρ₀ = 1035.0
 cp = 3993.0
@@ -200,26 +233,41 @@ function nice_message(model, walltime, Δt)
 end
 
 # CFL wizard
-wizard = TimeStepWizard(cfl=2e-1, Δt=1.0)
+wizard = TimeStepWizard(cfl=2e-1, Δt=1.0, max_change=1.1, max_Δt=120.0)
+@info "Completed first timestep."
 
 @time time_step!(model, 1, 1e-16) # time first time-step
-boundarylayerplot(axs, model)
+
+@hasnotcuda begin
+    gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
+    fig, axs = subplots(ncols=2, nrows=3, sharey=true, figsize=(8, 10), gridspec_kw=gridspec)
+    boundarylayerplot(axs, model)
+end
 
 # Spinup
 for i = 1:100
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 1, wizard.Δt)
+    walltime = @elapsed time_step!(model, 1, FT(wizard.Δt))
     @printf "%s" nice_message(model, walltime, wizard.Δt)
 end
 
-boundarylayerplot(axs, model)
+wizard.max_change = 2
+
+@hasnotcuda boundarylayerplot(axs, model)
+ifig = 1
 
 @sync begin
     # Main loop
     while model.clock.time < tfinal
+        global ifig
+
         update_Δt!(wizard, model)
-        walltime = @elapsed time_step!(model, 100, wizard.Δt)
+        walltime = @elapsed time_step!(model, 100, FT(wizard.Δt))
+
         @printf "%s" nice_message(model, walltime, wizard.Δt)
-        boundarylayerplot(axs, model)
+
+        @hasnotcuda boundarylayerplot(axs, model)
+        @hasnotcuda savefig(filename(model) * "_$ifig.png", dpi=480)
+        ifig += 1
     end
 end

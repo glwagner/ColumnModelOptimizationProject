@@ -140,34 +140,6 @@ w(model)  = Array(parentdata(model.velocities.w))
 θ(model)  = Array(parentdata(model.tracers.T))
 c(model)  = Array(parentdata(model.tracers.S))
 
-struct HorizontalAverages{A}
-    U :: A
-    V :: A
-    T :: A
-    S :: A
-end
-
-function HorizontalAverages(arch::CPU, grid::Grid{FT}) where FT
-    U = zeros(FT, 1, 1, grid.Tz)
-    V = zeros(FT, 1, 1, grid.Tz)
-    T = zeros(FT, 1, 1, grid.Tz)
-    S = zeros(FT, 1, 1, grid.Tz)
-
-    HorizontalAverages(U, V, W, T, S)
-end
-
-function HorizontalAverages(arch::GPU, grid::Grid{FT}) where FT
-    U = CuArray{FT}(undef, 1, 1, grid.Nz)
-    V = CuArray{FT}(undef, 1, 1, grid.Nz)
-    T = CuArray{FT}(undef, 1, 1, grid.Nz)
-    S = CuArray{FT}(undef, 1, 1, grid.Nz)
-
-    HorizontalAverages(U, V, T, S)
-end
-
-HorizontalAverages(m::Model{A}) where A = 
-    HorizontalAverages(A(), model.grid)
-
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(parentdata(ϕ), dims=(1, 2))
     return nothing
