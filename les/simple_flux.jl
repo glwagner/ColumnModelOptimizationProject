@@ -27,8 +27,8 @@ hour = 3600
 # Initial condition, boundary condition, and tracer forcing
 #
       FT = Float64
-       Δ = 2.0
-      Ny = 16
+       Δ = 1.0
+      Ny = 32
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -168,7 +168,7 @@ u(model)  = Array(parentdata(model.velocities.u))
 v(model)  = Array(parentdata(model.velocities.v))
 w(model)  = Array(parentdata(model.velocities.w))
 θ(model)  = Array(parentdata(model.tracers.T))
-c(model)  = Array(parentdata(model.tracers.S))
+s(model)  = Array(parentdata(model.tracers.S))
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(parentdata(ϕ), dims=(1, 2))
@@ -198,7 +198,7 @@ function S(model)
 end
 
 profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
-  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>c)
+  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>s)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
