@@ -2,10 +2,10 @@ using Distributed
 
 using JLD2
 
-mutable struct JLD2OutputWriter{O} <: OutputWriter
+mutable struct JLD2OutputWriter{O, I} <: OutputWriter
         filepath :: String
          outputs :: O
-        interval :: Int
+        interval :: I
         previous :: Float64
     asynchronous :: Bool
 end

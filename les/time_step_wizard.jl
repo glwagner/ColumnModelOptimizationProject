@@ -13,6 +13,7 @@ function safe_Δt(model, αu, αν=0.01)
 end
 
 function cell_advection_timescale(u, v, w, grid)
+
     umax = maximum(abs, u)
     vmax = maximum(abs, v)
     wmax = maximum(abs, w)
@@ -25,6 +26,7 @@ function cell_advection_timescale(u, v, w, grid)
 end
 
 function cell_diffusion_timescale(ν, κ, grid)
+
     νmax = maximum(abs, ν)
     κmax = maximum(abs, κ)
 
@@ -79,4 +81,41 @@ function update_Δt!(wizard, model)
     wizard.Δt = Δt
 
     return nothing
+end
+
+function verbose_message(model, walltime, Δt) 
+    umin = minimum(model.velocities.u.data.parent)
+    vmin = minimum(model.velocities.v.data.parent)
+    wmin = minimum(model.velocities.w.data.parent)
+    Tmin = minimum(model.tracers.T.data.parent)
+
+    umax = maximum(model.velocities.u.data.parent)
+    vmax = maximum(model.velocities.v.data.parent)
+    wmax = maximum(model.velocities.w.data.parent)
+    Tmax = maximum(model.tracers.T.data.parent)
+
+    cfl = Δt / cell_advection_timescale(model)
+
+    return @sprintf("""
+        i: %09d, t: %.4f hours, Δt: %.2f s, cfl: %.3f, wall: %s
+
+            u: (%10.6f, %10.6f ) m s⁻¹, 
+            v: (%10.6f, %10.6f ) m s⁻¹, 
+            w: (%10.6f, %10.6f ) m s⁻¹, 
+            T: (%10.6f, %10.6f ) ᵒC
+
+        """,
+        model.clock.iteration, model.clock.time/3600, Δt, cfl, prettytime(1e9*walltime),
+        umin, umax, vmin, vmax, wmin, wmax, Tmin, Tmax
+       ) 
+end
+
+function terse_message(model, walltime, Δt) 
+    wmax = maximum(abs, model.velocities.w.data.parent)
+    cfl = Δt / cell_advection_timescale(model)
+
+    return @sprintf(
+        "i: %09d, t: %.4f hours, Δt: %.1f s, wmax: %.6f ms⁻¹, cfl: %.3f, wall time: %s\n",
+        model.clock.iteration, model.clock.time/3600, Δt, wmax, cfl, prettytime(1e9*walltime),
+       ) 
 end
