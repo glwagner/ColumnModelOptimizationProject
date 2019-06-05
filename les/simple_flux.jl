@@ -23,13 +23,13 @@ minute = 60
 #
       FT = Float64
        Δ = 0.5
-      Ny = 32 
+      Ny = 256
       Ly = Δ * Ny
 
       Nx = 2Ny
       Lx = 2Ly
-      Nz = 2Ny
-      Lz =  Ly
+      Nz = Ny
+      Lz = Ly
 
       Δx = Lx / Nx
       Δz = Lz / Nz
@@ -59,7 +59,7 @@ cases = Dict(
 # 6.   1e-6  |   1e-8   |  -1e-4    # unstable wind
 # 7.   1e-6  |  -1e-9   |  -1e-4    # stable wind
 
-case = 6
+case = 7
 _Fu = cases[case].Fu
 _Fb = cases[case].Fb
 
