@@ -110,6 +110,15 @@ sponges with timescale τˢ.
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
 
+const nrand = 4
+const randomness = Tuple(rand() for i = 1:4)
+
+@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
+    ξ = randomness[iter % nrand + 1]
+    return @inbounds -Fu * δu(grid.zC[k]) * (
+        1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ) )
+end
+
 @inline T_forcing(grid, u, v, w, T, S, i, j, k, iter) =
     @inbounds -Fθ * δθ(grid.zC[k])
 
