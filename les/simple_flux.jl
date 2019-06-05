@@ -1,17 +1,12 @@
-using Distributed
-addprocs(1)
-
-@everywhere begin
-    using Oceananigans, JLD2, Printf, Distributions, 
-          Random, Printf, OceananigansAnalysis,
-          Statistics, Adapt
-end
+using Oceananigans, JLD2, Printf, Distributions, 
+      Random, Printf, OceananigansAnalysis,
+      Statistics, Adapt
 
 macro doesnothavecuda(ex)
     return HAVE_CUDA ? :(nothing) : :($(esc(ex)))
 end
 
-@hascuda @everywhere using CuArrays, CUDAnative, CuArrays.CURAND
+@hascuda using CuArrays, CUDAnative, CuArrays.CURAND
 
 @doesnothavecuda include("plot_utils.jl")
 include("time_step_wizard.jl")
@@ -27,8 +22,8 @@ hour = 3600
 # Initial condition, boundary condition, and tracer forcing
 #
       FT = Float64
-       Δ = 1.0
-      Ny = 32 
+       Δ = 0.5
+      Ny = 128
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -44,7 +39,7 @@ hour = 3600
 # Boundary conditioons and initial condition
       N²  = FT( 1e-6  ) 
 const Fb  = FT( 0.0   )
-const Fu  = FT( -1e-4 ) #-1e-4
+const Fu  = FT( -1e-4 )
 const T₀₀ = FT( 20.0  ) 
 const S₀₀ = FT( 1     )
 
@@ -52,6 +47,7 @@ const S₀₀ = FT( 1     )
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
 const hδu = FT( 3Δz      )  # momentum forcing smoothing height
+const hδθ = FT( 2Δz      )  
 
 # Buoyancy → temperature
 const Fθ   = FT( Fb / (g*βT)   ) 
@@ -69,7 +65,7 @@ Sbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Flux, Fθ),
+    top    = DefaultBC(), #BoundaryCondition(Flux, Fθ),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
    ))
 
@@ -77,62 +73,70 @@ Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
 # Sponges, momentum flux, and initial conditions
 #
 
-# Vertical noise profile for initial condition
-const Lξ = Lz 
-Ξ(z) = rand(Normal(0, 1)) * z / Lξ * (1 + z / Lξ)
-
+# Noiseless initial profiles
 T₀★(z) = T₀₀ + dTdz * z
-S₀★(z) = S₀₀ * (1 + z/Lξ)
+S₀★(z) = S₀₀ * (1 + z/Lz)
+
+# Vertical noise profile for initial condition
+Ξ(z) = rand(Normal(0, 1)) * z / Lz * (1 + z / Lz)
+
+# Initial conditions
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
 S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
-@inline δu(z) = sqrt(π) / (2hδu) * exp(-z^2 / (2hδu^2))
+@inline δu(z) = sqrt(π) / 2hδu * exp(-z^2 / 2hδu^2)
+@inline δθ(z) = sqrt(π) / 2hδθ * exp(-z^2 / 2hδθ^2)
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
 
 """
-A sponging function that is zero above zˢ, has width δˢ, and 
+Sponging function that is zero above zˢ, has width δˢ, and 
 sponges with timescale τˢ.
 """
 @inline sponge(z) = 1/τˢ * smoothstep(z-zˢ, δˢ)
 
+#=
 const nrand = 256
 @doesnothavecuda randomness = rand(nrand)
 @hascuda randomness = CuArrays.rand(nrand)
+=#
 
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-#=
-@doesnothavecuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
-    ξ = randomness[iter % nrand + 1]
-    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
+@inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
+    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i]))
 end
-=#
 
+@inline FFθ(grid, u, v, w, T, S, i, j, k, iter) = @inbounds -Fθ * δθ(grid.zC[k]) 
+
+#=
 struct UForcing{A}
     randomness :: A
 end
 
-Adapt.adapt_structure(to, f::UForcing) = UForcing(Adapt.adapt(to, fu.randomness))
+Adapt.adapt_structure(to, f::UForcing) = UForcing(Adapt.adapt(to, f.randomness))
 
-@inline function (fu::UForcing)(grid, u, v, w, T, S, i, j, k, iter)
+function Adapt.adapt_structure(to, f::Forcing) 
+    return Forcing(
+                   Adapt.adapt(to, f.u),
+                   Adapt.adapt(to, f.v),
+                   Adapt.adapt(to, f.w),
+                   Adapt.adapt(to, f.T),
+                   Adapt.adapt(to, f.S)
+                  )
+end
+
+@inline function (f::UForcing)(grid, u, v, w, T, S, i, j, k, iter)
     ξ = f.randomness[iter % nrand + 1]
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
 
 FFu = UForcing(randomness)
-
-#=
-@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
-    ξ = 0.0 #CuArrays.rand() 
-    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
-end
 =#
-
 
 # 
 # Model setup
@@ -149,7 +153,7 @@ model = Model(
       closure = AnisotropicMinimumDissipation(FT), 
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
-      forcing = Forcing(Fu=FFu),
+      forcing = Forcing(Fu=FFu, FT=FFθ),
           bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
@@ -220,7 +224,7 @@ cp = 3993.0
 
 @printf(
     """
-    Crunching a (viscous) ocean surface boundary layer with
+    Crunching an ocean surface boundary layer with
     
             n : %d, %d, %d
             L : %d, %d, %d m
@@ -249,9 +253,9 @@ function nice_message(model, walltime, Δt)
     cfl = Δt / cell_advection_timescale(model)
 
     return @sprintf(
-        "i: %05d, t: %.4f hours, Δt: %.1f s, cfl: %.3f, max w: %.6f m s⁻¹, wall: %s\n", 
-                    model.clock.iteration, model.clock.time/3600, Δt, 
-                    cfl, wmax, prettytime(1e9*walltime))
+        "i: %05d, t: %.3f hours, Δt: %.1f s, cfl: %.3f, max w: %.6f m s⁻¹, wall time: %s\n", 
+        model.clock.iteration, model.clock.time/3600, Δt, 
+        cfl, wmax, prettytime(1e9*walltime))
 end
 
 # CFL wizard
@@ -274,22 +278,22 @@ for i = 1:20
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
+
+# Reset CFL condition values
 wizard.cfl = 0.2
 wizard.max_change = 1.5
 ifig = 1
 
-@sync begin
-    # Main loop
-    while model.clock.time < tfinal
-        global ifig
+# Main loop
+while model.clock.time < tfinal
+    global ifig
 
-        update_Δt!(wizard, model)
-        walltime = @elapsed time_step!(model, 100, FT(wizard.Δt))
+    update_Δt!(wizard, model)
+    walltime = @elapsed time_step!(model, 100, FT(wizard.Δt))
 
-        @printf "%s" nice_message(model, walltime, wizard.Δt)
+    @printf "%s" nice_message(model, walltime, wizard.Δt)
 
-        @doesnothavecuda boundarylayerplot(axs, model)
-        @doesnothavecuda savefig(joinpath("plots", filename(model) * "_$ifig.png"), dpi=480)
-        ifig += 1
-    end
+    @doesnothavecuda boundarylayerplot(axs, model)
+    @doesnothavecuda savefig(joinpath("plots", filename(model) * "_$ifig.png"), dpi=480)
+    ifig += 1
 end
