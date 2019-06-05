@@ -3,10 +3,11 @@ using Distributed
 using JLD2
 
 mutable struct JLD2OutputWriter{O} <: OutputWriter
-            filepath :: String
-             outputs :: O
-    output_frequency :: Int
-        asynchronous :: Bool
+        filepath :: String
+         outputs :: O
+        interval :: Int
+        previous :: Float64
+    asynchronous :: Bool
 end
 
 function savesubstruct!(file, model, name, flds=propertynames(getproperty(model, name)))
@@ -18,7 +19,7 @@ end
 
 noinit(args...) = nothing
 
-function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=noinit, force=false,
+function JLD2OutputWriter(model, outputs; dir=".", prefix="", interval=1, init=noinit, force=false,
                           asynchronous=false)
 
     mkpath(dir)
@@ -33,7 +34,7 @@ function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=
         savesubstruct!(file, model, :closure)
     end
 
-    return JLD2OutputWriter(filepath, outputs, frequency, asynchronous)
+    return JLD2OutputWriter(filepath, outputs, interval, 0.0, asynchronous)
 end
 
 function Oceananigans.write_output(model, fw::JLD2OutputWriter)

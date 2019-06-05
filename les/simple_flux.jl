@@ -28,7 +28,7 @@ hour = 3600
 #
       FT = Float64
        Δ = 1.0
-      Ny = 32 
+      Ny = 128
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -43,7 +43,7 @@ hour = 3600
 
 # Boundary conditioons and initial condition
       N²  = FT( 1e-6  ) 
-const Fb  = FT( 0.0   )
+const Fb  = FT( -1e-9 )
 const Fu  = FT( -1e-4 ) #-1e-4
 const T₀₀ = FT( 20.0  ) 
 const S₀₀ = FT( 1     )
@@ -51,7 +51,8 @@ const S₀₀ = FT( 1     )
 # Surface momentum forcing
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
-const hδu = FT( 3Δz      )  # momentum forcing smoothing height
+const hδu = FT( 2Δz      )  # momentum forcing smoothing height
+const hδθ = FT( 2Δz      )  # momentum forcing smoothing height
 
 # Buoyancy → temperature
 const Fθ   = FT( Fb / (g*βT)   ) 
@@ -69,7 +70,7 @@ Sbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Flux, Fθ),
+    top    = DefaultBC(),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
    ))
 
@@ -83,6 +84,7 @@ const Lξ = Lz
 
 T₀★(z) = T₀₀ + dTdz * z
 S₀★(z) = S₀₀ * (1 + z/Lξ)
+
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
@@ -90,6 +92,7 @@ S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
 @inline δu(z) = sqrt(π) / (2hδu) * exp(-z^2 / (2hδu^2))
+@inline δθ(z) = sqrt(π) / (2hδθ) * exp(-z^2 / (2hδθ^2))
 
 "A step function which is 0 above z=0 and 1 below."
 @inline smoothstep(z, δ) = (1 - tanh(z/δ)) / 2
@@ -100,39 +103,15 @@ sponges with timescale τˢ.
 """
 @inline sponge(z) = 1/τˢ * smoothstep(z-zˢ, δˢ)
 
-const nrand = 256
-@doesnothavecuda randomness = rand(nrand)
-@hascuda randomness = CuArrays.rand(nrand)
-
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-#=
-@doesnothavecuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
-    ξ = randomness[iter % nrand + 1]
-    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
-end
-=#
-
-struct UForcing{A}
-    randomness :: A
-end
-
-Adapt.adapt_structure(to, f::UForcing) = UForcing(Adapt.adapt(to, fu.randomness))
-
-@inline function (fu::UForcing)(grid, u, v, w, T, S, i, j, k, iter)
-    ξ = f.randomness[iter % nrand + 1]
+@doesnothavecuda @inline function u_forcing(grid, u, v, w, T, S, i, j, k, iter)
+    ξ = rand()
     return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[i] + 2π*ξ))
 end
 
-FFu = UForcing(randomness)
-
-#=
-@hascuda @inline function FFu(grid, u, v, w, T, S, i, j, k, iter)
-    ξ = 0.0 #CuArrays.rand() 
-    return @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xC[i] + 2π*ξ))
-end
-=#
-
+@inline T_forcing(grid, u, v, w, T, S, i, j, k, iter) =
+    @inbounds -Fθ * δθ(grid.zC[k])
 
 # 
 # Model setup
@@ -149,7 +128,7 @@ model = Model(
       closure = AnisotropicMinimumDissipation(FT), 
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
-      forcing = Forcing(Fu=FFu),
+      forcing = Forcing(Fu=u_forcing, FT=T_forcing),
           bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
@@ -161,11 +140,11 @@ set_ic!(model, u=u₀, v=v₀, T=T₀, S=S₀)
 #
 
 function savebcs(file, model)
-    file["boundary_conditions/Fb"] = Fb
-    file["boundary_conditions/Fu"] = Fu
+      file["boundary_conditions/Fb"] = Fb
+      file["boundary_conditions/Fu"] = Fu
     file["boundary_conditions/dTdz"] = dTdz
-    file["boundary_conditions/Bz"] = dTdz * g * βT
-    file["boundary_conditions/S₀₀"] = S₀₀
+      file["boundary_conditions/Bz"] = dTdz * g * βT
+     file["boundary_conditions/S₀₀"] = S₀₀
     return nothing
 end
 
@@ -207,11 +186,11 @@ profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
-                                  init=savebcs, frequency=200, force=true)
+                                  init=savebcs, interval=hour, force=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, frequency=2000, force=true)
+                                init=savebcs, interval=4hour, force=true)
 
 push!(model.output_writers, profile_writer, field_writer)
 
@@ -244,7 +223,6 @@ cp = 3993.0
 )
 
 function nice_message(model, walltime, Δt) 
-
     wmax = maximum(abs, model.velocities.w.data.parent)
     cfl = Δt / cell_advection_timescale(model)
 
@@ -274,8 +252,9 @@ for i = 1:20
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
-wizard.cfl = 0.2
+wizard.cfl = 0.5
 wizard.max_change = 1.5
+wizard.max_Δt = Inf
 ifig = 1
 
 @sync begin
