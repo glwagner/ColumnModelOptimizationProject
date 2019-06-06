@@ -94,3 +94,31 @@ end
 
 HorizontalAverages(model) = HorizontalAverages(model.arch, model.grid)
 
+
+struct VerticalPlanes{A}
+    U :: A
+    V :: A
+    T :: A
+    S :: A
+end
+
+function VerticalPlanes(arch::CPU, grid::Grid{FT}) where FT
+    U = zeros(FT, grid.Tx, 1, grid.Tz)
+    V = zeros(FT, grid.Tx, 1, grid.Tz)
+    T = zeros(FT, grid.Tx, 1, grid.Tz)
+    S = zeros(FT, grid.Tx, 1, grid.Tz)
+
+    VerticalPlanes(U, V, T, S)
+end
+
+function VerticalPlanes(arch::GPU, grid::Grid{FT}) where FT
+    U = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+    V = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+    T = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+    S = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+
+    VerticalPlanes(U, V, T, S)
+end
+
+VerticalPlanes(model) = VerticalPlanes(model.arch, model.grid)
+

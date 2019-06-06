@@ -59,7 +59,7 @@ cases = Dict(
 # 6.   1e-6  |   1e-8   |  -1e-4    # unstable wind
 # 7.   1e-6  |  -1e-9   |  -1e-4    # stable wind
 
-case = 7
+case = 6
 _Fu = cases[case].Fu
 _Fb = cases[case].Fb
 
@@ -120,10 +120,6 @@ S₀(x, y, z) = S₀★(z)
 #forcing = Forcing(FT=T_forcing)
 forcing = Forcing(Fu=u_forcing, FT=T_forcing)
 
-#ξ(iter) = rand()
-#@inline u_forcing(grid, u, v, w, T, S, i, j, k, iter) = 
-#    @inbounds -Fu * δu(grid.zC[k]) * (1 + aᵘ * sin(kᵘ * grid.xC[k] + 2π*ξ(iter)))
-
 # 
 # Model setup
 # 
@@ -174,6 +170,7 @@ function hmean!(ϕavg, ϕ::Field)
 end
 
 const avgs = HorizontalAverages(model)
+const vplanes = VerticalPlanes(model)
 
 function U(model)
     hmean!(avgs.U, model.velocities.u)
@@ -195,18 +192,29 @@ function S(model)
     return Array{Float32}(avgs.S)
 end
 
+function uxz(model) = Array{Float32}(view(model.velocities.u.parent, :, 1, :)
+function vxz(model) = Array{Float32}(view(model.velocities.v.parent, :, 1, :)
+function wxz(model) = Array{Float32}(view(model.velocities.w.parent, :, 1, :)
+function Txz(model) = Array{Float32}(view(model.tracers.T.parent, :, 1, :)
+function Sxz(model) = Array{Float32}(view(model.tracers.S.parent, :, 1, :)
+
 profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
   fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>s)
+  planes = Dict(:u=>uxz, :v=>vxz, :w=>wxz, :θ=>Txz, :s=>Sxz)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
                                   init=savebcs, interval=0.5*hour, force=true)
+
+plane_writer = JLD2OutputWriter(model, planes; dir="data", 
+                                prefix=filename(model)*"_planes", 
+                                  init=savebcs, interval=5minute, force=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
                                 init=savebcs, interval=4hour, force=true)
 
-push!(model.output_writers, profile_writer, field_writer)
+push!(model.output_writers, plane_writer, profile_writer, field_writer)
 
 ρ₀ = 1035.0
 cp = 3993.0
@@ -250,10 +258,6 @@ for i = 1:100
     update_Δt!(wizard, model)
     walltime = @elapsed time_step!(model, 10, FT(wizard.Δt))
     @printf "%s" terse_message(model, walltime, wizard.Δt)
-
-    if i == 50
-        wizard.cfl = 0.2
-    end
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
