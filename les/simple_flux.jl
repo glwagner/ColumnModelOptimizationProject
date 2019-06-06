@@ -21,14 +21,14 @@ minute = 60
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float64
+      FT = Float32
        Δ = 0.5
-      Ny = 256
+      Ny = 16 
       Ly = Δ * Ny
 
-      Nx = 2Ny
-      Lx = 2Ly
-      Nz = Ny
+      Nx = Ny
+      Lx = Ly
+      Nz = 2Ny
       Lz = Ly
 
       Δx = Lx / Nx
@@ -69,7 +69,7 @@ const Fu = FT(_Fb)
 
 # Constant parameters: temperature/tracer bcs, numerical parameters
 const T₀₀ = FT( 20.0     ) 
-const S₀₀ = FT( 1        )
+#const S₀₀ = FT( 1        )
 const δh  = FT( 2Δz      )  # momentum forcing smoothing height
 const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
 const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
@@ -84,11 +84,6 @@ filename(model) = @sprintf(
                            model.grid.Lz, model.grid.Nz
                           )
 
-Sbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Value, FT(S₀₀)),
-    bottom = BoundaryCondition(Value, -zero(FT))
-   ))
-
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     top    = DefaultBC(),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
@@ -102,23 +97,21 @@ Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
 Ξ(z) = rand(Normal(0, 1)) * z / Lz * (1 + z / Lz)
 
 T₀★(z) = T₀₀ + dTdz * z
-S₀★(z) = S₀₀ * (1 + z/Lz)
 
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
-S₀(x, y, z) = S₀★(z)
 
 "A regularized delta function."
 @inline δ(z) = sqrt(π) / (2δh) * exp(-z^2 / (2δh^2))
 
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-@inline T_forcing(grid, u, v, w, T, S, i, j, k, iter) = @inbounds -Fθ * δ(grid.zC[k])
-@inline u_forcing(grid, u, v, w, T, S, i, j, k, iter) = @inbounds -Fu * δ(grid.zC[k])
+@inline T_forcing(x, y, z, args...) = @inbounds -Fθ * δ(z)
+@inline u_forcing(x, y, z, args...) = @inbounds -Fu * δ(z)
 
 #forcing = Forcing(FT=T_forcing)
-forcing = Forcing(Fu=u_forcing, FT=T_forcing)
+forcing = Forcing(u=u_forcing, T=T_forcing)
 
 # 
 # Model setup
@@ -136,11 +129,11 @@ model = Model(
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
       forcing = forcing,
-          bcs = BoundaryConditions(T=Tbcs, S=Sbcs),
+          bcs = BoundaryConditions(T=Tbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
 
-set_ic!(model, u=u₀, v=v₀, T=T₀, S=S₀)
+set_ic!(model, u=u₀, v=v₀, T=T₀)
 
 #
 # Output
@@ -150,11 +143,8 @@ function savebcs(file, model)
     file["boundary_conditions/top/FT"] = Fθ
     file["boundary_conditions/top/Fb"] = Fb
     file["boundary_conditions/top/Fu"] = Fu
-    file["boundary_conditions/top/S₀"] = S₀₀
     file["boundary_conditions/bottom/dTdz"] = dTdz
     file["boundary_conditions/bottom/dbdz"] = dTdz * g * βT
-      file["boundary_conditions/Bz"] = 
-     file["boundary_conditions/S₀₀"] = S₀₀
     return nothing
 end
 
@@ -162,7 +152,6 @@ u(model) = Array{Float32}(model.velocities.u.data.parent)
 v(model) = Array{Float32}(model.velocities.v.data.parent)
 w(model) = Array{Float32}(model.velocities.w.data.parent)
 θ(model) = Array{Float32}(model.tracers.T.data.parent)
-s(model) = Array{Float32}(model.tracers.S.data.parent)
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(ϕ.data.parent, dims=(1, 2))
@@ -187,20 +176,14 @@ function T(model)
     return Array{Float32}(avgs.T)
 end
 
-function S(model)
-    hmean!(avgs.S, model.tracers.S)
-    return Array{Float32}(avgs.S)
-end
+uxz(model) = Array{Float32}(view(model.velocities.u.data.parent, :, 1, :))
+vxz(model) = Array{Float32}(view(model.velocities.v.data.parent, :, 1, :))
+wxz(model) = Array{Float32}(view(model.velocities.w.data.parent, :, 1, :))
+Txz(model) = Array{Float32}(view(model.tracers.T.data.parent, :, 1, :))
 
-function uxz(model) = Array{Float32}(view(model.velocities.u.parent, :, 1, :)
-function vxz(model) = Array{Float32}(view(model.velocities.v.parent, :, 1, :)
-function wxz(model) = Array{Float32}(view(model.velocities.w.parent, :, 1, :)
-function Txz(model) = Array{Float32}(view(model.tracers.T.parent, :, 1, :)
-function Sxz(model) = Array{Float32}(view(model.tracers.S.parent, :, 1, :)
-
-profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
-  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>s)
-  planes = Dict(:u=>uxz, :v=>vxz, :w=>wxz, :θ=>Txz, :s=>Sxz)
+profiles = Dict(:U=>U, :V=>V, :T=>T)
+fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ)
+planes = Dict(:uxz=>uxz, :vxz=>vxz, :wxz=>wxz, :θxz=>Txz)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
@@ -262,7 +245,7 @@ end
 
 @doesnothavecuda boundarylayerplot(axs, model)
 
-wizard.cfl = 0.5
+wizard.cfl = 0.2
 wizard.max_change = 1.2
 wizard.max_Δt = 10minute
 
