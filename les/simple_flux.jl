@@ -86,8 +86,12 @@ filename(model) = @sprintf(
                           )
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryConditions(Flux, Fθ),
+    top    = BoundaryCondition(Flux, Fθ),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
+   ))
+
+ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
+    top    = BoundaryCondition(Flux, Fu),
    ))
 
 #
@@ -108,8 +112,8 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-@inline u_forcing(x, y, z, args...) = @inbounds -Fu * δ(z)
-forcing = Forcing(u=u_forcing)
+#@inline u_forcing(x, y, z, args...) = @inbounds -Fu * δ(z)
+#forcing = Forcing(u=u_forcing)
 
 # 
 # Model setup
@@ -126,7 +130,7 @@ model = Model(
       closure = AnisotropicMinimumDissipation(FT), 
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
-      forcing = forcing,
+      #forcing = forcing,
           bcs = BoundaryConditions(T=Tbcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
@@ -196,7 +200,8 @@ field_writer = JLD2OutputWriter(model, fields; dir="data",
                                 prefix=filename(model)*"_fields", 
                                 init=savebcs, interval=4hour, force=true)
 
-push!(model.output_writers, plane_writer, profile_writer, field_writer)
+#push!(model.output_writers, plane_writer, profile_writer, field_writer)
+push!(model.output_writers, profile_writer, field_writer)
 
 ρ₀ = 1035.0
 cp = 3993.0
