@@ -21,20 +21,20 @@ minute = 60
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float32
-       Δ = 0.5
-      Ny = 16 
+      FT = Float64
+       Δ = 1.0
+      Ny = 128
       Ly = Δ * Ny
 
-      Nx = Ny
-      Lx = Ly
+      Nx = 2Ny
+      Lx = 2Ly
       Nz = 2Ny
       Lz = Ly
 
       Δx = Lx / Nx
       Δz = Lz / Nz
 
-  tfinal = 7*day
+  tfinal = 4*day
 
 # Boundary conditioons and initial condition
 
@@ -44,7 +44,7 @@ cases = Dict(
              3 => (N² = 1e-7, Fb =  1e-8, Fu =  0e-4),
              4 => (N² = 1e-7, Fb =  1e-9, Fu =  0e-4),
              5 => (N² = 1e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
-             6 => (N² = 1e-6, Fb =  1e-8, Fu = -1e-4), # unstable wind
+             6 => (N² = 2e-5, Fb =  5e-9, Fu = -1e-4), # unstable wind
              7 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
@@ -176,10 +176,10 @@ function T(model)
     return Array{Float32}(avgs.T)
 end
 
-uxz(model) = Array{Float32}(view(model.velocities.u.data.parent, :, 1, :))
-vxz(model) = Array{Float32}(view(model.velocities.v.data.parent, :, 1, :))
-wxz(model) = Array{Float32}(view(model.velocities.w.data.parent, :, 1, :))
-Txz(model) = Array{Float32}(view(model.tracers.T.data.parent, :, 1, :))
+uxz(model) = Array{Float32}(model.velocities.u.data.parent[:, 1, :])
+vxz(model) = Array{Float32}(model.velocities.v.data.parent[:, 1, :])
+wxz(model) = Array{Float32}(model.velocities.w.data.parent[:, 1, :])
+Txz(model) = Array{Float32}(model.tracers.T.data.parent[:, 1, :])
 
 profiles = Dict(:U=>U, :V=>V, :T=>T)
 fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ)
