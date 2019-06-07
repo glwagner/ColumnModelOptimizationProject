@@ -65,8 +65,8 @@ _Fu = cases[case].Fu
 _Fb = cases[case].Fb
 
 const N² = FT(cases[case].N²)
-const Fb = FT(_Fu)
-const Fu = FT(_Fb)
+const Fb = FT(_Fb)
+const Fu = FT(_Fu)
 
 # Constant parameters: temperature/tracer bcs, numerical parameters
 const T₀₀ = FT( 20.0     ) 
