@@ -21,7 +21,7 @@ minute = 60
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float32
+      FT = Float64
        Δ = 1.0
       Ny = 128
       Ly = Δ * Ny
@@ -45,7 +45,7 @@ cases = Dict(
              4 => (N² = 1e-7, Fb =  1e-9, Fu =  0e-4),
              5 => (N² = 1e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
              6 => (N² = 2e-5, Fb =  5e-9, Fu = -1e-4), # unstable wind
-             7 => (N² = 1e-6, Fb =  5e-9, Fu = -1e-4), # unstable wind
+             7 => (N² = 5e-6, Fb =  5e-9, Fu = -1e-4), # unstable wind
              8 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
@@ -86,7 +86,7 @@ filename(model) = @sprintf(
                           )
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = DefaultBC(),
+    top    = BoundaryConditions(Flux, Fθ),
     bottom = BoundaryCondition(Gradient, FT(dTdz))
    ))
 
@@ -108,11 +108,8 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
-@inline T_forcing(x, y, z, args...) = @inbounds -Fθ * δ(z)
 @inline u_forcing(x, y, z, args...) = @inbounds -Fu * δ(z)
-
-#forcing = Forcing(FT=T_forcing)
-forcing = Forcing(u=u_forcing, T=T_forcing)
+forcing = Forcing(u=u_forcing)
 
 # 
 # Model setup
@@ -153,7 +150,7 @@ u(model) = Array{Float32}(model.velocities.u.data.parent)
 v(model) = Array{Float32}(model.velocities.v.data.parent)
 w(model) = Array{Float32}(model.velocities.w.data.parent)
 θ(model) = Array{Float32}(model.tracers.T.data.parent)
-ν(model) = Array{Float32}(model.diffusivity.νₑ)
+ν(model) = Array{Float32}(model.diffusivities.νₑ)
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(ϕ.data.parent, dims=(1, 2))
@@ -178,10 +175,10 @@ function T(model)
     return Array{Float32}(avgs.T)
 end
 
-uxz(model) = Array{Float32}(model.velocities.u.data.parent[:, 1, :])
-vxz(model) = Array{Float32}(model.velocities.v.data.parent[:, 1, :])
-wxz(model) = Array{Float32}(model.velocities.w.data.parent[:, 1, :])
-Txz(model) = Array{Float32}(model.tracers.T.data.parent[:, 1, :])
+uxz(model) = Array{Float32}(model.velocities.u.data.parent[:, 3, :])
+vxz(model) = Array{Float32}(model.velocities.v.data.parent[:, 3, :])
+wxz(model) = Array{Float32}(model.velocities.w.data.parent[:, 3, :])
+Txz(model) = Array{Float32}(model.tracers.T.data.parent[:, 3, :])
 
 profiles = Dict(:U=>U, :V=>V, :T=>T)
 fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :ν=>ν)
@@ -193,7 +190,7 @@ profile_writer = JLD2OutputWriter(model, profiles; dir="data",
 
 plane_writer = JLD2OutputWriter(model, planes; dir="data", 
                                 prefix=filename(model)*"_planes", 
-                                  init=savebcs, interval=5minute, force=true)
+                                  init=savebcs, interval=2minute, force=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
