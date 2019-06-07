@@ -59,8 +59,8 @@ end
 
 function getgridparams(datapath::String)
     file = jldopen(datapath, "r")
-    N = file["grid/N"]
-    L = file["grid/L"]
+    N = file["grid/Nz"]
+    L = file["grid/Lz"]
     close(file)
     return N, L
 end

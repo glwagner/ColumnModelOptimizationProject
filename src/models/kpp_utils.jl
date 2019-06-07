@@ -3,7 +3,7 @@ smoothstep(z, d) = 0.5 * (1 - tanh(z/d))
 function ColumnModel(cd::ColumnData, Δt; kwargs...)
     model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu,
                                 dBdz=cd.bottom_Bz, kwargs...)
-    return ColumnModel(model, Δt)
+    return ColumnModelOptimizationProject.ColumnModel(model, Δt)
 end
 
 """
