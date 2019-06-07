@@ -246,6 +246,7 @@ for i = 1:100
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
+wizard.cfl = 0.5
 ifig = 1
 
 # Main loop
