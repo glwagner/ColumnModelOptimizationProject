@@ -2,11 +2,12 @@ using Distributed
 
 using JLD2
 
-mutable struct JLD2OutputWriter{O} <: OutputWriter
-            filepath :: String
-             outputs :: O
-    output_frequency :: Int
-        asynchronous :: Bool
+mutable struct JLD2OutputWriter{O, I} <: OutputWriter
+        filepath :: String
+         outputs :: O
+        interval :: I
+        previous :: Float64
+    asynchronous :: Bool
 end
 
 function savesubstruct!(file, model, name, flds=propertynames(getproperty(model, name)))
@@ -18,7 +19,7 @@ end
 
 noinit(args...) = nothing
 
-function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=noinit, force=false,
+function JLD2OutputWriter(model, outputs; dir=".", prefix="", interval=1, init=noinit, force=false,
                           asynchronous=false)
 
     mkpath(dir)
@@ -33,7 +34,7 @@ function JLD2OutputWriter(model, outputs; dir=".", prefix="", frequency=1, init=
         savesubstruct!(file, model, :closure)
     end
 
-    return JLD2OutputWriter(filepath, outputs, frequency, asynchronous)
+    return JLD2OutputWriter(filepath, outputs, interval, 0.0, asynchronous)
 end
 
 function Oceananigans.write_output(model, fw::JLD2OutputWriter)
@@ -92,4 +93,32 @@ function HorizontalAverages(arch::GPU, grid::Grid{FT}) where FT
 end
 
 HorizontalAverages(model) = HorizontalAverages(model.arch, model.grid)
+
+
+struct VerticalPlanes{A}
+    U :: A
+    V :: A
+    T :: A
+    S :: A
+end
+
+function VerticalPlanes(arch::CPU, grid::Grid{FT}) where FT
+    U = zeros(FT, grid.Tx, 1, grid.Tz)
+    V = zeros(FT, grid.Tx, 1, grid.Tz)
+    T = zeros(FT, grid.Tx, 1, grid.Tz)
+    S = zeros(FT, grid.Tx, 1, grid.Tz)
+
+    VerticalPlanes(U, V, T, S)
+end
+
+function VerticalPlanes(arch::GPU, grid::Grid{FT}) where FT
+    U = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+    V = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+    T = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+    S = CuArray{FT}(undef, grid.Tx, 1, grid.Tz)
+
+    VerticalPlanes(U, V, T, S)
+end
+
+VerticalPlanes(model) = VerticalPlanes(model.arch, model.grid)
 
