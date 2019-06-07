@@ -1,5 +1,8 @@
 *.nc
+*.jld2
+*.png
 *.ipynb_checkpoints
 *.swp
+*.DS_Store
 les/data
 data/gcloud
