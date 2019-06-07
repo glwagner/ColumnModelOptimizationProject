@@ -21,7 +21,7 @@ minute = 60
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float64
+      FT = Float32
        Δ = 1.0
       Ny = 128
       Ly = Δ * Ny
@@ -45,7 +45,8 @@ cases = Dict(
              4 => (N² = 1e-7, Fb =  1e-9, Fu =  0e-4),
              5 => (N² = 1e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
              6 => (N² = 2e-5, Fb =  5e-9, Fu = -1e-4), # unstable wind
-             7 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
+             7 => (N² = 1e-6, Fb =  5e-9, Fu = -1e-4), # unstable wind
+             8 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
 # 
@@ -59,7 +60,7 @@ cases = Dict(
 # 6.   1e-6  |   1e-8   |  -1e-4    # unstable wind
 # 7.   1e-6  |  -1e-9   |  -1e-4    # stable wind
 
-case = 6
+case = 7
 _Fu = cases[case].Fu
 _Fb = cases[case].Fb
 
@@ -152,6 +153,7 @@ u(model) = Array{Float32}(model.velocities.u.data.parent)
 v(model) = Array{Float32}(model.velocities.v.data.parent)
 w(model) = Array{Float32}(model.velocities.w.data.parent)
 θ(model) = Array{Float32}(model.tracers.T.data.parent)
+ν(model) = Array{Float32}(model.diffusivity.νₑ)
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(ϕ.data.parent, dims=(1, 2))
@@ -182,7 +184,7 @@ wxz(model) = Array{Float32}(model.velocities.w.data.parent[:, 1, :])
 Txz(model) = Array{Float32}(model.tracers.T.data.parent[:, 1, :])
 
 profiles = Dict(:U=>U, :V=>V, :T=>T)
-fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ)
+fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :ν=>ν)
 planes = Dict(:uxz=>uxz, :vxz=>vxz, :wxz=>wxz, :θxz=>Txz)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
@@ -244,11 +246,6 @@ for i = 1:100
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
-
-wizard.cfl = 0.2
-wizard.max_change = 1.2
-wizard.max_Δt = 10minute
-
 ifig = 1
 
 # Main loop
