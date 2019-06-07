@@ -21,20 +21,20 @@ minute = 60
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float64
+      FT = Float32
        Δ = 0.5
-      Ny = 256
+      Ny = 128
       Ly = Δ * Ny
 
       Nx = 2Ny
       Lx = 2Ly
-      Nz = Ny
+      Nz = 2Ny
       Lz = Ly
 
       Δx = Lx / Nx
       Δz = Lz / Nz
 
-  tfinal = 7*day
+  tfinal = 4*day
 
 # Boundary conditioons and initial condition
 
@@ -44,8 +44,9 @@ cases = Dict(
              3 => (N² = 1e-7, Fb =  1e-8, Fu =  0e-4),
              4 => (N² = 1e-7, Fb =  1e-9, Fu =  0e-4),
              5 => (N² = 1e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
-             6 => (N² = 1e-6, Fb =  1e-8, Fu = -1e-4), # unstable wind
-             7 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
+             6 => (N² = 2e-5, Fb =  5e-9, Fu = -1e-4), # unstable wind
+             7 => (N² = 1e-6, Fb =  5e-9, Fu = -1e-4), # unstable wind
+             8 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
 # 
@@ -115,7 +116,8 @@ S₀(x, y, z) = S₀★(z)
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
 @inline T_forcing(grid, u, v, w, T, S, i, j, k, iter) = @inbounds -Fθ * δ(grid.zC[k])
-@inline u_forcing(grid, u, v, w, T, S, i, j, k, iter) = @inbounds -Fu * δ(grid.zC[k])
+@inline u_forcing(grid, u, v, w, T, S, i, j, k, iter) = 
+@inbounds -Fu * δ(grid.zC[k]) * (1 + aᵘ * CUDAnative.sin(kᵘ * grid.xF[i] + iter*2π))
 
 #forcing = Forcing(FT=T_forcing)
 forcing = Forcing(Fu=u_forcing, FT=T_forcing)
@@ -167,6 +169,7 @@ v(model) = Array{Float32}(model.velocities.v.data.parent)
 w(model) = Array{Float32}(model.velocities.w.data.parent)
 θ(model) = Array{Float32}(model.tracers.T.data.parent)
 s(model) = Array{Float32}(model.tracers.S.data.parent)
+ν(model) = Array{Float32}(model.diffusivities.νₑ.parent)
 
 function hmean!(ϕavg, ϕ::Field)
     ϕavg .= mean(ϕ.data.parent, dims=(1, 2))
@@ -196,7 +199,7 @@ function S(model)
 end
 
 profiles = Dict(:U=>U, :V=>V, :T=>T, :S=>S)
-  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>s)
+  fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ, :s=>s, :ν=>ν)
 
 profile_writer = JLD2OutputWriter(model, profiles; dir="data", 
                                   prefix=filename(model)*"_profiles", 
@@ -204,7 +207,7 @@ profile_writer = JLD2OutputWriter(model, profiles; dir="data",
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
-                                init=savebcs, interval=4hour, force=true)
+                                init=savebcs, interval=2hour, force=true)
 
 push!(model.output_writers, profile_writer, field_writer)
 
@@ -246,21 +249,13 @@ end
 wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 
 # Spinup 
-for i = 1:100
+for i = 1:1000
     update_Δt!(wizard, model)
     walltime = @elapsed time_step!(model, 10, FT(wizard.Δt))
     @printf "%s" terse_message(model, walltime, wizard.Δt)
-
-    if i == 50
-        wizard.cfl = 0.2
-    end
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
-
-wizard.cfl = 0.5
-wizard.max_change = 1.2
-wizard.max_Δt = 10minute
 
 ifig = 1
 
@@ -269,7 +264,7 @@ while model.clock.time < tfinal
     global ifig
 
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 100, FT(wizard.Δt))
+    walltime = @elapsed time_step!(model, 50, FT(wizard.Δt))
 
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
