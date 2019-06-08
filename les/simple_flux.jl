@@ -45,7 +45,7 @@ cases = Dict(
              4 => (N² = 1e-7, Fb =  1e-9, Fu =  0e-4),
              5 => (N² = 1e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
              6 => (N² = 2e-5, Fb =  5e-9, Fu = -1e-4), # unstable wind
-             7 => (N² = 5e-6, Fb =  5e-9, Fu = -1e-4), # unstable wind
+             7 => (N² = 1e-6, Fb =  5e-9, Fu = -1e-4), # unstable wind
              8 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
@@ -91,7 +91,7 @@ Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
    ))
 
 ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = BoundaryCondition(Flux, Fu),
+    top    = BoundaryCondition(Flux, Fu)
    ))
 
 #
@@ -113,7 +113,8 @@ v₀(x, y, z) = 1e-4 * Ξ(z)
 # Momentum forcing: smoothed over surface grid points, plus 
 # horizontally-divergence component to stimulate turbulence.
 #@inline u_forcing(x, y, z, args...) = @inbounds -Fu * δ(z)
-forcing = Forcing() #u=u_forcing)
+#forcing = Forcing(u=u_forcing)
+forcing = Forcing()
 
 # 
 # Model setup
@@ -131,7 +132,7 @@ model = Model(
           eos = LinearEquationOfState(FT, βT=βT, βS=0.),
     constants = PlanetaryConstants(FT, f=1e-4, g=g),
       forcing = forcing,
-          bcs = BoundaryConditions(T=Tbcs),
+          bcs = BoundaryConditions(T=Tbcs, u=ubcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
 
@@ -200,7 +201,8 @@ field_writer = JLD2OutputWriter(model, fields; dir="data",
                                 prefix=filename(model)*"_fields", 
                                 init=savebcs, interval=4hour, force=true)
 
-push!(model.output_writers, plane_writer, profile_writer, field_writer)
+#push!(model.output_writers, plane_writer, profile_writer, field_writer)
+push!(model.output_writers, profile_writer, field_writer)
 
 ρ₀ = 1035.0
 cp = 3993.0
