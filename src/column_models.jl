@@ -35,9 +35,17 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false)
 
     constants = Constants(; constants_dict...)
 
-    Fb = getbc("Fb", datapath)
-    Fu = getbc("Fu", datapath)
-    bottom_Bz = getbc("Bz", datapath)
+    bcs = Dict()
+
+    try
+        bcs[:Fb] = getbc("Fb", datapath)
+        bcs[:Fu] = getbc("Fu", datapath)
+        bcs[:bottom_Bz] = getbc("Bz", datapath)
+    catch
+        bcs[:Fb] = -getbc("Fb", "top", datapath)
+        bcs[:Fu] = getbc("Fu", "top", datapath)
+        bcs[:bottom_Bz] = getbc("dbdz", "bottom", datapath)
+    end
 
     N, L = getgridparams(datapath)
     grid = UniformGrid(N, L)
@@ -60,7 +68,7 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false)
 
     t = times(datapath)
 
-    ColumnData(Fb, Fu, bottom_Bz, κ, ν, grid, constants, U, V, T, S, t, initial, targets)
+    ColumnData(bcs[:Fb], bcs[:Fu], bcs[:bottom_Bz], κ, ν, grid, constants, U, V, T, S, t, initial, targets)
 end
 
 target_times(cd::ColumnData) = [cd.t[i] for i in cd.targets]

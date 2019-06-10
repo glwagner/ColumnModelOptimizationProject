@@ -9,7 +9,6 @@ export
     SensitiveParameters,
     BasicParameters,
 
-    set!,
     simple_flux_model
 
 using
@@ -21,8 +20,7 @@ using
 using ..ColumnModelOptimizationProject
 
 import Base: similar
-import OceanTurb: set!
-import ColumnModelOptimizationProject: ColumnModel
+import ColumnModelOptimizationProject: ColumnModel, set!
 
 latexparams = Dict(
       :CRi => L"C^\mathrm{Ri}",
@@ -42,7 +40,6 @@ include("modular_kpp_utils.jl")
 #
 # Basic functionality
 #
-
 function set!(cm::ColumnModel{<:ModularKPP.Model}, freeparams::FreeParameters{N, T}) where {N, T}
 
     paramnames, paramtypes = get_free_parameters(cm)
@@ -59,7 +56,8 @@ function set!(cm::ColumnModel{<:ModularKPP.Model}, freeparams::FreeParameters{N,
 
     # Set new parameters
     for (ptypename, PType) in paramtypes
-        setproperty!(cm.model, ptypename, PType(; paramdicts[ptypename]...))
+        params = PType(; paramdicts[ptypename]...)
+        setproperty!(cm.model, ptypename, params)
     end
 
     return nothing
@@ -70,6 +68,7 @@ function set!(cm::ColumnModel{<:ModularKPP.Model}, cd::ColumnData, i)
     set!(cm.model.solution.V, cd.V[i])
     set!(cm.model.solution.T, cd.T[i])
     #set!(cm.model.solution.S, cd.S[i])
+
     cm.model.clock.time = cd.t[i]
     return nothing
 end
@@ -89,6 +88,8 @@ Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{9, T}
      Cb_U :: T
      Cb_T :: T
 end
+
+Base.similar(p::BasicParameters{T}) where T = BasicParameters{T}(0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 function DefaultFreeParameters(cm, freeparamtype)
     paramnames, paramtypes = get_free_parameters(cm)

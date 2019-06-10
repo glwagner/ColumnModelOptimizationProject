@@ -1,17 +1,15 @@
-using Pkg; Pkg.activate("..")
-
 using PyPlot, Printf, Statistics, OceanTurb, Dao, JLD2,
         ColumnModelOptimizationProject, ColumnModelOptimizationProject.KPPOptimization
 
-     model_Δ = 5                 # Model resolution. Perfect model resolution is N=600
+     model_Δ = 4                 # Model resolution. Perfect model resolution is N=600
     model_dt = 10*minute         # Model timestep. Perfect model timestep is 1 minute.
-initial_data = 1                 # Choose initial condition for forward runs
- target_data = (4, 7, 10)        # Target samples of saved data for model-data comparison
-        case = "simple_flux_Fb-1e-09_Fu-1e-04_Nsq1e-06_Lz16_Nz32_profiles"
+initial_data = 10                # Choose initial condition for forward runs
+ target_data = (50, 100, 150)    # Target samples of saved data for model-data comparison
+        name = "simple_flux_Fb-1e-09_Fu-1e-04_Nsq1e-06_Lz16_Nz32_profiles"
 
 # Initialize the 'data' and the 'model'
- datadir = joinpath("..", "data")
-filepath = joinpath(datadir, case * ".jld2")
+ datadir = "data"
+filepath = joinpath(@__DIR__, "..", datadir, name * "_profiles.jld2")
     data = ColumnData(filepath; initial=initial_data, targets=target_data)
    model = KPPOptimization.ColumnModel(data, model_dt, N=model_N)
 
@@ -23,19 +21,21 @@ println("We will optimize the following parameters:")
 
 # Obtain an estimate of the relative error in the temperature and velocity fields
  test_nll_temperature = NegativeLogLikelihood(model, data, temperature_loss)
-    test_nll_velocity = NegativeLogLikelihood(model, data, velocity_loss)
 test_link_temperature = MarkovLink(test_nll_temperature, defaults)
-   test_link_velocity = MarkovLink(test_nll_velocity, defaults)
+
+#    test_nll_velocity = NegativeLogLikelihood(model, data, velocity_loss)
+#   test_link_velocity = MarkovLink(test_nll_velocity, defaults)
 
 @show error_ratio = test_link_velocity.error / test_link_temperature.error
 
 # Build the weighted NLL, normalizing temperature error relative to velocity error.
-weights = (1, 1, 10*round(Int, error_ratio/10), 0)
-nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
+#weights = (1, 1, 10*round(Int, error_ratio/10), 0)
+#nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
+nll = NegativeLogLikelihood(model, data, temperature_loss)
 
 # Obtain the first link in the Markov chain
 first_link = MarkovLink(nll, defaults)
-nll.scale = first_link.error * 0.5
+nll.scale = first_link.error * 0.1
 
 # Use a non-negative normal perturbation
 std = DefaultStdFreeParameters(0.05, typeof(defaults))

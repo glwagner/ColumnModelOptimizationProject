@@ -35,16 +35,18 @@ export
     weighted_fields_loss,
 
     # models/kpp_optimization.jl
-    KPPOptimization,
+    #KPPOptimization,
     ModularKPPOptimization
 
 using
     StaticArrays,
     OceanTurb,
     JLD2,
-    PyCall,
-    Printf,
-    PyPlot
+    Printf
+
+include( joinpath(pathof(OceanTurb), "..", "..", "plotting", "pyplot_utils.jl") )
+
+using PyPlot, PyCall, .OceanTurbPyPlotUtils
 
 import OceanTurb: set!, absolute_error
 
@@ -77,7 +79,7 @@ include("column_models.jl")
 include("loss_functions.jl")
 include("visualization.jl")
 
-include("models/kpp_optimization.jl")
+#include("models/kpp_optimization.jl")
 include("models/modular_kpp_optimization.jl")
 
 end # module

@@ -1,6 +1,8 @@
 function ColumnModel(cd::ColumnData, Δt; kwargs...)
+
     model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu,
-                                dBdz=cd.bottom_Bz, kwargs...)
+                              dBdz=cd.bottom_Bz, kwargs...)
+
     return ColumnModelOptimizationProject.ColumnModel(model, Δt)
 end
 
@@ -13,11 +15,11 @@ Construct a model forced by 'simple', constant atmospheric buoyancy flux `Fb`
 and velocity flux `Fu`, with resolution `N`, domain size `L`, and
 and initial linear buoyancy gradient `Bz`.
 """
-function simple_flux_model(constants=Constants();
-                            N=128, L=128, dBdz=1e-6, Fb=1e-8, Fu=0,
-                            diffusivity = ModularKPP.LMDDiffusivity(),
-                            mixingdepth = ModularKPP.LMDMixingDepth(),
-                            nonlocalflux = ModularKPP.LMDCounterGradientFlux())
+function simple_flux_model(constants=Constants(); N=128, L, dBdz, Fb, Fu,
+                             diffusivity = ModularKPP.LMDDiffusivity(),
+                             mixingdepth = ModularKPP.LMDMixingDepth(),
+                            nonlocalflux = ModularKPP.LMDCounterGradientFlux()
+                            )
 
 
     model = ModularKPP.Model(N=N, L=L,

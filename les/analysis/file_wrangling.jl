@@ -17,6 +17,11 @@ function Grid(filename)
     RegularCartesianGrid((Nx, Ny, Nz), (Lx, Ly, Lz))
 end
 
+function XZGrid(filename)
+    Nx, Ny, Nz, Lx, Ly, Lz = get_gridparams(filename)
+    RegularCartesianGrid((Nx, 1, Nz), (Lx, Ly, Lz))
+end
+
 function get_snapshot(filename, fldname, iter)
     file = jldopen(filename)
     fld = file["timeseries/$fldname/$iter"]

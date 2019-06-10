@@ -6,9 +6,9 @@ for the given `params`. If `column_model` and `params` are not provided,
 only the data is visualized.
 """
 function visualize_realization(params, column_model, column_data;
-                               figsize=(16, 4), modelstyle="--", datastyle="-",
-                               modelkwargs=Dict(), datakwargs=Dict(), legendkwargs=Dict()
-                               )
+                               figsize=(10, 4), modelstyle="--", datastyle="-",
+                               modelkwargs=Dict(), datakwargs=Dict(), legendkwargs=Dict(),
+                               showerror=false)
 
     # Default kwargs for plot routines
     default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8)
@@ -28,11 +28,11 @@ function visualize_realization(params, column_model, column_data;
         set!(column_model, column_data, column_data.initial)
     end
 
-    fields = (:U, :V, :T, :S)
+    fields = (:U, :V, :T)
 
     i_data = cat([column_data.initial], [j for j in column_data.targets], dims=1)
 
-    fig, axs = subplots(ncols=4, figsize=figsize)
+    fig, axs = subplots(ncols=3, figsize=figsize)
 
     for (iplot, i) in enumerate(i_data)
         column_model != nothing && run_until!(column_model.model, column_model.Δt, column_data.t[i])
@@ -44,7 +44,13 @@ function visualize_realization(params, column_model, column_data;
             if column_model != nothing
                 mfld = getproperty(column_model.model.solution, field)
                 err = absolute_error(mfld, dfld)
-                lbl = @sprintf("\$ t = %0.2f \$ d, \$ E = %.2e \$", column_data.t[i]/day, err)
+
+                lbl = @sprintf("\$ t = %0.2f \$ d", column_data.t[i]/day)
+
+                if showerror
+                    lbl *= @sprintf(", \$ E = %.2e \$", err)
+                end
+
                 plot(mfld, modelstyle; color=defaultcolors[iplot], modelkwargs...)
             else
                 lbl = @sprintf("\$ t = %0.2f \$ d", column_data.t[i]/day)
@@ -60,9 +66,8 @@ function visualize_realization(params, column_model, column_data;
     end
 
     axs[2].tick_params(left=false, labelleft=false)
-    axs[3].tick_params(left=false, labelleft=false)
-    axs[4].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    axs[4].yaxis.set_label_position("right")
+    axs[3].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    axs[3].yaxis.set_label_position("right")
 
     sca(axs[1])
     xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
@@ -75,10 +80,6 @@ function visualize_realization(params, column_model, column_data;
 
     sca(axs[3])
     xlabel("Temperature (Kelvin)")
-    removespines("top", "right", "left")
-
-    sca(axs[4])
-    xlabel("Salinity (psu)")
     ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "left")
 

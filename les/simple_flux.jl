@@ -21,9 +21,9 @@ minute = 60
 #
 # Initial condition, boundary condition, and tracer forcing
 #
-      FT = Float64
+     TFL = Float64
        Δ = 1.0
-      Ny = 128
+      Ny = 16
       Ly = Δ * Ny
 
       Nx = 2Ny
@@ -34,49 +34,25 @@ minute = 60
       Δx = Lx / Nx
       Δz = Lz / Nz
 
-  tfinal = 4*day
+  tfinal = 2*day
 
 # Boundary conditioons and initial condition
 
 cases = Dict(
-             1 => (N² = 1e-6, Fb =  1e-8, Fu =  0e-4), # free convection
-             2 => (N² = 1e-6, Fb =  1e-9, Fu =  0e-4),
-             3 => (N² = 1e-7, Fb =  1e-8, Fu =  0e-4),
-             4 => (N² = 1e-7, Fb =  1e-9, Fu =  0e-4),
-             5 => (N² = 1e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
-             6 => (N² = 2e-5, Fb =  5e-9, Fu = -1e-4), # unstable wind
-             7 => (N² = 1e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
+             #1 => (N² = 5e-6, Fb =  1e-8, Fu =  0e-4), # free convection
+             #2 => (N² = 5e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
+             3 => (N² = 5e-6, Fb =  1e-8, Fu = -1e-4), # unstable wind
+             #4 => (N² = 5e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
-# 
-#       N²   |    Fb    |   Fu
-#    -------------------------
-# 1.   1e-6  |   1e-8   |  -0e-4    # free convection
-# 2.   1e-6  |   1e-9   |  -0e-4   
-# 3.   1e-7  |   1e-8   |  -0e-4   
-# 4.   1e-7  |   1e-9   |  -0e-4   
-# 5.   1e-6  |    0     |  -1e-4    # neutral wind
-# 6.   1e-6  |   1e-8   |  -1e-4    # unstable wind
-# 7.   1e-6  |  -1e-9   |  -1e-4    # stable wind
-
-case = 6
-_Fu = cases[case].Fu
-_Fb = cases[case].Fb
-
-const N² = FT(cases[case].N²)
-const Fb = FT(_Fu)
-const Fu = FT(_Fb)
-
-# Constant parameters: temperature/tracer bcs, numerical parameters
-const T₀₀ = FT( 20.0     ) 
-#const S₀₀ = FT( 1        )
-const δh  = FT( 2Δz      )  # momentum forcing smoothing height
-const kᵘ  = FT( 2π / 4Δx )  # wavelength of horizontal divergent surface flux
-const aᵘ  = FT( 0.01     )  # relative amplitude of horizontal divergent surface flux
+case = 3
+const Fu = TFL( cases[case].Fu )
+const Fb = TFL( cases[case].Fb )
+const N² = TFL( cases[case].N² )
 
 # Buoyancy → temperature
-const Fθ   = FT( Fb / (g*βT) ) 
-const dTdz = FT( N² / (g*βT) )
+const Fθ   = TFL( Fb / (g*βT) ) 
+const dTdz = TFL( N² / (g*βT) )
 
 filename(model) = @sprintf(
                            "simple_flux_Fb%.0e_Fu%.0e_Nsq%.0e_Lz%d_Nz%d",
@@ -85,8 +61,12 @@ filename(model) = @sprintf(
                           )
 
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
-    top    = DefaultBC(),
-    bottom = BoundaryCondition(Gradient, FT(dTdz))
+    top    = BoundaryCondition(Flux, TFL(Fθ)),
+    bottom = BoundaryCondition(Gradient, TFL(dTdz))
+   ))
+
+ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
+    top    = BoundaryCondition(Flux, TFL(Fu))
    ))
 
 #
@@ -96,22 +76,10 @@ Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
 # Vertical noise profile for initial condition
 Ξ(z) = rand(Normal(0, 1)) * z / Lz * (1 + z / Lz)
 
-T₀★(z) = T₀₀ + dTdz * z
-
+T₀★(z) = 20 + dTdz * z
 T₀(x, y, z) = T₀★(z) + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
-
-"A regularized delta function."
-@inline δ(z) = sqrt(π) / (2δh) * exp(-z^2 / (2δh^2))
-
-# Momentum forcing: smoothed over surface grid points, plus 
-# horizontally-divergence component to stimulate turbulence.
-@inline T_forcing(x, y, z, args...) = @inbounds -Fθ * δ(z)
-@inline u_forcing(x, y, z, args...) = @inbounds -Fu * δ(z)
-
-#forcing = Forcing(FT=T_forcing)
-forcing = Forcing(u=u_forcing, T=T_forcing)
 
 # 
 # Model setup
@@ -121,15 +89,15 @@ arch = CPU()
 @hascuda arch = GPU() # use GPU if it's available
 
 model = Model(
-   float_type = FT,
+   float_type = TFL,
          arch = arch,
             N = (Nx, Ny, Nz),
             L = (Lx, Ly, Lz), 
-      closure = AnisotropicMinimumDissipation(FT), 
-          eos = LinearEquationOfState(FT, βT=βT, βS=0.),
-    constants = PlanetaryConstants(FT, f=1e-4, g=g),
-      forcing = forcing,
-          bcs = BoundaryConditions(T=Tbcs),
+      closure = AnisotropicMinimumDissipation(TFL), 
+          eos = LinearEquationOfState(TFL, βT=βT, βS=0.),
+    constants = PlanetaryConstants(TFL, f=1e-4, g=g),
+      forcing = Forcing(),
+          bcs = BoundaryConditions(T=Tbcs, u=ubcs),
    attributes = (Fb=Fb, Fu=Fu)
 )
 
@@ -176,10 +144,10 @@ function T(model)
     return Array{Float32}(avgs.T)
 end
 
-uxz(model) = Array{Float32}(model.velocities.u.data.parent[:, 1, :])
-vxz(model) = Array{Float32}(model.velocities.v.data.parent[:, 1, :])
-wxz(model) = Array{Float32}(model.velocities.w.data.parent[:, 1, :])
-Txz(model) = Array{Float32}(model.tracers.T.data.parent[:, 1, :])
+uxz(model) = Array{Float32}(model.velocities.u.data.parent[:, 3, :])
+vxz(model) = Array{Float32}(model.velocities.v.data.parent[:, 3, :])
+wxz(model) = Array{Float32}(model.velocities.w.data.parent[:, 3, :])
+Txz(model) = Array{Float32}(model.tracers.T.data.parent[:, 3, :])
 
 profiles = Dict(:U=>U, :V=>V, :T=>T)
 fields = Dict(:u=>u, :v=>v, :w=>w, :θ=>θ)
@@ -191,7 +159,7 @@ profile_writer = JLD2OutputWriter(model, profiles; dir="data",
 
 plane_writer = JLD2OutputWriter(model, planes; dir="data", 
                                 prefix=filename(model)*"_planes", 
-                                  init=savebcs, interval=5minute, force=true)
+                                  init=savebcs, interval=2minute, force=true)
                                   
 field_writer = JLD2OutputWriter(model, fields; dir="data", 
                                 prefix=filename(model)*"_fields", 
@@ -239,13 +207,13 @@ wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 # Spinup 
 for i = 1:100
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 10, FT(wizard.Δt))
+    walltime = @elapsed time_step!(model, 10, TFL(wizard.Δt))
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
 
-wizard.cfl = 0.2
+wizard.cfl = 0.5
 wizard.max_change = 1.2
 wizard.max_Δt = 10minute
 
@@ -256,7 +224,7 @@ while model.clock.time < tfinal
     global ifig
 
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 100, FT(wizard.Δt))
+    walltime = @elapsed time_step!(model, 100, TFL(wizard.Δt))
 
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
