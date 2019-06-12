@@ -11,20 +11,22 @@ function makeplot(filepath, axs, g, i; wclip=0.25, uclip=0.25)
     w = FaceFieldZ(get_snapshot(filepath, :w, i), g)
     θ = CellField(get_snapshot(filepath, :θ, i), g)
 
+    θ′ = fluctuation(θ)
+
     e = turbulent_kinetic_energy(u, v, w)
     wθ = w * θ
 
     wmax = maximum(abs, w.data) * wclip
     umax = maximum(abs, u.data) * uclip
 
-    @show θmax = maximum(θ.data)
-    @show θmin = minimum(θ.data)
+    @show θmax = maximum(θ′.data)
+    @show θmin = minimum(θ′.data)
 
     sca(axs[1, 1])
     #plot_xzslice(u, cmap="RdBu_r", vmin=-umax, vmax=umax, shading="gouraud")
-    plot_xzslice(θ, cmap="YlGnBu_r", vmin=19.98, vmax=19.985)
+    plot_xzslice(θ′, cmap="RdBu_r", shading="gouraud", vmin=-0.001, vmax=0.001)
     ylabel(L"z \, (\mathrm{m})")
-    title(L"u")
+    title(L"\theta'")
 
     sca(axs[2, 1])
     plot_xzslice(w, cmap="RdBu_r", vmin=-wmax, vmax=wmax, shading="gouraud")
@@ -33,15 +35,18 @@ function makeplot(filepath, axs, g, i; wclip=0.25, uclip=0.25)
     title(L"w")
 
     sca(axs[1, 2])
-    plot_hmean(u, label=L"U")
-    plot_hmean(v, label=L"V")
-    plot_hmean(√, e, label=L"\sqrt{\bar e}")
-    legend()
+    plot_hmean(θ, label=L"T")
+    #plot_hmean(u, label=L"U")
+    #plot_hmean(v, label=L"V")
+    #plot_hmean(√, e, label=L"\sqrt{\bar e}")
+    xlabel(L"T \, ({}^\circ \mathrm{C})")
+    ylabel(L"z \, (\mathrm{m})")
+    #legend()
 
     sca(axs[2, 2])
-    plot_hmean(θ, normalize=true, label=L"\bar T")
-    #plot_hmean(wθ, normalize=true, label=L"\overline{wT}")
-    legend()
+    plot_hmean(wθ, label=L"\overline{w \theta'}")
+    xlabel(L"\overline{w \theta'}")
+    ylabel(L"z \, (\mathrm{m})")
 
     for ax in axs[1:2, 1]
         removespines("top", "bottom", "right", "left", ax=ax)
@@ -50,7 +55,6 @@ function makeplot(filepath, axs, g, i; wclip=0.25, uclip=0.25)
 
     for ax in axs[1:2, 2]
         ax.yaxis.set_label_position("right")
-        ylabel(L"z \, (m)")
     end
 
     match_yaxes!(axs[1, 2], axs[1, 1])
@@ -83,6 +87,7 @@ g = Grid(filepath)
 gridspec = Dict("width_ratios"=>[Int(g.Lx/g.Lz)+1, 1])
 fig, axs = subplots(ncols=2, nrows=2, figsize=(8, 6), gridspec_kw=gridspec)
 
+#=
 for (ii, i) in enumerate(iters)
 
     for ax in axs
@@ -95,9 +100,11 @@ for (ii, i) in enumerate(iters)
 
     savefig(@sprintf("%s_%04d.png", name, ii), dpi=480)
 end
+=#
 
 i = 30
 gridspec = Dict("width_ratios"=>[Int(g.Lx/g.Lz)+1, 1])
 fig, axs = subplots(ncols=2, nrows=2, figsize=(8, 6), gridspec_kw=gridspec)
 makeplot(filepath, axs, g, iters[i], wclip=0.5, uclip=0.5)
 gcf()
+savefig("convection.png", dpi=480)

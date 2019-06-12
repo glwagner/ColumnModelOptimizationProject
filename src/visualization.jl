@@ -41,6 +41,14 @@ function visualize_realization(params, column_model, column_data;
             sca(axs[ipanel])
             dfld = getproperty(column_data, field)[i]
 
+            if i == 1
+                leslbl = "LES"
+                kpplbl = "KPP"
+            else
+                leslbl = ""
+                kpplbl = ""
+            end
+
             if column_model != nothing
                 mfld = getproperty(column_model.model.solution, field)
                 err = absolute_error(mfld, dfld)
@@ -51,12 +59,16 @@ function visualize_realization(params, column_model, column_data;
                     lbl *= @sprintf(", \$ E = %.2e \$", err)
                 end
 
-                plot(mfld, modelstyle; color=defaultcolors[iplot], modelkwargs...)
+                plot(mfld, modelstyle; color=defaultcolors[iplot], label=kpplbl, modelkwargs...)
             else
-                lbl = @sprintf("\$ t = %0.2f \$ d", column_data.t[i]/day)
+#                lbl = @sprintf("\$ t = %0.2f \$ d", column_data.t[i]/day)
             end
 
-            plot(dfld, datastyle; color=defaultcolors[iplot], label=lbl, datakwargs...)
+            #plot(dfld, datastyle; color=defaultcolors[iplot], label=lbl, datakwargs...)
+            plot(dfld, datastyle; color=defaultcolors[iplot], label=leslbl, datakwargs...)
+
+            tlbl = @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
+            println(tlbl)
         end
     end
 
@@ -79,7 +91,7 @@ function visualize_realization(params, column_model, column_data;
     removespines("top", "right", "left")
 
     sca(axs[3])
-    xlabel("Temperature (Kelvin)")
+    xlabel("Temperature (Celsius)")
     ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "left")
 

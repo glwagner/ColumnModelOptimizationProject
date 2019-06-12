@@ -1,19 +1,19 @@
-using Printf, Statistics, OceanTurb, Dao, JLD2
+using Printf, Statistics, OceanTurb, Dao, JLD2, OffsetArrays, LinearAlgebra
 
 using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-     model_N = 128               # Model resolution. Perfect model resolution is N=600
+     model_N = 32                # Model resolution. Perfect model resolution is N=600
     model_dt = 10*minute         # Model timestep. Perfect model timestep is 1 minute.
-initial_data = 10                # Choose initial condition for forward runs
- target_data = (50, 100, 150)    # Target samples of saved data for model-data comparison
+initial_data = 50                # Choose initial condition for forward runs
+ target_data = (100, 150, 200)    # Target samples of saved data for model-data comparison
         name = "simple_flux_Fb5e-09_Fu-1e-04_Nsq1e-06_Lz128_Nz256"
- #mixingdepth = ModularKPP.LMDMixingDepth()
- #mixingdepthname = "CVMix"
+ mixingdepth = ModularKPP.LMDMixingDepth()
+ mixingdepthname = "CVMix"
 
-mixingdepth = ModularKPP.ROMSMixingDepth()
-mixingdepthname = "ROMS"
+#mixingdepth = ModularKPP.ROMSMixingDepth()
+#mixingdepthname = "ROMS"
 
 # Initialize the 'data' and the 'model'
  datadir = "data"
@@ -28,30 +28,32 @@ defaults = DefaultFreeParameters(model, BasicParameters)
 println("We will optimize the following parameters:")
 @show propertynames(defaults);
 
-# Obtain an estimate of the relative error in the temperature and velocity fields
- test_nll_temperature = NegativeLogLikelihood(model, data, temperature_loss)
-test_link_temperature = MarkovLink(test_nll_temperature, defaults)
-
 nll = NegativeLogLikelihood(model, data, temperature_loss)
 
 # Obtain the first link in the Markov chain
 first_link = MarkovLink(nll, defaults)
-nll.scale = first_link.error * 0.1
+nll.scale = 1e-4
 
 # Use a non-negative normal perturbation
-stddev = DefaultStdFreeParameters(0.05, typeof(defaults))
-sampler = MetropolisSampler(NormalPerturbation(stddev))
+stddev = BasicParameters(Tuple(0.001 for d in defaults)...)
+bounds = BasicParameters(Tuple((0.0, max(1.0, 3d)) for d in defaults)...)
+sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))
+
+chainname = @sprintf("%s_%s_smallscale_markov_N%03d", name, mixingdepthname, model_N)
+chainpath = "$chainname.jld2"
 
 dsave = 10^2
 chain = MarkovChain(dsave, first_link, nll, sampler)
 @show chain.acceptance
 
-chainname = @sprintf("%s_%s_markov_N%03d", name, mixingdepthname, model_N)
+chainname = @sprintf("%s_%s_tinyscale_markov_N%03d", name, mixingdepthname, model_N)
 chainpath = "$chainname.jld2"
 @save chainpath chain
 
+#@load chainpath chain
+
 tstart = time()
-while length(chain) < 3 * 10^2
+while length(chain) < 10^7
     tint = @elapsed extend!(chain, dsave)
 
     @printf("tᵢ: %.2f seconds. Elapsed wall time: %.4f minutes.\n\n", tint, (time() - tstart)/60)

@@ -21,11 +21,13 @@ function makeplot(filepath, axs, grid, i; wclip=0.5, uclip=0.5)
     sca(axs[1])
     plot_xzslice(u, cmap="RdBu_r") #, vmin=-umax, vmax=umax, shading="gouraud")
     ylabel(L"z \, (\mathrm{m})")
+    title(L"u")
 
     sca(axs[2])
     plot_xzslice(w, cmap="RdBu_r") #, vmin=-wmax, vmax=wmax, shading="gouraud")
     ylabel(L"z \, (\mathrm{m})")
     xlabel(L"x \, (\mathrm{m})")
+    title(L"w")
 
     for ax in axs
         removespines("top", "bottom", "right", "left", ax=ax)
@@ -38,7 +40,8 @@ function makeplot(filepath, axs, grid, i; wclip=0.5, uclip=0.5)
 end
 
 datadir = "data"
-name = "simple_flux_Fb5e-09_Fu-1e-04_Nsq5e-06_Lz128_Nz256"
+#name = "simple_flux_Fb5e-09_Fu-1e-04_Nsq5e-06_Lz128_Nz512"
+name = "simple_flux_Fb1e-08_Fu0e+00_Nsq1e-06_Lz128_Nz256"
 filepath = joinpath(@__DIR__, "..", datadir, name * "_planes.jld2")
 
 g = XZGrid(filepath)
@@ -46,8 +49,10 @@ iters = get_iters(filepath)
 
 fig, axs = subplots(nrows=2, figsize=(8, 6))
 
-u = get_snapshot(filepath, :uxz, 0)
+ii = 10
+makeplot(filepath, axs, g, iters[ii], wclip=0.5, uclip=0.5)
 
+#=
 for (ii, i) in enumerate(iters)
 
     for ax in axs
@@ -60,3 +65,4 @@ for (ii, i) in enumerate(iters)
 
     savefig(@sprintf("%s_%04d.png", name, ii), dpi=480)
 end
+=#

@@ -23,12 +23,12 @@ minute = 60
 #
      TFL = Float64
        Δ = 1.0
-      Ny = 16
+      Ny = 32
       Ly = Δ * Ny
 
-      Nx = 2Ny
-      Lx = 2Ly
-      Nz = 2Ny
+      Nx = Ny
+      Lx = Ly
+      Nz = Ny
       Lz = Ly
 
       Δx = Lx / Nx
@@ -40,12 +40,12 @@ minute = 60
 
 cases = Dict(
              #1 => (N² = 5e-6, Fb =  1e-8, Fu =  0e-4), # free convection
-             #2 => (N² = 5e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
+             2 => (N² = 5e-6, Fb =  0e-8, Fu = -1e-4), # neutral wind
              3 => (N² = 5e-6, Fb =  1e-8, Fu = -1e-4), # unstable wind
              #4 => (N² = 5e-6, Fb = -1e-9, Fu =  0e-4)  # stable wind
             )
 
-case = 3
+case = 2
 const Fu = TFL( cases[case].Fu )
 const Fb = TFL( cases[case].Fb )
 const N² = TFL( cases[case].N² )
@@ -165,7 +165,7 @@ field_writer = JLD2OutputWriter(model, fields; dir="data",
                                 prefix=filename(model)*"_fields", 
                                 init=savebcs, interval=4hour, force=true)
 
-push!(model.output_writers, plane_writer, profile_writer, field_writer)
+#push!(model.output_writers, plane_writer, profile_writer, field_writer)
 
 ρ₀ = 1035.0
 cp = 3993.0
@@ -205,10 +205,10 @@ end
 wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 
 # Spinup 
-for i = 1:100
+for i = 1:10
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 10, TFL(wizard.Δt))
-    @printf "%s" terse_message(model, walltime, wizard.Δt)
+    @time time_step!(model, 100, TFL(wizard.Δt))
+    #@printf "%s" terse_message(model, walltime, wizard.Δt)
 end
 
 @doesnothavecuda boundarylayerplot(axs, model)
@@ -224,7 +224,7 @@ while model.clock.time < tfinal
     global ifig
 
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 100, TFL(wizard.Δt))
+    @time time_step!(model, 100, TFL(wizard.Δt))
 
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 

@@ -1,5 +1,6 @@
 *.nc
 *.jld2
+*.jld
 *.png
 *.ipynb_checkpoints
 *.swp
