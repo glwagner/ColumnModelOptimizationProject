@@ -1,5 +1,10 @@
 *.nc
+*.jld2
+*.jld
+*.png
 *.ipynb_checkpoints
 *.swp
+*.DS_Store
 les/data
 data/gcloud
+*.mp4

@@ -50,6 +50,15 @@ function getbc(varname, datapath::String)
     return var
 end
 
+
+function getbc(varname, side, datapath::String)
+    file = jldopen(datapath, "r")
+    var = file["boundary_conditions/$side/$varname"]
+    close(file)
+    return var
+end
+
+
 function getic(varname, datapath::String)
     file = jldopen(datapath, "r")
     var = file["initial_condition/$varname"]
@@ -59,8 +68,8 @@ end
 
 function getgridparams(datapath::String)
     file = jldopen(datapath, "r")
-    N = file["grid/N"]
-    L = file["grid/L"]
+    N = file["grid/Nz"]
+    L = file["grid/Lz"]
     close(file)
     return N, L
 end

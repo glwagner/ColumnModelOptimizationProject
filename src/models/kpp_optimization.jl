@@ -21,14 +21,13 @@ export
 using
     ColumnModelOptimizationProject,
     OceanTurb,
-    OceanTurb.Plotting,
     StaticArrays,
     PyPlot,
     JLD2
 
 import Base: similar
-import ColumnModelOptimizationProject: ColumnModel
 import OceanTurb: set!
+import ColumnModelOptimizationProject: ColumnModel
 
 latexparams = Dict(
       :CRi => L"C^\mathrm{Ri}",
