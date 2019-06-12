@@ -6,9 +6,6 @@ end
 
 @doesnothavecuda include("plot_utils.jl")
 
-include("time_step_wizard.jl")
-include("jld2_writer.jl")
-
 # Constants
 minute = 60
   hour = 60minute
@@ -59,7 +56,7 @@ ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
 model = Model(
    float_type = TFL,
          arch = arch,
-            N = (2Nx, Ny, 2Ny),
+            N = (2Ny, Ny, 2Ny),
             L = (2Ly, Ly, Ly), 
       closure = AnisotropicMinimumDissipation(TFL), 
           eos = LinearEquationOfState(TFL, βT=βT, βS=0.),
@@ -177,8 +174,15 @@ cp = 3993.0
     N², model.eos.βT, filename(model)
 )
 
-# CFL wizard
-wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
+function terse_message(model, walltime, Δt) 
+    wmax = maximum(abs, model.velocities.w.data.parent)
+    cfl = Δt / Oceananigans.cell_advection_timescale(model)
+
+    return @sprintf(
+        "i: %09d, t: %.4f hours, Δt: %.1f s, wmax: %.6f ms⁻¹, cfl: %.3f, wall time: %s\n",
+        model.clock.iteration, model.clock.time/3600, Δt, wmax, cfl, prettytime(1e9*walltime),
+       ) 
+end
 
 @doesnothavecuda begin
     gridspec = Dict("width_ratios"=>[Int(model.grid.Lx/model.grid.Lz)+1, 1])
@@ -192,7 +196,7 @@ wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 # Spinup 
 for i = 1:1000
     update_Δt!(wizard, model)
-    @time time_step!(model, 100, TFL(wizard.Δt))
+    walltime = @elapsed time_step!(model, 100, TFL(wizard.Δt))
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 end
 
