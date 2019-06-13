@@ -6,27 +6,21 @@ using Oceananigans, Random, Distributions
 dTdz = 0.01
 
 # Instantiate a model
-
 Tbcs = FieldBoundaryConditions(z=ZBoundaryConditions(
     top    = BoundaryCondition(Flux, Fθ),
-    bottom = BoundaryCondition(Gradient, dTdz)
-   ))
+    bottom = BoundaryCondition(Gradient, dTdz) ))
 
-model = Model(
-         arch = CPU(), # GPU(),
-            N = (N, N, 2N),
-            L = (N*Δ, N*Δ, N*Δ),
-      closure = AnisotropicMinimumDissipation(),
-          bcs = BoundaryConditions(T=Tbcs),
-)
+model = Model(    arch = CPU(), # GPU(),
+                     N = (N, N, 2N),
+                     L = (N*Δ, N*Δ, N*Δ),
+               closure = AnisotropicMinimumDissipation(),
+                   bcs = BoundaryConditions(T=Tbcs))
 
 # Set initial condition
-
 Ξ(z) = rand(Normal(0, 1)) * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-
 T₀(x, y, z) = 20 + dTdz * z + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 
-set_ic!(model, T=T₀) # set initial condition
+set_ic!(model, T=T₀)
 
 # Run the model (1000 steps with Δt = 1.0)
 time_step!(model, 1000, 1.0)

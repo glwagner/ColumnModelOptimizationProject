@@ -60,105 +60,6 @@ function nice_three_plots(axs, model)
     return nothing
 end
 
-function makeplot(axs, model)
-
-    wb = model.velocities.w * model.tracers.T
-     e = turbulent_kinetic_energy(model)
-     b = fluctuation(model.tracers.T)
-     @. b.data *= model.constants.g * model.eos.βT
-
-     wmax = maxabs(model.velocities.w)
-     bmax = maxabs(b)
-
-    # Top row
-    sca(axs[1, 1])
-    cla()
-    plot_xzslice(e, cmap="YlGnBu_r")
-    title(L"e")
-
-    sca(axs[1, 2])
-    cla()
-    plot_hmean(e)
-    title(L"\bar{e}")
-
-    # Middle row
-    sca(axs[2, 1])
-    cla()
-    plot_xzslice(b, cmap="RdBu_r", vmin=-bmax, vmax=bmax)
-    title(L"b")
-
-    sca(axs[2, 2])
-    cla()
-    plot_hmean(model.velocities.u)
-    plot_hmean(model.velocities.v)
-
-    # Bottom row
-    sca(axs[3, 1])
-    cla()
-    plot_xzslice(model.velocities.w, cmap="RdBu_r", vmin=-wmax, vmax=wmax)
-    title(L"w")
-
-    sca(axs[3, 2])
-    cla()
-    plot_hmean(model.tracers.T, normalize=true, label=L"T")
-    plot_hmean(wb, normalize=true, label=L"\overline{wb}")
-    xlim(-1, 1)
-    legend()
-
-    nice_three_plots(axs, model)
-    
-    return nothing
-end
-
-function channelplot(axs, model)
-
-    e = turbulent_kinetic_energy(model)
-
-    umax = maxabs(model.velocities.u)
-    wmax = maxabs(model.velocities.w)
-    cmax = maxabs(model.tracers.S)
-
-    # Top row
-    sca(axs[1, 1])
-    cla()
-    #plot_xzslice(e, cmap="YlGnBu_r")
-    plot_xzslice(log10, CellField(model.diffusivities.κₑ.T, model.grid), cmap="YlGnBu_r")
-    title(L"\log_\mathrm{10}(\kappa_{Te})")
-
-    sca(axs[1, 2])
-    cla()
-    plot_hmean(model.velocities.v, label=L"\bar v")
-    plot_hmean(√, e, label=L"\sqrt{\bar{e}}")
-    #legend()
-
-    # Middle row
-    sca(axs[2, 1])
-    cla()
-    plot_xzslice(model.velocities.u, cmap="RdBu_r", vmin=-umax, vmax=umax)
-    title(L"u")
-
-    sca(axs[2, 2])
-    cla()
-    plot_hmean(model.velocities.u)
-
-    # Bottom row
-    sca(axs[3, 1])
-    cla()
-    plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
-    title(L"\log_\mathrm{10}(\nu_e)")
-
-    sca(axs[3, 2])
-    cla()
-    plot_hmean(model.tracers.T, normalize=true, label=L"b")
-    xlim(-1, 1)
-    xlabel(L"b")
-
-    nice_three_plots(axs, model)
-
-    return nothing
-end
-
-
 function boundarylayerplot(axs, model)
 
      e = turbulent_kinetic_energy(model)
@@ -167,6 +68,11 @@ function boundarylayerplot(axs, model)
     wmax = maxabs(model.velocities.w)
     umax = maxabs(model.velocities.u)
 
+    # Construct normalized initial profile
+    T₀ = model.attributes.T₀₀ .+ model.attributes.dTdz .* collect(model.grid.zC)
+    #T₀ .= T₀ .- mean(T₀)
+    #T₀ ./= (maximum(T₀) - minimum(T₀))
+
     # Top row
     sca(axs[1, 1])
     cla()
@@ -175,21 +81,20 @@ function boundarylayerplot(axs, model)
 
     sca(axs[1, 2])
     cla()
-    plot_hmean(model.tracers.T, normalize=true, label=L"T")
-    plot_hmean(wT, normalize=true, label=L"\overline{wT}")
+    plot_hmean(model.tracers.T, label=L"T")
+    plot(T₀, model.grid.zC, "--", label=L"T_0")
     legend()
 
     # Middle row
     sca(axs[2, 1])
     cla()
-    #plot_xzslice(log10, CellField(model.diffusivities.νₑ, model.grid), cmap="YlGnBu_r")
     plot_xzslice(e, cmap="YlGnBu_r")
     title(L"e")
 
     sca(axs[2, 2])
     cla()
-    plot_hmean(e, label=L"\bar{e}")
-    xlim(-0.05, 1.05)
+    plot_hmean(e, normalize=true, label=L"\bar{e}")
+    plot_hmean(wT, normalize=true, label=L"\overline{wT}")
     legend()
 
     # Bottom row

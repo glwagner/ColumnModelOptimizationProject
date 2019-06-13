@@ -7,21 +7,18 @@ end
 @doesnothavecuda include("plot_utils.jl")
 
 # Constants
-minute = 60
-  hour = 60minute
-   day = 24*hour
-     g = 9.81
-    βT = 2e-4
+ g = 9.81
+βT = 2e-4
 
 #
 # Initial condition, boundary condition, and tracer forcing
 #
 
 TFL = Float64
-  Δ = 1.0
- Ny = 32
+  Δ = 0.5
+ Ny = 16
  Ly = Δ * Ny
- Fu = 1e-4
+ Fu = -1e-6
  Fb = 0.0
  N² = 1e-6
 
@@ -33,6 +30,7 @@ arch = CPU()
 # Buoyancy → temperature
 Fθ   = Fb / (g*βT)
 dTdz = N² / (g*βT)
+ T₀₀ = 20.0
 
 filename(model) = @sprintf(
                            "simple_flux_Fb%.0e_Fu%.0e_Nsq%.0e_Lz%d_Nz%d",
@@ -56,14 +54,14 @@ ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
 model = Model(
    float_type = TFL,
          arch = arch,
-            N = (2Ny, Ny, 2Ny),
-            L = (2Ly, Ly, Ly), 
+            N = (2Ny, Ny, 4Ny),
+            L = (2Ly, Ly,  Ly), 
       closure = AnisotropicMinimumDissipation(TFL), 
-          eos = LinearEquationOfState(TFL, βT=βT, βS=0.),
+          eos = LinearEquationOfState(TFL, βT=βT),
     constants = PlanetaryConstants(TFL, f=1e-4, g=g),
       forcing = Forcing(),
           bcs = BoundaryConditions(T=Tbcs, u=ubcs),
-   attributes = (Fb=Fb, Fu=Fu)
+   attributes = (Fb=Fb, Fu=Fu, dTdz=dTdz, T₀₀=T₀₀)
 )
 
 #
@@ -73,7 +71,7 @@ model = Model(
 # Vertical noise profile for initial condition
 Ξ(z) = rand(Normal(0, 1)) * z / model.grid.Lz * (1 + z / model.grid.Lz)
 
-T₀(x, y, z) = 20 + dTdz * z + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
+T₀(x, y, z) = T₀₀ + dTdz * z + dTdz * model.grid.Lz * 1e-3 * Ξ(z)
 u₀(x, y, z) = 1e-4 * Ξ(z)
 v₀(x, y, z) = 1e-4 * Ξ(z)
 
@@ -144,7 +142,7 @@ field_writer = JLD2OutputWriter(model, fields; dir="data",
                                 init=savebcs, interval=2hour, force=true)
 
 #push!(model.output_writers, plane_writer, profile_writer, field_writer)
-push!(model.output_writers, profile_writer, field_writer)
+#push!(model.output_writers, profile_writer, field_writer)
 
 ρ₀ = 1035.0
 cp = 3993.0
@@ -179,7 +177,7 @@ function terse_message(model, walltime, Δt)
     cfl = Δt / Oceananigans.cell_advection_timescale(model)
 
     return @sprintf(
-        "i: %09d, t: %.4f hours, Δt: %.1f s, wmax: %.6f ms⁻¹, cfl: %.3f, wall time: %s\n",
+        "i: %d, t: %.4f hours, Δt: %.1f s, wmax: %.6f ms⁻¹, cfl: %.3f, wall time: %s\n",
         model.clock.iteration, model.clock.time/3600, Δt, wmax, cfl, prettytime(1e9*walltime),
        ) 
 end
@@ -194,9 +192,9 @@ end
 wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=90.0)
 
 # Spinup 
-for i = 1:1000
+for i = 1:100
     update_Δt!(wizard, model)
-    walltime = @elapsed time_step!(model, 100, TFL(wizard.Δt))
+    walltime = @elapsed time_step!(model, 10, TFL(wizard.Δt))
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 end
 
