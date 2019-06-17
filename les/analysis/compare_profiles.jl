@@ -8,22 +8,24 @@ using ColumnModelOptimizationProject.ModularKPPOptimization
 usecmbright()
 
 datadir = "data"
-#filename = "simple_flux_Fb1e-09_Fu-1e-04_Nsq1e-05_Lz64_Nz256_profiles.jld2"
-#name = "simple_flux_Fb5e-09_Fu-1e-04_Nsq1e-06_Lz128_Nz256"
-name = "simple_flux_Fb1e-08_Fu0e+00_Nsq1e-06_Lz128_Nz256"
+name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
 filepath = joinpath(@__DIR__, "..", datadir, name * "_profiles.jld2")
 
 iters = iterations(filepath)
-data = ColumnData(filepath, reversed=true, initial=1, targets=(100, 200))
+data = ColumnData(filepath, reversed=true, initial=5, targets=(10, 90))
 
-model = ModularKPPOptimization.ColumnModel(data, 10minute; N=128,
-        #mixingdepth = ModularKPP.ROMSMixingDepth()
+model = ModularKPPOptimization.ColumnModel(data, 10minute; Δ=1.0,
         mixingdepth = ModularKPP.LMDMixingDepth()
         )
 
-defaults = DefaultFreeParameters(model, BasicParameters)
+params = DefaultFreeParameters(model, WindMixingParameters)
+@show params
+params = WindMixingParameters(0.25, 0.17, 0.3)
 
-fig, axs = visualize_realization(defaults, model, data)
-#fig, axs = visualize_targets(data)
+nll = NegativeLogLikelihood(model, data, relative_fields_loss)
+first_link = MarkovLink(nll, params)
+@show first_link.error
+
+fig, axs = visualize_realization(params, model, data)
 
 gcf()
