@@ -18,6 +18,7 @@ export
     # data_analysis.jl
     removespines,
     summarize_data,
+    maxvariance,
 
     # column_models.jl
     ColumnData,
@@ -33,12 +34,14 @@ export
     temperature_loss,
     velocity_loss,
     weighted_fields_loss,
+    relative_fields_loss,
 
     # models/kpp_optimization.jl
     #KPPOptimization,
     ModularKPPOptimization
 
 using
+    Statistics,
     StaticArrays,
     OceanTurb,
     JLD2,

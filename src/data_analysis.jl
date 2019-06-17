@@ -58,3 +58,22 @@ function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
 
     return fig, axs
 end
+
+pow2(x) = x^2
+
+function maxvariance(data, fldname)
+
+    maximum_variance = 0.0
+
+    for target in data.targets
+        fld = getproperty(data, fldname)[target]
+        fldmean = mean(fld.data)
+        variance = 0
+        for j in eachindex(fld)
+            variance += (fld[j] - fldmean)^2 * Δf(fld, j)
+        end
+        maximum_variance = max(maximum_variance, variance)
+    end
+
+    return maximum_variance
+end

@@ -1,7 +1,11 @@
-function ColumnModel(cd::ColumnData, Δt; kwargs...)
+function ColumnModel(cd::ColumnData, Δt; Δ=nothing, N=nothing, kwargs...)
+
+    if Δ != nothing
+        N = ceil(Int, cd.grid.L / Δ)
+    end
 
     model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu,
-                              dBdz=cd.bottom_Bz, kwargs...)
+                              dBdz=cd.bottom_Bz, N=N, kwargs...)
 
     return ColumnModelOptimizationProject.ColumnModel(model, Δt)
 end

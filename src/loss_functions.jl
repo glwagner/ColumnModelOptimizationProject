@@ -36,7 +36,7 @@ function velocity_loss(params, column_model, column_data)
 end
 
 function weighted_fields_loss(params, column_model, column_data, field_weights;
-                                fields=(:U, :V, :T, :S))
+                                fields=(:U, :V, :T))
     if any(params .< 0)
         return Inf
     else
@@ -49,6 +49,26 @@ function weighted_fields_loss(params, column_model, column_data, field_weights;
                     getproperty(column_model.model.solution, field),
                     getproperty(column_data, field)[i])
                 total_err += field_weights[j] * field_err # accumulate error
+            end
+        end
+        return time_averaged_error(total_err, length(column_data.targets))
+    end
+end
+
+function relative_fields_loss(params, column_model, column_data;
+                                fields=(:U, :V, :T))
+    if any(params .< 0)
+        return Inf
+    else
+        total_err = initialize_forward_run(column_model, column_data, params)
+        for i in column_data.targets
+            run_until!(column_model.model, column_model.Δt, column_data.t[i])
+
+            for (j, field) in enumerate(fields)
+                field_err = relative_error(
+                    getproperty(column_model.model.solution, field),
+                    getproperty(column_data, field)[i])
+                total_err += field_err # accumulate error
             end
         end
         return time_averaged_error(total_err, length(column_data.targets))

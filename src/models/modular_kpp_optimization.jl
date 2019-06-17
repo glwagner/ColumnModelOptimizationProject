@@ -3,11 +3,8 @@ module ModularKPPOptimization
 export
     DefaultFreeParameters,
     DefaultStdFreeParameters,
-    FreeConvectionParameters,
-    ShearUnstableParameters,
-    ShearNeutralParameters,
-    SensitiveParameters,
     BasicParameters,
+    WindMixingParameters,
 
     simple_flux_model
 
@@ -90,6 +87,14 @@ Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{9, T}
 end
 
 Base.similar(p::BasicParameters{T}) where T = BasicParameters{T}(0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{3, T}
+      CRi :: T
+      CSL :: T
+      Cτ  :: T
+end
+
+Base.similar(p::WindMixingParameters{T}) where T = WindMixingParameters{T}(0, 0, 0)
 
 function DefaultFreeParameters(cm, freeparamtype)
     paramnames, paramtypes = get_free_parameters(cm)
