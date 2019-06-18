@@ -4,7 +4,7 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-     model_N = 16                # Model resolution. Perfect model resolution is N=600
+     model_N = 64                # Model resolution. Perfect model resolution is N=600
     model_dt = 10*minute         # Model timestep. Perfect model timestep is 1 minute.
 initial_data = 2                # Choose initial condition for forward runs
  target_data = (10, 50, 90)    # Target samples of saved data for model-data comparison
@@ -44,7 +44,7 @@ stddev = WindMixingParameters(Tuple(0.05 for d in defaults)...)
 bounds = WindMixingParameters(Tuple((0.0, max(5.0, 5d)) for d in defaults)...)
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))
 
-chainname = @sprintf("%s_%s_markov_N%03d", name, mixingdepthname, model_N)
+chainname = @sprintf("%s_%s_markov_N%03d_2", name, mixingdepthname, model_N)
 chainpath = "$chainname.jld2"
 
 dsave = 10^2
@@ -73,4 +73,3 @@ while length(chain) < 10^7
     @save chainpath chain
     rm(oldchainpath)
 end
-=#

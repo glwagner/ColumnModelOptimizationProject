@@ -4,7 +4,7 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-chainname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_CVMix_tinyscale_markov_N064.jld2"
+chainname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_CVMix_markov_N032.jld2"
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc"
 chainpath = joinpath(chaindir, chainname)
 
