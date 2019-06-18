@@ -18,14 +18,31 @@ model = ModularKPPOptimization.ColumnModel(data, 10minute; Δ=1.0,
         mixingdepth = ModularKPP.LMDMixingDepth()
         )
 
-params = DefaultFreeParameters(model, WindMixingParameters)
-@show params
-params = WindMixingParameters(0.25, 0.17, 0.3)
+Uvariance = maxvariance(data, :U)
+Vvariance = maxvariance(data, :V)
+Tvariance = maxvariance(data, :T)
 
-nll = NegativeLogLikelihood(model, data, relative_fields_loss)
-first_link = MarkovLink(nll, params)
-@show first_link.error
+defaultparams = DefaultFreeParameters(model, WindMixingParameters)
+params = WindMixingParameters(4.93207, 3.56363, 4.796)
+
+#nll = NegativeLogLikelihood(model, data, relative_fields_loss)
+
+nll = NegativeLogLikelihood(model, data, weighted_fields_loss,
+    weights=(0.1 / Uvariance, 0.1 / Vvariance, 1.0 / Tvariance))
+
+link = MarkovLink(nll, params)
+default_link = MarkovLink(nll, defaultparams)
+
+@show nll.scale = default_link.error * 1e-2
+
+link = MarkovLink(nll, params)
+default_link = MarkovLink(nll, defaultparams)
+
+@show link.error
+@show default_link.error
 
 fig, axs = visualize_realization(params, model, data)
+gcf()
 
+fig, axs = visualize_realization(defaultparams, model, data)
 gcf()
