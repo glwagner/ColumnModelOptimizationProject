@@ -97,7 +97,7 @@ end
 
 Base.similar(p::WindMixingParameters{T}) where T = WindMixingParameters{T}(0, 0, 0)
 
-Base.@kwdef mutable struct WindMixingAndShapeParameters{T} <: FreeParameters{3, T}
+Base.@kwdef mutable struct WindMixingAndShapeParameters{T} <: FreeParameters{5, T}
       CRi :: T
       CSL :: T
       Cτ  :: T
