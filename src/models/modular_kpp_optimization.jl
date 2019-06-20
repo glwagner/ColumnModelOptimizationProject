@@ -5,6 +5,7 @@ export
     DefaultStdFreeParameters,
     BasicParameters,
     WindMixingParameters,
+    WindMixingAndShapeParameters,
 
     simple_flux_model
 
@@ -104,7 +105,7 @@ Base.@kwdef mutable struct WindMixingAndShapeParameters{T} <: FreeParameters{3, 
       CS1 :: T
 end
 
-Base.similar(p::WindMixingAndShapeParameters{T}) where T = 
+Base.similar(p::WindMixingAndShapeParameters{T}) where T =
     WindMixingAndShapeParameters{T}(0, 0, 0, 0, 0)
 
 function DefaultFreeParameters(cm, freeparamtype)
