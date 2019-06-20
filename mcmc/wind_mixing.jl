@@ -8,7 +8,7 @@ using
      dt = 10*minute       
    init = 2              
 targets = (10, 30, 50)  
-r_error = 0.1
+r_error = 0.001
   r_std = 0.01
    name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
 
@@ -20,7 +20,7 @@ filepath = joinpath(@__DIR__, "..", datadir, name * "_profiles.jld2")
 
 @show weights = Tuple(1/maxvariance(data, fld) for fld in (:U, :V, :T))
 
-ParamsToOptimize = WindMixingParameters
+ParamsToOptimize = WindMixingAndShapeParameters
 defaultparams = DefaultFreeParameters(model, ParamsToOptimize)
 
 println("We will optimize the following parameters:")
@@ -37,12 +37,20 @@ default_link = MarkovLink(nll, defaultparams)
 @show nll.scale = default_link.error * r_error
 
 # Use a non-negative normal perturbation
-stddev = ParamsToOptimize(Tuple(r_std for d in defaultparams)...)
+stddev = WindMixingAndShapeParameters(
+                              0.001,
+                              0.005,
+                              0.001,
+                              0.0001,
+                              0.0001,
+                             )
 
-bounds = WindMixingParameters(
+bounds = WindMixingAndShapeParameters(
                               (0.0, 1.0),
                               (0.0, 1.0),
-                              (0.0, 2.0)
+                              (0.0, 2.0),
+                              (0.0, 1.0),
+                              (-1.0, 1.0),
                              )
 
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))
@@ -58,7 +66,7 @@ chain = MarkovChain(dsave, MarkovLink(nll, defaultparams), nll, sampler)
 @save chainpath chain
 
 tstart = time()
-while length(chain) < 10^8
+while length(chain) < 10^7
     tint = @elapsed extend!(chain, dsave)
 
     @printf("tᵢ: %.2f seconds. Elapsed wall time: %.4f minutes.\n\n", tint, (time() - tstart)/60)

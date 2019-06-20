@@ -27,19 +27,14 @@ axs[1].tick_params(left=false, labelleft=false)
 axs[2].tick_params(left=false, labelleft=false)
 axs[3].tick_params(left=false, labelleft=false)
 
-chainnames = (
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_std1.0e-02_016.jld2",
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_std1.0e-02_032.jld2",
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_std1.0e-02_064.jld2",
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_std1.0e-02_128.jld2")
-
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc"
+chainname = "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_032.jld2"
 
 alpha = 0.2
 bins = 100
 
 #for name in chainnames
-name = chainnames[3]
+name = chainname
 
     chainpath = joinpath(chaindir, name)
     @load chainpath chain
@@ -71,12 +66,14 @@ name = chainnames[3]
 tight_layout()
 gcf()
 
+#=
 fig, axs = subplots()
 plt.hist2d(CRi, Cτ, bins=100)
 plot(opt.param.CRi, opt.param.Cτ, "r*", markersize=5)
 xlabel(L"C^\mathrm{Ri}")
 ylabel(L"C^\tau")
 gcf()
+=#
 
 #=
 # Optimization
