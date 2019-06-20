@@ -12,9 +12,9 @@ name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
 filepath = joinpath(@__DIR__, "..", datadir, name * "_profiles.jld2")
 
 iters = iterations(filepath)
-data = ColumnData(filepath, reversed=true, initial=5, targets=(10, 90))
+data = ColumnData(filepath, reversed=true, initial=2, targets=(10, 30, 50))
 
-model = ModularKPPOptimization.ColumnModel(data, 10minute; Δ=1.0,
+model = ModularKPPOptimization.ColumnModel(data, 10minute; Δ=2.0,
         mixingdepth = ModularKPP.LMDMixingDepth()
         )
 
@@ -23,7 +23,8 @@ Vvariance = maxvariance(data, :V)
 Tvariance = maxvariance(data, :T)
 
 defaultparams = DefaultFreeParameters(model, WindMixingParameters)
-params = WindMixingParameters(4.93207, 3.56363, 4.796)
+#params = WindMixingParameters(4.93207, 3.56363, 4.796)
+params = WindMixingParameters(0.241671, 0.110611, 0.402648)
 
 #nll = NegativeLogLikelihood(model, data, relative_fields_loss)
 

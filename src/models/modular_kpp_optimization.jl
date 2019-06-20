@@ -96,6 +96,17 @@ end
 
 Base.similar(p::WindMixingParameters{T}) where T = WindMixingParameters{T}(0, 0, 0)
 
+Base.@kwdef mutable struct WindMixingAndShapeParameters{T} <: FreeParameters{3, T}
+      CRi :: T
+      CSL :: T
+      Cτ  :: T
+      CS0 :: T
+      CS1 :: T
+end
+
+Base.similar(p::WindMixingAndShapeParameters{T}) where T = 
+    WindMixingAndShapeParameters{T}(0, 0, 0, 0, 0)
+
 function DefaultFreeParameters(cm, freeparamtype)
     paramnames, paramtypes = get_free_parameters(cm)
 

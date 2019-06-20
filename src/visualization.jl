@@ -1,5 +1,87 @@
+styles = ("--", ":", "-.", "o-", "^--")
+defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
 """
-    visualize_realization([params, column_model], column_data)
+    visualize_realizations(data, model, params...)
+
+Visualize the data alongside several realizations of `column_model`
+for each set of parameters in `params`.
+"""
+function visualize_realizations(column_data, column_model, params::FreeParameters...;
+                                figsize=(10, 4), datastyle="-",
+                                modelkwargs=Dict(), datakwargs=Dict(), legendkwargs=Dict()
+                                )
+
+    # Default kwargs for plot routines
+    default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8)
+    default_datakwargs = Dict(:linewidth=>3, :alpha=>0.6)
+    default_legendkwargs = Dict(:fontsize=>10, :loc=>"best", :frameon=>true, :framealpha=>0.5)
+
+    # Merge defaults with user-specified options
+     modelkwargs = merge(default_modelkwargs, modelkwargs)
+      datakwargs = merge(default_datakwargs, datakwargs)
+    legendkwargs = merge(default_legendkwargs, legendkwargs)
+
+    fields = (:U, :V, :T)
+    i_data = cat([column_data.initial], [j for j in column_data.targets], dims=1)
+
+    #
+    # Make plot
+    #
+
+    fig, axs = subplots(ncols=3, figsize=figsize)
+
+    for (iplot, i) in enumerate(i_data)
+        for (ipanel, field) in enumerate(fields)
+            sca(axs[ipanel])
+            dfld = getproperty(column_data, field)[i]
+            plot(dfld, datastyle; color=defaultcolors[iplot], datakwargs...)
+        end
+    end
+
+    for (iparam, param) in enumerate(params)
+        set!(column_model, param)
+        set!(column_model, column_data, column_data.initial)
+
+        for (iplot, i) in enumerate(i_data)
+            run_until!(column_model.model, column_model.Δt, column_data.t[i])
+            for (ipanel, field) in enumerate(fields)
+                sca(axs[ipanel])
+                mfld = getproperty(column_model.model.solution, field)
+                plot(mfld, styles[iparam]; color=defaultcolors[iplot],
+                     modelkwargs...)
+            end
+        end
+    end
+
+    for ax in axs
+        sca(ax)
+        legend(; legendkwargs...)
+    end
+
+    axs[2].tick_params(left=false, labelleft=false)
+    axs[3].tick_params(left=false, labelleft=false, right=true, labelright=true)
+    axs[3].yaxis.set_label_position("right")
+
+    sca(axs[1])
+    xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+    ylabel(L"z \, \mathrm{(meters)}")
+    removespines("top", "right")
+
+    sca(axs[2])
+    xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+    removespines("top", "right", "left")
+
+    sca(axs[3])
+    xlabel("Temperature (Celsius)")
+    ylabel(L"z \, \mathrm{(meters)}")
+    removespines("top", "left")
+
+    return fig, axs
+end
+
+"""
+    visualize_realizations([params, column_model], column_data)
 
 Visualize the data alongside a realization of `column_model`
 for the given `params`. If `column_model` and `params` are not provided,
@@ -20,19 +102,15 @@ function visualize_realization(params, column_model, column_data;
       datakwargs = merge(default_datakwargs, datakwargs)
     legendkwargs = merge(default_legendkwargs, legendkwargs)
 
-    font_manager = pyimport("matplotlib.font_manager")
-    defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    fields = (:U, :V, :T)
+    i_data = cat([column_data.initial], [j for j in column_data.targets], dims=1)
+
+    fig, axs = subplots(ncols=3, figsize=figsize)
 
     if column_model != nothing # initialize the model
         set!(column_model, params)
         set!(column_model, column_data, column_data.initial)
     end
-
-    fields = (:U, :V, :T)
-
-    i_data = cat([column_data.initial], [j for j in column_data.targets], dims=1)
-
-    fig, axs = subplots(ncols=3, figsize=figsize)
 
     for (iplot, i) in enumerate(i_data)
         column_model != nothing && run_until!(column_model.model, column_model.Δt, column_data.t[i])

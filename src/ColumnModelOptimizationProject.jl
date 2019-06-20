@@ -29,6 +29,7 @@ export
     # visualization.jl
     visualize_targets,
     visualize_realization,
+    visualize_realizations,
 
     # loss_functions.jl
     temperature_loss,
