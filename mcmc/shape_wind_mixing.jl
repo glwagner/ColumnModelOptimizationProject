@@ -4,48 +4,50 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-      N = 32 
-     dt = 10*minute       
-   init = 2              
-targets = (10, 30, 50)  
-r_error = 0.001
-  r_std = 0.01
-  Δsave = 10^3
- nlinks = 10^7
-   name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
+       N = 32 
+      dt = 10*minute       
+    init = 2              
+ targets = (10, 30, 50)  
+ r_error = 0.001
+   r_std = 0.01
+   Δsave = 10^3
+  nlinks = 10^7
+dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
 
 # Initialize the 'data' and the 'model'
  datadir = joinpath("les", "data")
-filepath = joinpath(@__DIR__, "..", datadir, name * "_profiles.jld2")
+filepath = joinpath(@__DIR__, "..", datadir, dataname * "_profiles.jld2")
     data = ColumnData(filepath; initial=init, targets=targets, reversed=true)
    model = ModularKPPOptimization.ColumnModel(data, dt, N=N)
 
-chainname = @sprintf("mcmc_%s_e%0.1e_std%0.1e_%03d", name, r_error, r_std, N)
-chainpath = joinpath(@__DIR__, "data", "$chainname.jld2")
+chainname = @sprintf("mcmc_shape_%s_e%0.1e_std%0.1e_%03d", name, r_error, r_std, N)
+chainpath(name) = joinpath(@__DIR__, "data", "$name.jld2")
 
 nll = NegativeLogLikelihood(model, data, weighted_fields_loss,
                             weights = Tuple(1/maxvariance(data, fld) for fld in (:U, :V, :T))
                            )
 
 # Set up the Markov Chain
-defaultparams = DefaultFreeParameters(model, WindMixingParameters)
+defaultparams = DefaultFreeParameters(model, WindMixingAndShapeParameters)
 
-println("We will optimize the following parameters:")
-@show propertynames(defaultparams)
-
-default_link = MarkovLink(nll, defaultparams)
+# Obtain the first link in the Markov chain
+defaultlink = MarkovLink(nll, defaultparams)
 
 # Use a non-negative normal perturbation
-stddev = WindMixingParameters(
+stddev = WindMixingAndShapeParameters(
                               0.001,
                               0.005,
-                              0.001
+                              0.001,
+                              0.0001,
+                              0.0001,
                              )
 
-bounds = WindMixingParameters(
+bounds = WindMixingAndShapeParameters(
                               (0.0, 1.0),
                               (0.0, 1.0),
-                              (0.0, 2.0)
+                              (0.0, 2.0),
+                              (0.0, 1.0),
+                              (-1.0, 2.0),
                              )
 
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))
@@ -64,8 +66,10 @@ while length(chain) < nlinks
 
     println(status(chain))
 
-    oldchainpath = chainname * "_old.jld2"
-    mv(chainpath, oldchainpath, force=true)
-    @save chainpath chain
+    # Save results in conservative manner
+    oldchainpath = chainpath(name * "_old")
+    newchainpath = chainpath(name)
+    mv(newchainpath, oldchainpath, force=true)
+    @save newchainpath chain
     rm(oldchainpath)
 end

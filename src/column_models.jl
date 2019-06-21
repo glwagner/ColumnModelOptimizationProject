@@ -21,7 +21,7 @@ end
 Construct ColumnData, a time-series of 1D profiles from observations or LES,
 from a standardized dataset.
 """
-function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false)
+function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, T=Float64)
 
     constants_dict = Dict()
 
@@ -33,26 +33,26 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false)
      constants_dict[:f] = file["constants/f"]
     close(file)
 
-    constants = Constants(; constants_dict...)
+    constants = Constants(T; constants_dict...)
 
     bcs = Dict()
 
     try
-        bcs[:Fb] = getbc("Fb", datapath)
-        bcs[:Fu] = getbc("Fu", datapath)
-        bcs[:bottom_Bz] = getbc("Bz", datapath)
+        bcs[:Fb] = T(getbc("Fb", datapath))
+        bcs[:Fu] = T(getbc("Fu", datapath))
+        bcs[:bottom_Bz] = T(getbc("Bz", datapath))
     catch
-        bcs[:Fb] = -getbc("Fb", "top", datapath)
-        bcs[:Fu] = getbc("Fu", "top", datapath)
-        bcs[:bottom_Bz] = getbc("dbdz", "bottom", datapath)
+        bcs[:Fb] = T(getbc("Fb", "top", datapath))
+        bcs[:Fu] = T(getbc("Fu", "top", datapath))
+        bcs[:bottom_Bz] = T(getbc("dbdz", "bottom", datapath))
     end
 
     N, L = getgridparams(datapath)
     grid = UniformGrid(N, L)
 
     file = jldopen(datapath, "r")
-    κ = file["closure/κ"]
-    ν = file["closure/ν"]
+    κ = T(file["closure/κ"])
+    ν = T(file["closure/ν"])
 
     iters = iterations(datapath)
     U = [ CellField(getdata("U", datapath, i; reversed=reversed), grid) for i in 1:length(iters) ]
