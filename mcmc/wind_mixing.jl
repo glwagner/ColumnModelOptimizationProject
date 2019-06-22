@@ -4,12 +4,11 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       N = 64 
+       N = 16 
       dt = 10*minute       
-    init = 2              
- targets = (10, 30, 50)  
+    init = 3              
+ targets = (13, 97)
  r_error = 0.001
-   r_std = 0.01
    Δsave = 10^3
   nlinks = 10^7
 dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
@@ -20,7 +19,7 @@ filepath = joinpath(@__DIR__, "..", datadir, dataname * "_profiles.jld2")
     data = ColumnData(filepath; initial=init, targets=targets, reversed=true)
    model = ModularKPPOptimization.ColumnModel(data, dt, N=N)
 
-chainname = @sprintf("mcmc_%s_e%0.1e_std%0.1e_%03d", dataname, r_error, r_std, N)
+chainname = @sprintf("mcmc_%s_e%0.1e_%03d", dataname, r_error, N)
 chainpath(name) = joinpath(@__DIR__, "data", "$name.jld2")
 
 nll = NegativeLogLikelihood(model, data, weighted_fields_loss,

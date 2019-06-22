@@ -4,14 +4,14 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       N = 64 
+       N = 64
       dt = 10*minute       
     init = 2              
- targets = (10, 30, 50)  
- r_error = 0.1
+ targets = (32, 128, 252)  
+ r_error = 0.001
    Δsave = 10^3
   nlinks = 10^7
-dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
+dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz256"
 
 # Initialize the 'data' and the 'model'
  datadir = joinpath("les", "data")
@@ -19,7 +19,7 @@ filepath = joinpath(@__DIR__, "..", datadir, dataname * "_profiles.jld2")
     data = ColumnData(filepath; initial=init, targets=targets, reversed=true)
    model = ModularKPPOptimization.ColumnModel(data, dt, N=N)
 
-chainname = @sprintf("mcmc_shape_smallstd_%s_e%0.1e_%03d", dataname, r_error, N)
+chainname = @sprintf("mcmc_shape_%s_e%0.1e_%03d", dataname, r_error, N)
 chainpath(name) = joinpath(@__DIR__, "data", "$name.jld2")
 
 nll = NegativeLogLikelihood(model, data, weighted_fields_loss,
@@ -33,11 +33,11 @@ nll.scale = defaultlink.error * r_error
 
 # Use a non-negative normal perturbation
 stddev = WindMixingAndShapeParameters(
-                              0.001,
-                              0.001,
+                              0.005,
+                              0.005,
                               0.0,
-                              0.01,
-                              0.01,
+                              0.005,
+                              0.005,
                              )
 
 bounds = WindMixingAndShapeParameters(
