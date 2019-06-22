@@ -1,3 +1,8 @@
+# Activate package
+using Pkg
+Pkg.activate(".")
+Pkg.instantiate()
+
 using 
     PyPlot, Printf, JLD2,
     Dao, ColumnModelOptimizationProject,
@@ -26,7 +31,7 @@ nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
 # default parameters to determine the loss function scale/temperature
 defaultparams = DefaultFreeParameters(model, WindMixingParameters)
 defaultlink = MarkovLink(nll, defaultparams)
-nll.scale = 1e-3 * defaultlink.error
+nll.scale = r_error * defaultlink.error
 
 # Set up a random talk on periodic domain.
 stddev = WindMixingParameters(0.005, 0.005, 0.005)
@@ -44,18 +49,20 @@ tstart = time()
 while length(chain) < 10^5
     tint = @elapsed extend!(chain, Δsave)
 
-    @printf("tᵢ: %.2f seconds. Elapsed wall time: %.4f minutes.\n\n", tint, (time() - tstart)/60)
-    @printf("First, optimal, and last links:\n")
-    println((chain[1].error, chain[1].param))
-    println((optimal(chain).error, optimal(chain).param))
-    println((chain[end].error, chain[end].param))
-    println(" ")
+    @printf("Elapsed wall time: %.4f minutes (Δ: %.1f s).\n\n", 
+            (time() - tstart)/60, tint)
 
+    @printf("Markov chain with parameters %s:\n", paramnames(chain))
+    @printf("  first: %.4f, %s\n", chain[1].error,       "$(chain[1].param)")
+    @printf("optimal: %.4f, %s\n", optimal(chain).error, "$(optimal(chain).param)")
+    @printf("   last: %.4f, %s\n", chain[end].error,     "$(chain[end].param)")
+
+    println("")
     println(status(chain))
 
     # Save results in conservative manner
-    oldsavepath = savepath(chainname * "_old")
-    newsavepath = savepath(chainname)
+    oldsavepath = savepath(savename * "_old")
+    newsavepath = savepath(savename)
     mv(newsavepath, oldsavepath, force=true)
     @save newsavepath chain
     rm(oldsavepath)
