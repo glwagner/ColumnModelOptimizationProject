@@ -1,5 +1,6 @@
-using JLD2, PyPlot, OceanTurb, Dao,
-        ColumnModelOptimizationProject, Printf
+using JLD2, PyPlot, Dao,
+        ColumnModelOptimizationProject, Printf,
+        OceanTurb, OffsetArrays, LinearAlgebra
 
 using ColumnModelOptimizationProject.ModularKPPOptimization
 

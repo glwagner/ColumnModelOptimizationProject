@@ -10,10 +10,7 @@ using
     ColumnModelOptimizationProject.ModularKPPOptimization
 
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
-#chainname = "mcmc_shape_bigjumps_nodiff_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_std1.0e-02_032.jld2"
-#chainname = "mcmc_shape_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_064.jld2"
 chainname = "mcmc_shape_smallstd_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz128_Nz512_e1.0e-03_128.jld2"
-#chainname = "mcmc_shape_smallstd_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-01_064.jld2"
 
 font_manager = pyimport("matplotlib.font_manager")
 defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]

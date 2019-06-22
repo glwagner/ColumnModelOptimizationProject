@@ -16,10 +16,10 @@ end
 
 TFL = Float64
   Δ = 0.5
- Ny = 16
+ Ny = 8
  Ly = Δ * Ny
- Fu = -1e-6
- Fb = 0.0
+ Fu = -1e-4
+ Fb = 0e-9
  N² = 1e-6
 
 tfinal = 8day
@@ -54,9 +54,10 @@ ubcs = FieldBoundaryConditions(z=ZBoundaryConditions(
 model = Model(
    float_type = TFL,
          arch = arch,
-            N = (2Ny, Ny, 4Ny),
+            N = (2Ny, Ny, 1Ny),
             L = (2Ly, Ly,  Ly), 
       closure = AnisotropicMinimumDissipation(TFL), 
+      #closure = ConstantSmagorinsky(TFL), 
           eos = LinearEquationOfState(TFL, βT=βT),
     constants = PlanetaryConstants(TFL, f=1e-4, g=g),
       forcing = Forcing(),

@@ -81,14 +81,17 @@ function boundarylayerplot(axs, model)
 
     sca(axs[1, 2])
     cla()
-    plot_hmean(model.tracers.T, label=L"T")
+    plot_hmean(model.tracers.T, label=L"T", marker=".")
     plot(T₀, model.grid.zC, "--", label=L"T_0")
     legend()
+
+    νₑ = CellField(model.diffusivities.νₑ, model.grid)
 
     # Middle row
     sca(axs[2, 1])
     cla()
-    plot_xzslice(e, cmap="YlGnBu_r")
+    #plot_xzslice(e, cmap="YlGnBu_r")
+    plot_xzslice(log10, νₑ, cmap="YlGnBu_r")
     title(L"e")
 
     sca(axs[2, 2])
