@@ -4,13 +4,29 @@ using
     OceanTurb, OffsetArrays, LinearAlgebra
 
 @use_pyplot_utils
+OceanTurbPyPlotUtils.usecmbright()
 
 using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-font_manager = pyimport("matplotlib.font_manager")
+alpha = 0.2
+bins = 200
+chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
+chainnames = (
+    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_016.jld2",
+    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_032.jld2",
+    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_064.jld2",
+    )
+
+Δ = (4, 2, 1) # grid spacing
+paramnames = (:CRi, :CSL, :Cτ)
 defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
+markerstyle = Dict(
+     :linestyle => "None",
+    :markersize => 6,
+    )
 
 fig, axs = subplots(nrows=3)
 
@@ -18,10 +34,10 @@ sca(axs[1])
 xlabel(L"C^\mathrm{Ri}")
 
 sca(axs[2])
-xlabel(L"C^\tau")
+xlabel(L"C^\mathrm{SL}")
 
 sca(axs[3])
-xlabel(L"C^\mathrm{SL}")
+xlabel(L"C^\tau")
 
 for ax in axs
     sca(ax)
@@ -29,17 +45,17 @@ for ax in axs
     ax.tick_params(left=false, labelleft=false)
 end
 
-chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc"
-chainname = "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_032.jld2"
+ρCmax = zeros(3)
+C★ = [zeros(3) for name in chainnames]
 
-alpha = 0.2
-bins = 200
+for (i, name) in enumerate(chainnames)
+    global C₀
 
-#for name in chainnames
-name = chainname
+    c = defaultcolors[i]
 
     chainpath = joinpath(chaindir, name)
     @load chainpath chain
+    C₀ = DefaultFreeParameters(chain.nll.model, WindMixingParameters)
 
     opt = optimal(chain)
     @show name
@@ -47,53 +63,45 @@ name = chainname
     @show chain.acceptance
     @show opt.param
 
-    samples = Dao.params(chain)
-    CRi = map(x->x.CRi, samples)
-    Cτ = map(x->x.Cτ, samples)
-    CSL = map(x->x.CSL, samples)
+    after = i == 1 ? 200000 : 1
+    samples = Dao.params(chain, after=after)
 
-    sca(axs[1])
-    plt.hist(CRi, bins=bins, alpha=alpha, density=true)
-    plot(opt.param.CRi, 0, "s")
+    for (j, Cname) in enumerate(paramnames)
 
-    sca(axs[2])
-    plt.hist(Cτ, bins=bins, alpha=alpha, density=true)
-    plot(opt.param.Cτ, 0, "s")
+        C = map(x->getproperty(x, Cname), samples)
+        C★[i][j] = getproperty(opt.param, Cname)
 
-    sca(axs[3])
-    plt.hist(CSL, bins=bins, alpha=alpha, density=true)
-    plot(opt.param.CSL, 0, "s")
+        sca(axs[j])
+        ρCj, _, _ = plt.hist(C, bins=bins, alpha=alpha, density=true, facecolor=c)
 
-#end
+        ρCmax[j] = max(ρCmax[j], maximum(ρCj))
+    end
+end
 
-tight_layout()
-gcf()
 
-#
-# Joint pdfs
-#
+for (i, name) in enumerate(chainnames)
+    c = defaultcolors[i]
 
-fig, axs = subplots(ncols=2, nrows=2)
+    for (j, Cname) in enumerate((:CRi, :Cτ, :CSL))
 
-sca(axs[1, 1])
-plt.hist2d(CRi, CSL, bins=bins)
-plot(opt.param.CRi, opt.param.CSL, "r*", markersize=5)
-xlabel(L"C^\mathrm{Ri}")
-ylabel(L"C^\mathrm{SL}")
+        lbl★ = j == 2 ? @sprintf("\$ \\Delta = %.0f \$ m", Δ[i]) : ""
+        lbl₀ = j == 2 ? "Large et al. (1994)" : ""
 
-sca(axs[2, 1])
-plt.hist2d(CRi, Cτ, bins=bins)
-plot(opt.param.CRi, opt.param.Cτ, "r*", markersize=5)
-xlabel(L"C^\mathrm{Ri}")
-ylabel(L"C^\tau")
+        sca(axs[j])
+        i == 1 && plot(C₀[j], 1.1ρCmax[j], label=lbl₀, marker="o", color="0.1",
+                        linestyle="None", markersize=4, alpha=0.8)
+        plot(C★[i][j], 1.1ρCmax[j], "*"; label=lbl★, color=c, markerstyle...)
 
-sca(axs[1, 2])
-plt.hist2d(CSL, Cτ, bins=bins)
-plot(opt.param.CSL, opt.param.Cτ, "r*", markersize=5)
-xlabel(L"C^\mathrm{SL}")
-ylabel(L"C^\tau")
+    end
+end
 
-axs[2, 2].axis("off")
+legendkw = Dict(
+    :markerscale=>1.2, :fontsize=>10,
+    :loc=>"center", :bbox_to_anchor=>(0.4, 0.7),
+    :frameon=>true, :framealpha=>0.5)
+
+sca(axs[2])
+legend(; legendkw...)
 
 tight_layout()
 gcf()

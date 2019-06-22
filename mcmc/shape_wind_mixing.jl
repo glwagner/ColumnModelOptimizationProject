@@ -4,12 +4,11 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       N = 32 
+       N = 64 
       dt = 10*minute       
     init = 2              
  targets = (10, 30, 50)  
- r_error = 0.001
-   r_std = 0.01
+ r_error = 0.1
    Δsave = 10^3
   nlinks = 10^7
 dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
@@ -20,7 +19,7 @@ filepath = joinpath(@__DIR__, "..", datadir, dataname * "_profiles.jld2")
     data = ColumnData(filepath; initial=init, targets=targets, reversed=true)
    model = ModularKPPOptimization.ColumnModel(data, dt, N=N)
 
-chainname = @sprintf("mcmc_shape_%s_e%0.1e_std%0.1e_%03d", name, r_error, r_std, N)
+chainname = @sprintf("mcmc_shape_smallstd_%s_e%0.1e_%03d", dataname, r_error, N)
 chainpath(name) = joinpath(@__DIR__, "data", "$name.jld2")
 
 nll = NegativeLogLikelihood(model, data, weighted_fields_loss,
@@ -29,29 +28,30 @@ nll = NegativeLogLikelihood(model, data, weighted_fields_loss,
 
 # Set up the Markov Chain
 defaultparams = DefaultFreeParameters(model, WindMixingAndShapeParameters)
-
-# Obtain the first link in the Markov chain
 defaultlink = MarkovLink(nll, defaultparams)
+nll.scale = defaultlink.error * r_error
 
 # Use a non-negative normal perturbation
 stddev = WindMixingAndShapeParameters(
                               0.001,
-                              0.005,
                               0.001,
-                              0.0001,
-                              0.0001,
+                              0.0,
+                              0.01,
+                              0.01,
                              )
 
 bounds = WindMixingAndShapeParameters(
                               (0.0, 1.0),
                               (0.0, 1.0),
                               (0.0, 2.0),
-                              (0.0, 1.0),
+                              (-1.0, 2.0),
                               (-1.0, 2.0),
                              )
 
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))
-chain = MarkovChain(Δsave, MarkovLink(nll, defaultparams), nll, sampler)
+initparams = WindMixingAndShapeParameters(0.3, 0.1, 0.32, 0.9, -0.1)
+chain = MarkovChain(Δsave, MarkovLink(nll, initparams), nll, sampler)
+@save chainpath(chainname) chain
 
 tstart = time()
 while length(chain) < nlinks
@@ -67,8 +67,8 @@ while length(chain) < nlinks
     println(status(chain))
 
     # Save results in conservative manner
-    oldchainpath = chainpath(name * "_old")
-    newchainpath = chainpath(name)
+    oldchainpath = chainpath(chainname * "_old")
+    newchainpath = chainpath(chainname)
     mv(newchainpath, oldchainpath, force=true)
     @save newchainpath chain
     rm(oldchainpath)

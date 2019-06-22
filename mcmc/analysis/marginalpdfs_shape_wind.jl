@@ -9,10 +9,15 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
+chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
+#chainname = "mcmc_shape_bigjumps_nodiff_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_std1.0e-02_032.jld2"
+#chainname = "mcmc_shape_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_064.jld2"
+chainname = "mcmc_shape_smallstd_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-01_064.jld2"
+
 font_manager = pyimport("matplotlib.font_manager")
 defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-fig, axs = subplots(nrows=5)
+fig, axs = subplots(nrows=5, figsize=(6, 6))
 
 sca(axs[1])
 xlabel(L"C^\mathrm{Ri}")
@@ -35,8 +40,6 @@ for ax in axs
     ax.tick_params(left=false, labelleft=false)
 end
 
-chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc"
-chainname = "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-02_std1.0e-02_032.jld2"
 
 alpha = 0.2
 bins = 100
@@ -82,36 +85,3 @@ name = chainname
 
 tight_layout()
 gcf()
-
-#=
-fig, axs = subplots()
-plt.hist2d(CRi, Cτ, bins=100)
-plot(opt.param.CRi, opt.param.Cτ, "r*", markersize=5)
-xlabel(L"C^\mathrm{Ri}")
-ylabel(L"C^\tau")
-gcf()
-=#
-
-#=
-# Optimization
-name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
-filepath = joinpath(@__DIR__, "..", "les", "data", name * "_profiles.jld2")
-
-iters = iterations(filepath)
-data = ColumnData(filepath, reversed=true, initial=2, targets=(10, 97))
-
-chainpath = joinpath(chaindir, chainnames[3])
-@load chainpath chain
-opt = optimal(chain)
-
-fig, axs = visualize_realizations(data, chain.nll.model, chain[1].param, opt.param)
-gcf()
-=#
-
-#=
-fig, axs = visualize_realizations(data, chain.nll.model, chain[1].param)
-gcf(ain
-
-fig, axs = visualize_realizations(data, chain.nll.model, opt.param)
-gcf()
-=#
