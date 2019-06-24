@@ -6,6 +6,7 @@ export
     BasicParameters,
     WindMixingParameters,
     WindMixingAndShapeParameters,
+    WindyConvectionParameters,
 
     simple_flux_model
 
@@ -88,6 +89,27 @@ Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{9, T}
 end
 
 Base.similar(p::BasicParameters{T}) where T = BasicParameters{T}(0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+Base.@kwdef mutable struct WindyConvectionParameters{T} <: FreeParameters{15, T}
+      CRi :: T
+      CSL :: T
+     CKSL :: T
+      CKE :: T
+      CNL :: T
+      Cτ  :: T
+    Cunst :: T
+     Cb_U :: T
+     Cb_T :: T
+    Cmτ_T :: T
+    Cmτ_U :: T
+    Cmb_T :: T
+    Cmb_U :: T
+     Cd_U :: T
+     Cd_T :: T
+end
+
+Base.similar(p::WindyConvectionParameters{T}) where T =
+    WindyConvectionParameters{T}((0 for i = 1:length(fieldnames(WindyConvectionParameters)))...)
 
 Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{3, T}
       CRi :: T

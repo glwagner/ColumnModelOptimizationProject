@@ -13,18 +13,10 @@ using
 alpha = 0.2
 bins = 200
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
-
 chainnames = (
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz128_Nz256_e1.0e-02_dt1.0_Δ8.jld2",
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz128_Nz256_e1.0e-02_dt2.0_Δ8.jld2",
-    "mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz128_Nz256_e1.0e-02_dt5.0_Δ8.jld2",
+    "mcmc_simple_flux_Fb1e-08_Fu-1e-04_Nsq2e-06_Lz64_Nz256_e1.0e-03_2.jld2",
     )
-    #"mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_016.jld2",
-    #"mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_032.jld2",
-    #"mcmc_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e1.0e-03_std1.0e-02_064.jld2",
-    #)
 
-dt = (1, 2, 5) # grid spacing
 paramnames = (:CRi, :CSL, :Cτ)
 defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
@@ -89,8 +81,8 @@ for (i, name) in enumerate(chainnames)
 
     for (j, Cname) in enumerate((:CRi, :Cτ, :CSL))
 
-        lbl★ = j == 2 ? @sprintf("\$ \\Delta t = %.0f \$ s", dt[i]) : ""
-        lbl₀ = j == 2 ? "Large et al. (1994)" : ""
+        lbl★ = "" #j == 2 ? @sprintf("\$ \\Delta = %.0f \$ m", Δ[i]) : ""
+        lbl₀ = "" #j == 2 ? "Large et al. (1994)" : ""
 
         sca(axs[j])
         i == 1 && plot(C₀[j], 1.1ρCmax[j], label=lbl₀, marker="o", color="0.1",

@@ -4,67 +4,62 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       N = 16 
-      dt = 10*minute       
-    init = 3              
- targets = (13, 97)
- r_error = 0.001
-   Δsave = 10^3
-  nlinks = 10^7
-dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
+       Δ = 8        # Model resolution
+      dt = 1minute  # 10 minute time-steps
+ r_error = 0.01
+   Δsave = 10^2
+dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz128_Nz256"
+savename = @sprintf("mcmc_%s_e%0.1e_dt%.1f_Δ%d", dataname, r_error, dt/minute, Δ)
+savepath(name) = joinpath("data", name * ".jld2")
 
 # Initialize the 'data' and the 'model'
- datadir = joinpath("les", "data")
-filepath = joinpath(@__DIR__, "..", datadir, dataname * "_profiles.jld2")
-    data = ColumnData(filepath; initial=init, targets=targets, reversed=true)
-   model = ModularKPPOptimization.ColumnModel(data, dt, N=N)
+datapath = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
+    data = ColumnData(datapath; initial=5, targets=(49, 249), reversed=true)
+   model = ModularKPPOptimization.ColumnModel(data, dt, Δ=Δ)
 
-chainname = @sprintf("mcmc_%s_e%0.1e_%03d", dataname, r_error, N)
-chainpath(name) = joinpath(@__DIR__, "data", "$name.jld2")
+# Set up a Negative Log Likelihood function using the maximum
+# measure variance as weighting
+weights = Tuple(1/maxvariance(data, fld) for fld in (:U, :V, :T))
+nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
 
-nll = NegativeLogLikelihood(model, data, weighted_fields_loss,
-                            weights = Tuple(1/maxvariance(data, fld) for fld in (:U, :V, :T))
-                           )
-
-# Set up the Markov Chain
+# Set up the Markov Chain, using error associated with 
+# default parameters to determine the loss function scale/temperature
 defaultparams = DefaultFreeParameters(model, WindMixingParameters)
 defaultlink = MarkovLink(nll, defaultparams)
-nll.scale = defaultlink.error * r_error
+nll.scale = r_error * defaultlink.error
 
-# Use a non-negative normal perturbation
-stddev = WindMixingParameters(
-                              0.005,
-                              0.005,
-                              0.005
-                             )
-
+# Set up a random talk on periodic domain.
+stddev = WindMixingParameters((5e-3 for p in defaultparams)...)
 bounds = WindMixingParameters(
-                              (0.0, 1.0),
+                              (0.0, 2.0),
                               (0.0, 1.0),
                               (0.0, 2.0)
                              )
 
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))
 chain = MarkovChain(Δsave, MarkovLink(nll, defaultparams), nll, sampler)
-@save chainpath(chainname) chain
+@save savepath(savename) chain
 
 tstart = time()
-while length(chain) < nlinks
+while length(chain) < 10^7
     tint = @elapsed extend!(chain, Δsave)
 
-    @printf("tᵢ: %.2f seconds. Elapsed wall time: %.4f minutes.\n\n", tint, (time() - tstart)/60)
-    @printf("First, optimal, and last links:\n")
-    println((chain[1].error, chain[1].param))
-    println((optimal(chain).error, optimal(chain).param))
-    println((chain[end].error, chain[end].param))
-    println(" ")
+    @printf("Elapsed wall time: %.4f minutes (Δ: %.1f s).\n\n", (time() - tstart)/60, tint)
+    @printf("Markov chain with parameters %s:\n", paramnames(chain))
+    @printf("  first: %.4f, %s\n", chain[1].error,       "$(chain[1].param)")
+    @printf("optimal: %.4f, %s\n", optimal(chain).error, "$(optimal(chain).param)")
+    @printf("   last: %.4f, %s\n", chain[end].error,     "$(chain[end].param)")
 
+    println("")
     println(status(chain))
 
     # Save results in conservative manner
-    oldchainpath = chainpath(chainname * "_old")
-    newchainpath = chainpath(chainname)
-    mv(newchainpath, oldchainpath, force=true)
-    @save newchainpath chain
-    rm(oldchainpath)
+    oldsavepath = savepath(savename * "_old")
+    newsavepath = savepath(savename)
+    mv(newsavepath, oldsavepath, force=true)
+
+    println("Saving Markov chain data to $newsavepath.")
+    @save newsavepath chain
+
+    rm(oldsavepath)
 end
