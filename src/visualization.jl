@@ -8,7 +8,7 @@ Visualize the data alongside several realizations of `column_model`
 for each set of parameters in `params`.
 """
 function visualize_realizations(column_data, column_model, params::FreeParameters...;
-                                figsize=(10, 4), datastyle="-",
+                                figsize=(10, 4), paramlabels=["" for p in params], datastyle="-",
                                 modelkwargs=Dict(), datakwargs=Dict(), legendkwargs=Dict()
                                 )
 
@@ -31,32 +31,38 @@ function visualize_realizations(column_data, column_model, params::FreeParameter
 
     fig, axs = subplots(ncols=3, figsize=figsize)
 
-    for (iplot, i) in enumerate(i_data)
-        for (ipanel, field) in enumerate(fields)
-            sca(axs[ipanel])
-            dfld = getproperty(column_data, field)[i]
-            plot(dfld, datastyle; color=defaultcolors[iplot], datakwargs...)
-        end
-    end
-
     for (iparam, param) in enumerate(params)
         set!(column_model, param)
         set!(column_model, column_data, column_data.initial)
 
         for (iplot, i) in enumerate(i_data)
             run_until!(column_model.model, column_model.Δt, column_data.t[i])
+
+            if iplot == 1
+                lbl =  @sprintf("%s KPP, \$ t = %0.1f \$ hours",
+                                paramlabels[iparam], column_data.t[i]/hour)
+            else
+                lbl = ""
+            end
+
             for (ipanel, field) in enumerate(fields)
                 sca(axs[ipanel])
                 mfld = getproperty(column_model.model.solution, field)
                 plot(mfld, styles[iparam]; color=defaultcolors[iplot],
-                     modelkwargs...)
+                     label=lbl, modelkwargs...)
             end
         end
     end
 
-    for ax in axs
-        sca(ax)
-        legend(; legendkwargs...)
+    for (iplot, i) in enumerate(i_data)
+        lbl = iplot == 1 ? "LES, " : ""
+        lbl *= @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
+
+        for (ipanel, field) in enumerate(fields)
+            sca(axs[ipanel])
+            dfld = getproperty(column_data, field)[i]
+            plot(dfld, datastyle; label=lbl, color=defaultcolors[iplot], datakwargs...)
+        end
     end
 
     axs[2].tick_params(left=false, labelleft=false)
@@ -67,6 +73,7 @@ function visualize_realizations(column_data, column_model, params::FreeParameter
     xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
     ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "right")
+    legend(; legendkwargs...)
 
     sca(axs[2])
     xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")

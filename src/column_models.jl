@@ -1,4 +1,4 @@
-struct ColumnData{T, G, C, F, TS, N}
+struct ColumnData{T, G, C, F, TS}
          Fb :: T
          Fu :: T
   bottom_Bz :: T
@@ -6,13 +6,13 @@ struct ColumnData{T, G, C, F, TS, N}
           ν :: T
        grid :: G
   constants :: C
-          U :: Array{F, 1}
-          V :: Array{F, 1}
-          T :: Array{F, 1}
+          U :: Vector{F}
+          V :: Vector{F}
+          T :: Vector{F}
           S :: TS
-          t :: Array{T, 1}
+          t :: Vector{T}
     initial :: Int
-    targets :: NTuple{N, Int}
+    targets :: Vector{Int}
 end
 
 """

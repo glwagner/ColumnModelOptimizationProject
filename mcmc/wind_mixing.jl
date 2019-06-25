@@ -4,17 +4,17 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       Δ = 8        # Model resolution
-      dt = 1minute  # 10 minute time-steps
- r_error = 0.01
+       Δ = 2        # Model resolution
+      dt = 5minute  # 10 minute time-steps
+ r_error = 0.001
    Δsave = 10^2
-dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz128_Nz256"
+dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128"
 savename = @sprintf("mcmc_%s_e%0.1e_dt%.1f_Δ%d", dataname, r_error, dt/minute, Δ)
 savepath(name) = joinpath("data", name * ".jld2")
 
 # Initialize the 'data' and the 'model'
 datapath = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
-    data = ColumnData(datapath; initial=5, targets=(49, 249), reversed=true)
+    data = ColumnData(datapath; initial=5, targets=[13, 121], reversed=true)
    model = ModularKPPOptimization.ColumnModel(data, dt, Δ=Δ)
 
 # Set up a Negative Log Likelihood function using the maximum
