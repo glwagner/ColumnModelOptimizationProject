@@ -18,16 +18,18 @@ chainnames = (
     "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
     "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
     "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    #"mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e1.0e-03_dt5.0_Δ2.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
+    "mcmc_strat_batch_e1.0e-03_dt5.0_Δ2.jld2"
     )
 
 Δ, N² = [], []
 
 markers = [
-    "*",
     "^",
     "s",
-    "p"
+    "p",
+    "+",
+    "*",
 ]
 
 legendkw = Dict(
@@ -76,8 +78,9 @@ for (i, name) in enumerate(chainnames)
     @show chain.acceptance
     @show opt.param
 
-    push!(Δ, chain.nll.model.grid.Δc)
-    push!(N², chain.nll.data.bottom_Bz)
+    if i < length(chainnames)
+        push!(N², chain.nll.data.bottom_Bz)
+    end
 
     after = 1
     samples = Dao.params(chain, after=after)
@@ -101,13 +104,16 @@ for (i, name) in enumerate(chainnames)
 
         if j == 1
             lbl₀ = "Large et al. (1994)"
-            lbl★ = @sprintf(
-                "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$, \$ \\Delta = %.0f \$ m", N²[i], Δ[i])
+            if i < length(chainnames)
+                lbl★ = @sprintf(
+                    "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$", N²[i])
+            else
+                lbl★ = "batch"
+            end
         else
             lbl₀ = ""
             lbl★ = ""
         end
-
 
         sca(axs[j])
         i == 1 && plot(C₀[j], 1.1ρCmax[j], label=lbl₀, marker="o", color="0.1",
@@ -121,6 +127,10 @@ end
 
 sca(axs[1])
 legend(; legendkw...)
+xlim(0, 0.45)
+
+sca(axs[3])
+xlim(0.2, 0.45)
 
 tight_layout()
 gcf()

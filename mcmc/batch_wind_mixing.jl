@@ -6,37 +6,51 @@ using
 
        Δ = 2        # Model resolution
       dt = 5minute  # 10 minute time-steps
- r_error = 0.00001
+ r_error = 0.0001
    Δsave = 10^2
-dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128"
-savename = @sprintf("mcmc_shape_%s_e%0.1e_dt%.1f_Δ%d", dataname, r_error, dt/minute, Δ)
+savename = @sprintf("mcmc_exp_batch_e%0.1e_dt%.1f_Δ%d", r_error, dt/minute, Δ)
 savepath(name) = joinpath("data", name * ".jld2")
 
-# Initialize the 'data' and the 'model'
-datapath = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
-    data = ColumnData(datapath; initial=5, targets=[9, 25], reversed=true)
-   model = ModularKPPOptimization.ColumnModel(data, dt, Δ=Δ)
+datapath(dataname) = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
+datanames = [
+    "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128",
+    "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128",
+    "simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128",
+    "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128" ]
 
-# Set up a Negative Log Likelihood function using the maximum
-# measure variance as weighting
-weights = Tuple(1/maxvariance(data, fld) for fld in (:U, :V, :T))
-nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
+targets = [ [9, 25, 121] for name in datanames ]
+targets[4] = [9, 25]
+
+function make_nll(dname, targets)
+    dpath = datapath(dname)
+    data = ColumnData(dpath; initial=5, targets=targets, reversed=true)
+    model = ModularKPPOptimization.ColumnModel(data, dt, Δ=Δ, kprofile=ModularKPP.CubicExponential())
+
+    # Set up a Negative Log Likelihood function using the maximum
+    # measure variance as weighting
+    weights = Tuple(1/maxvariance(data, fld) for fld in (:U, :V, :T))
+    return NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
+end
+
+nlls = [ make_nll(datanames[i], targets[i]) for i in 1:length(datanames) ]
+nll = BatchedNegativeLogLikelihood(nlls)
+model = nlls[1].model
 
 # Set up the Markov Chain, using error associated with 
 # default parameters to determine the loss function scale/temperature
-defaultparams = DefaultFreeParameters(model, WindMixingAndShapeParameters)
+defaultparams = DefaultFreeParameters(model, WindMixingAndExponentialShapeParameters)
 defaultlink = MarkovLink(nll, defaultparams)
 nll.scale = r_error * defaultlink.error
 
-# Use a non-negative normal perturbation
-stddev = WindMixingAndShapeParameters((5e-3 for p in defaultparams)...)
-
-bounds = WindMixingAndShapeParameters(
+# Set up a random talk on periodic domain.
+stddev = WindMixingAndExponentialShapeParameters((5e-3 for p in defaultparams)...)
+bounds = WindMixingAndExponentialShapeParameters(
                               (0.0, 2.0),
                               (0.0, 2.0),
                               (0.0, 2.0),
-                              (-1.0, 2.0),
-                              (-1.0, 2.0),
+                              (0.0, 1.0),
+                              (0.0, 1.0),
+                              (0.0, 4.0)
                              )
 
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))

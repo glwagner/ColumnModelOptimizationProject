@@ -6,15 +6,21 @@ using
 
        Δ = 2        # Model resolution
       dt = 5minute  # 10 minute time-steps
- r_error = 0.001
+ r_error = 0.002
    Δsave = 10^2
-dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128"
-savename = @sprintf("mcmc_%s_e%0.1e_dt%.1f_Δ%d", dataname, r_error, dt/minute, Δ)
+
+#dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128"
+#dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
+#dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128"
+dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128"
+
+savename = @sprintf("mcmc_strat_%s_e%0.1e_dt%.1f_Δ%d", dataname, r_error, dt/minute, Δ)
 savepath(name) = joinpath("data", name * ".jld2")
 
 # Initialize the 'data' and the 'model'
 datapath = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
-    data = ColumnData(datapath; initial=5, targets=[13, 121], reversed=true)
+    #data = ColumnData(datapath; initial=5, targets=[9, 25, 121], reversed=true)
+    data = ColumnData(datapath; initial=5, targets=[9, 25], reversed=true)
    model = ModularKPPOptimization.ColumnModel(data, dt, Δ=Δ)
 
 # Set up a Negative Log Likelihood function using the maximum
@@ -32,7 +38,7 @@ nll.scale = r_error * defaultlink.error
 stddev = WindMixingParameters((5e-3 for p in defaultparams)...)
 bounds = WindMixingParameters(
                               (0.0, 2.0),
-                              (0.0, 1.0),
+                              (0.0, 2.0),
                               (0.0, 2.0)
                              )
 

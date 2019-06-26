@@ -15,19 +15,16 @@ bins = 200
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
 
 chainnames = (
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    #"mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e1.0e-03_dt5.0_Δ2.jld2",
+    "mcmc_exp_batch_e1.0e-04_dt5.0_Δ2.jld2",
+    #"mcmc_shape_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e1.0e-05_dt5.0_Δ2.jld2",
     )
 
 Δ, N² = [], []
 
 markers = [
     "*",
-    "^",
-    "s",
-    "p"
+    "*",
+    "*",
 ]
 
 legendkw = Dict(
@@ -61,6 +58,11 @@ end
 ρCmax = zeros(nparams)
 C★ = [zeros(nparams) for name in chainnames]
 
+get_Δ(nll) = nll.model.grid.Δc
+get_Δ(nll::BatchedNegativeLogLikelihood) = nll.batch[1].model.grid.Δc
+get_N²(nll) = nll.data.bottom_Bz
+get_N²(nll::BatchedNegativeLogLikelihood) = nll.batch[1].data.bottom_Bz
+
 for (i, name) in enumerate(chainnames)
     global C₀
 
@@ -76,8 +78,13 @@ for (i, name) in enumerate(chainnames)
     @show chain.acceptance
     @show opt.param
 
-    push!(Δ, chain.nll.model.grid.Δc)
-    push!(N², chain.nll.data.bottom_Bz)
+    try
+        push!(Δ, chain.nll.model.grid.Δc)
+        push!(N², chain.nll.data.bottom_Bz)
+    catch
+        push!(Δ, chain.nll.batch[1].model.grid.Δc)
+        push!(N², chain.nll.batch[1].data.bottom_Bz)
+    end
 
     after = 1
     samples = Dao.params(chain, after=after)

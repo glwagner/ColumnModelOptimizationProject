@@ -4,14 +4,14 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-chainname = 
-chainpath = "$chainname.jld2"
+chainname = "mcmc_strat_batch_e1.0e-03_dt5.0_Δ2.jld2"
+chainpath = joinpath("data", chainname)
 @load chainpath chain
 
 dsave = 10^3
 
 tstart = time()
-while length(chain) < 10^8
+while length(chain) < 10^7
     tint = @elapsed extend!(chain, dsave)
 
     @printf("tᵢ: %.2f seconds. Elapsed wall time: %.4f minutes.\n\n", tint, (time() - tstart)/60)
