@@ -146,11 +146,6 @@ function visualize_realization(params, column_model, column_data;
         end
     end
 
-    for ax in axs
-        sca(ax)
-        legend(; legendkwargs...)
-    end
-
     axs[2].tick_params(left=false, labelleft=false)
     axs[3].tick_params(left=false, labelleft=false, right=true, labelright=true)
     axs[3].yaxis.set_label_position("right")
@@ -159,6 +154,7 @@ function visualize_realization(params, column_model, column_data;
     xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
     ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "right")
+    legend(; legendkwargs...)
 
     sca(axs[2])
     xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
