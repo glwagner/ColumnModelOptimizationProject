@@ -3,108 +3,99 @@ using JLD2, PyPlot, Oceananigans, OceananigansAnalysis, Printf
 include("file_wrangling.jl")
 include("../plot_utils.jl")
 
-#Oceananigans.data(f::Field{A}) where A<:Array = f.data
-
-function makeplot(filepath, axs, g, i; wclip=0.25, uclip=0.25)
-    u = FaceFieldX(get_snapshot(filepath, :u, i), g)
-    v = FaceFieldY(get_snapshot(filepath, :v, i), g)
-    w = FaceFieldZ(get_snapshot(filepath, :w, i), g)
-    θ = CellField(get_snapshot(filepath, :θ, i), g)
+function make_xz_plot(filepath, axs, grid, iter)
+    u = FaceFieldX(get_snapshot(filepath, :u, iter), grid)
+    v = FaceFieldY(get_snapshot(filepath, :v, iter), grid)
+    w = FaceFieldZ(get_snapshot(filepath, :w, iter), grid)
+    θ = CellField(get_snapshot(filepath, :θ, iter), grid)
 
     θ′ = fluctuation(θ)
+    e = turbulent_kinetic_energy(u, v, w)
+    @show emax = maximum(log10, e.data)
+    @show θmax = maximum(abs, θ′.data)
+    @show umax = maximum(abs, u.data)
+
+    ymin = -75
+
+    sca(axs[1])
+    ylim(ymin, 0)
+
+    plot_xzslice(u, slice=10, cmap="RdBu_r", shading="gouraud", vmin=-0.06, vmax=0.06)
+    title("horizontal velocity")
+    xlabel(L"x \, (\mathrm{m})")
+    ylabel(L"z \, (\mathrm{m})")
+
+    sca(axs[2])
+    ylim(ymin, 0)
+    xlim(19.4, 19.7)
+    plot_hmean(θ, label=L"V")
+    xlabel("Temperature  (\$ {}^\\circ \\mathrm{C} \$)")
+    ylabel(L"z \, (\mathrm{m})")
+
+    removespines("top", "bottom", "right", "left", ax=axs[1])
+
+
+    match_yaxes!(axs[2], axs[1])
+    axs[2].yaxis.set_label_position("right")
+    axs[2].tick_params(right=true, labelright=true, left=false, labelleft=false)
+    removespines("left", "top", ax=axs[2])
+
+    return nothing
+end
+
+function make_xy_plot(filepath, axs, grid, iter)
+    u = FaceFieldX(get_snapshot(filepath, :u, iter), grid)
+    v = FaceFieldY(get_snapshot(filepath, :v, iter), grid)
+    w = FaceFieldZ(get_snapshot(filepath, :w, iter), grid)
 
     e = turbulent_kinetic_energy(u, v, w)
-    wθ = w * θ
+    @show emax = maximum(e.data)
 
-    wmax = maximum(abs, w.data) * wclip
-    umax = maximum(abs, u.data) * uclip
+    sca(axs[1])
+    slice = 41
+    @show grid.zC[slice]
+    plot_xyslice(e, slice=slice, cmap="YlGnBu_r", shading="gouraud", vmax=0.001)
+    title("turbulent kinetic energy at \$z = - 10 \\, \\mathrm{m} \$")
 
-    @show θmax = maximum(θ′.data)
-    @show θmin = minimum(θ′.data)
+    sca(axs[2])
+    slice = 129
+    @show grid.zC[slice]
+    plot_xyslice(e, slice=slice, cmap="YlGnBu_r", shading="gouraud", vmax=0.0005)
+    title("turbulent kinetic energy at \$z = -32 \\, \\mathrm{m} \$")
 
-    sca(axs[1, 1])
-    #plot_xzslice(u, cmap="RdBu_r", vmin=-umax, vmax=umax, shading="gouraud")
-    plot_xzslice(θ′, cmap="RdBu_r", shading="gouraud", vmin=-0.001, vmax=0.001)
-    ylabel(L"z \, (\mathrm{m})")
-    title(L"\theta'")
-
-    sca(axs[2, 1])
-    plot_xzslice(w, cmap="RdBu_r", vmin=-wmax, vmax=wmax, shading="gouraud")
-    ylabel(L"z \, (\mathrm{m})")
-    xlabel(L"x \, (\mathrm{m})")
-    title(L"w")
-
-    sca(axs[1, 2])
-    plot_hmean(θ, label=L"T")
-    #plot_hmean(u, label=L"U")
-    #plot_hmean(v, label=L"V")
-    #plot_hmean(√, e, label=L"\sqrt{\bar e}")
-    xlabel(L"T \, ({}^\circ \mathrm{C})")
-    ylabel(L"z \, (\mathrm{m})")
-    #legend()
-
-    sca(axs[2, 2])
-    plot_hmean(wθ, label=L"\overline{w \theta'}")
-    xlabel(L"\overline{w \theta'}")
-    ylabel(L"z \, (\mathrm{m})")
-
-    for ax in axs[1:2, 1]
-        removespines("top", "bottom", "right", "left", ax=ax)
+    for ax in axs
         ax.set_aspect(1)
+        sca(ax)
+        xlabel(L"x \, (\mathrm{m})")
+        ylabel(L"y \, (\mathrm{m})")
+        removespines("top", "bottom", "right", "left")
     end
 
-    for ax in axs[1:2, 2]
-        ax.yaxis.set_label_position("right")
-    end
-
-    match_yaxes!(axs[1, 2], axs[1, 1])
-    match_yaxes!(axs[2, 2], axs[2, 1])
-
-    axs[1, 1].tick_params(bottom=false, labelbottom=false)
-
-    axs[1, 2].tick_params(right=true, labelright=true, left=false, labelleft=false,
-                            bottom=false, labelbottom=false,
-                            top=true, labeltop=true)
-
-    axs[2, 2].tick_params(right=true, labelright=true, left=false, labelleft=false)
-
-    removespines("left", "bottom", ax=axs[1, 2])
-    removespines("left", "top", ax=axs[2, 2])
-
-    axs[1, 2].xaxis.set_label_position("top")
+    axs[2].yaxis.set_label_position("right")
+    axs[2].tick_params(left=false, labelleft=false, right=true, labelright=true)
 
     return nothing
 end
 
 datadir = "data"
-#name = "simple_flux_Fb5e-09_Fu-1e-04_Nsq1e-06_Lz128_Nz256"
-name = "simple_flux_Fb1e-09_Fu0e+00_Nsq1e-06_Lz128_Nz256"
+name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz128_Nz512"
 filepath = joinpath(@__DIR__, "..", datadir, name * "_fields.jld2")
 
 g = Grid(filepath)
 @show iters = get_iters(filepath)
 
-gridspec = Dict("width_ratios"=>[Int(g.Lx/g.Lz)+1, 1])
-fig, axs = subplots(ncols=2, nrows=2, figsize=(8, 6), gridspec_kw=gridspec)
-
 #=
-for (ii, i) in enumerate(iters)
+gridspec = Dict("width_ratios"=>[Int(g.Lx/g.Lz)+1, 1])
+fig, axs = subplots(ncols=2, nrows=1, figsize=(8, 3), gridspec_kw=gridspec)
+make_xz_plot(filepath, axs, g, iters[end])
+tight_layout()
+gcf()
 
-    for ax in axs
-        sca(ax)
-        cla()
-    end
-
-    makeplot(filepath, axs, g, i, wclip=0.5, uclip=0.5)
-    gcf()
-
-    savefig(@sprintf("%s_%04d.png", name, ii), dpi=480)
-end
+savefig("xz_wind_mixing.png", dpi=480)
 =#
 
-i = 30
-gridspec = Dict("width_ratios"=>[Int(g.Lx/g.Lz)+1, 1])
-fig, axs = subplots(ncols=2, nrows=2, figsize=(8, 6), gridspec_kw=gridspec)
-makeplot(filepath, axs, g, iters[i], wclip=0.5, uclip=0.5)
+fig, axs2 = subplots(ncols=2, figsize=(10, 3))
+make_xy_plot(filepath, axs2, g, iters[end])
 gcf()
-savefig("convection.png", dpi=480)
+tight_layout()
+savefig("xy_wind_mixing.png", dpi=480)
