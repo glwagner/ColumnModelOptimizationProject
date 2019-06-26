@@ -22,7 +22,8 @@ and initial linear buoyancy gradient `Bz`.
 function simple_flux_model(constants=Constants(); N=128, L, dBdz, Fb, Fu,
                              diffusivity = ModularKPP.LMDDiffusivity(),
                              mixingdepth = ModularKPP.LMDMixingDepth(),
-                            nonlocalflux = ModularKPP.LMDCounterGradientFlux()
+                            nonlocalflux = ModularKPP.LMDCounterGradientFlux(),
+                                kprofile = ModularKPP.Cubic()
                             )
 
 
@@ -31,7 +32,8 @@ function simple_flux_model(constants=Constants(); N=128, L, dBdz, Fb, Fu,
              stepper = :BackwardEuler,
          diffusivity = diffusivity,
          mixingdepth = mixingdepth,
-        nonlocalflux = nonlocalflux
+        nonlocalflux = nonlocalflux,
+            kprofile = kprofile
         )
 
     # Initial condition

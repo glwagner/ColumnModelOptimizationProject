@@ -6,9 +6,11 @@ export
     BasicParameters,
     WindMixingParameters,
     WindMixingAndShapeParameters,
+    WindMixingAndExponentialShapeParameters,
     WindyConvectionParameters,
 
-    simple_flux_model
+    simple_flux_model,
+    latexparams
 
 using
     OceanTurb,
@@ -23,6 +25,7 @@ import ColumnModelOptimizationProject: ColumnModel, set!
 
 latexparams = Dict(
       :CRi => L"C^\mathrm{Ri}",
+      :CSL => L"C^\mathrm{SL}",
       :CKE => L"C^\mathcal{E}",
       :CNL => L"C^{NL}",
       :Cτ  => L"C^\tau",
@@ -31,7 +34,11 @@ latexparams = Dict(
      :Cb_U => L"C^b_U",
      :Cb_T => L"C^b_T",
      :Cd_U => L"C^d_U",
-     :Cd_T => L"C^d_T"
+     :Cd_T => L"C^d_T",
+      :CS0 => L"C^{S_0}",
+      :CS1 => L"C^{S_1}",
+      :CSe => L"C^{S_e}",
+      :CSd => L"C^{S_d}"
 )
 
 include("modular_kpp_utils.jl")
@@ -129,6 +136,19 @@ end
 
 Base.similar(p::WindMixingAndShapeParameters{T}) where T =
     WindMixingAndShapeParameters{T}(0, 0, 0, 0, 0)
+
+Base.@kwdef mutable struct WindMixingAndExponentialShapeParameters{T} <: FreeParameters{6, T}
+      CRi :: T
+      CSL :: T
+      Cτ  :: T
+      CS0 :: T
+      CSe :: T
+      CSd :: T
+end
+
+Base.similar(p::WindMixingAndExponentialShapeParameters{T}) where T =
+    WindMixingAndExponentialShapeParameters{T}(0, 0, 0, 0, 0, 0)
+
 
 function DefaultFreeParameters(cm, freeparamtype)
     paramnames, paramtypes = get_free_parameters(cm)
