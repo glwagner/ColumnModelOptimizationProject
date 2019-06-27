@@ -8,7 +8,7 @@ using ColumnModelOptimizationProject.ModularKPPOptimization
 usecmbright()
 
 datadir = "data"
-name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128"
+name = "simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128"
 
 filepath = joinpath(@__DIR__, "..", datadir, name * "_profiles.jld2")
 

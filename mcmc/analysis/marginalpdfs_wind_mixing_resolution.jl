@@ -15,10 +15,11 @@ bins = 200
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
 
 chainnames = (
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.7.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ4.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ5.3.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ8.0.jld2"
     )
 
 Δ, N² = [], []
@@ -27,8 +28,11 @@ markers = [
     "*",
     "^",
     "s",
-    "p"
+    "p",
+    "+"
 ]
+
+burn_in = 10000
 
 legendkw = Dict(
     :markerscale=>1.2, :fontsize=>10,
@@ -79,8 +83,7 @@ for (i, name) in enumerate(chainnames)
     push!(Δ, chain.nll.model.grid.Δc)
     push!(N², chain.nll.data.bottom_Bz)
 
-    after = 1
-    samples = Dao.params(chain, after=after)
+    samples = Dao.params(chain, after=burn_in)
 
     for (j, Cname) in enumerate(paramnames)
 
@@ -102,7 +105,7 @@ for (i, name) in enumerate(chainnames)
         if j == 1
             lbl₀ = "Large et al. (1994)"
             lbl★ = @sprintf(
-                "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$, \$ \\Delta = %.0f \$ m", N²[i], Δ[i])
+                "\$ \\Delta = %.1f \$ m", Δ[i])
         else
             lbl₀ = ""
             lbl★ = ""
@@ -121,6 +124,13 @@ end
 
 sca(axs[1])
 legend(; legendkw...)
+xlim(0.15, 0.45)
+
+sca(axs[2])
+xlim(0.0, 1.6)
+
+sca(axs[3])
+xlim(0.15, 0.42)
 
 tight_layout()
 gcf()
