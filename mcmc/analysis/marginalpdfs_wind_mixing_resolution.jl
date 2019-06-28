@@ -15,11 +15,11 @@ bins = 200
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
 
 chainnames = (
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.0.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.7.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ4.0.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ5.3.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ8.0.jld2"
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.7.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ4.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ5.3.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ8.0.jld2"
     )
 
 Δ, N² = [], []
@@ -32,7 +32,7 @@ markers = [
     "+"
 ]
 
-burn_in = 10000
+burn_in = 1
 
 legendkw = Dict(
     :markerscale=>1.2, :fontsize=>10,
@@ -124,13 +124,15 @@ end
 
 sca(axs[1])
 legend(; legendkw...)
-xlim(0.15, 0.45)
+xlim(0.15, 0.4)
 
 sca(axs[2])
-xlim(0.0, 1.6)
+xlim(0.0, 0.4)
 
 sca(axs[3])
-xlim(0.15, 0.42)
+xlim(0.2, 0.40)
 
 tight_layout()
 gcf()
+
+savefig("/Users/gregorywagner/Desktop/resolution_study.png", dpi=480)

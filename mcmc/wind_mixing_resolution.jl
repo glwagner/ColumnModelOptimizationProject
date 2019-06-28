@@ -4,7 +4,7 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       N = 32       # Model resolution
+       N = 8        # Model resolution
        Δ = 64/N     # Model resolution
       dt = 5minute  # 5 minute time-steps
    scale = 0.001 * 0.3

@@ -10,25 +10,22 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-alpha = 0.2
 bins = 200
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
 
 chainnames = (
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e2.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_batch_e1.0e-03_dt5.0_Δ2.jld2"
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    "mcmc_batch_s7.5e-05_dt5.0_Δ2.jld2"
     )
 
 Δ, N² = [], []
 
 markers = [
-    "^",
-    "s",
-    "p",
     "+",
+    "x",
+    "s",
     "*",
 ]
 
@@ -39,7 +36,6 @@ legendkw = Dict(
 
 markerstyle = Dict(
      :linestyle => "None",
-    :markersize => 6,
     )
 
 chainpath = joinpath(chaindir, chainnames[1])
@@ -90,6 +86,12 @@ for (i, name) in enumerate(chainnames)
         C = map(x->getproperty(x, Cname), samples)
         C★[i][j] = getproperty(opt.param, Cname)
 
+        if i < length(chainnames)
+            alpha = 0.2
+        else
+            alpha = 0.6
+        end
+
         sca(axs[j])
         ρCj, _, _ = plt.hist(C, bins=bins, alpha=alpha, density=true, facecolor=c)
 
@@ -102,35 +104,36 @@ for (i, name) in enumerate(chainnames)
 
     for (j, Cname) in enumerate(paramnames)
 
-        if j == 1
-            lbl₀ = "Large et al. (1994)"
-            if i < length(chainnames)
-                lbl★ = @sprintf(
-                    "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$", N²[i])
-            else
-                lbl★ = "batch"
-            end
+        lbl₀ = "Large et al. (1994)"
+        if i < length(chainnames)
+            lbl★ = @sprintf(
+                "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$", N²[i])
+            markersize=4
         else
-            lbl₀ = ""
-            lbl★ = ""
+            lbl★ = "batch"
+            markersize=8
         end
 
         sca(axs[j])
-        i == 1 && plot(C₀[j], 1.1ρCmax[j], label=lbl₀, marker="o", color="0.1",
-                        linestyle="None", markersize=4, alpha=0.8)
+        i == 1 && plot(C₀[j], 1.2ρCmax[j], label=lbl₀, marker="o", color="0.1",
+                        linestyle="None", markersize=markersize, alpha=0.8)
 
         marker = markers[i]
-        plot(C★[i][j], 1.1ρCmax[j], marker; label=lbl★, color=c, markerstyle...)
+        plot(C★[i][j], 1.2ρCmax[j], marker; label=lbl★, color=c, markersize=markersize, markerstyle...)
 
     end
 end
 
 sca(axs[1])
+xlim(0.25, 0.7)
+
+sca(axs[2])
 legend(; legendkw...)
-xlim(0, 0.45)
 
 sca(axs[3])
-xlim(0.2, 0.45)
+xlim(0.2, 0.41)
 
 tight_layout()
 gcf()
+
+savefig("/Users/gregorywagner/Desktop/batch_example.png", dpi=480)

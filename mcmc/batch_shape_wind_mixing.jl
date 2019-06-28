@@ -6,9 +6,9 @@ using
 
        Δ = 2        # Model resolution
       dt = 5minute  # 10 minute time-steps
-   scale = 0.001 * 0.3 / 4
+   scale = 0.0001 * 0.3
    Δsave = 10^2
-savename = @sprintf("mcmc_batch_s%0.1e_dt%.1f_Δ%d", scale, dt/minute, Δ)
+savename = @sprintf("mcmc_exp_batch_s%0.1e_dt%.1f_Δ%d", scale, dt/minute, Δ)
 savepath(name) = joinpath("data", name * ".jld2")
 
 datapath(dataname) = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
@@ -38,16 +38,19 @@ model = nlls[1].model
 
 # Set up the Markov Chain, using error associated with 
 # default parameters to determine the loss function scale/temperature
-defaultparams = DefaultFreeParameters(model, WindMixingParameters)
+defaultparams = DefaultFreeParameters(model, WindMixingAndExponentialShapeParameters)
 defaultlink = MarkovLink(nll, defaultparams)
 nll.scale = scale
 
 # Set up a random talk on periodic domain.
-stddev = WindMixingParameters((1e-2 for p in defaultparams)...)
-bounds = WindMixingParameters(
+stddev = WindMixingAndExponentialShapeParameters((1e-2 for p in defaultparams)...)
+bounds = WindMixingAndExponentialShapeParameters(
                               (0.0, 2.0),
                               (0.0, 1.0),
-                              (0.0, 2.0)
+                              (0.0, 2.0),
+                              (0.0, 1.0),
+                              (0.0, 1.0),
+                              (0.0, 4.0)
                              )
 
 sampler = MetropolisSampler(BoundedNormalPerturbation(stddev, bounds))

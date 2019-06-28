@@ -8,8 +8,14 @@ Visualize the data alongside several realizations of `column_model`
 for each set of parameters in `params`.
 """
 function visualize_realizations(column_data, column_model, params::FreeParameters...;
-                                figsize=(10, 4), paramlabels=["" for p in params], datastyle="-",
-                                modelkwargs=Dict(), datakwargs=Dict(), legendkwargs=Dict()
+                                     figsize = (10, 4),
+                                 paramlabels = ["" for p in params], datastyle="-",
+                                 modelkwargs = Dict(),
+                                  datakwargs = Dict(),
+                                legendkwargs = Dict(),
+                                      i_data = cat([column_data.initial],
+                                                   [j for j in column_data.targets], dims=1),
+                                      fields = (:U, :V, :T)
                                 )
 
     # Default kwargs for plot routines
@@ -22,18 +28,15 @@ function visualize_realizations(column_data, column_model, params::FreeParameter
       datakwargs = merge(default_datakwargs, datakwargs)
     legendkwargs = merge(default_legendkwargs, legendkwargs)
 
-    fields = (:U, :V, :T)
-    i_data = cat([column_data.initial], [j for j in column_data.targets], dims=1)
-
     #
     # Make plot
     #
 
-    fig, axs = subplots(ncols=3, figsize=figsize)
+    fig, axs = subplots(ncols=length(fields), figsize=figsize)
 
     for (iparam, param) in enumerate(params)
         set!(column_model, param)
-        set!(column_model, column_data, column_data.initial)
+        set!(column_model, column_data, i_data[1])
 
         for (iplot, i) in enumerate(i_data)
             run_until!(column_model.model, column_model.Δt, column_data.t[i])
@@ -70,19 +73,27 @@ function visualize_realizations(column_data, column_model, params::FreeParameter
     axs[3].yaxis.set_label_position("right")
 
     sca(axs[1])
-    xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-    ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "right")
     legend(; legendkwargs...)
 
     sca(axs[2])
-    xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
     removespines("top", "right", "left")
 
     sca(axs[3])
-    xlabel("Temperature (Celsius)")
-    ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "left")
+
+    if fields == (:U, :V, :T)
+        sca(axs[1])
+        xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+        ylabel(L"z \, \mathrm{(meters)}")
+
+        sca(axs[2])
+        xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+
+        sca(axs[3])
+        xlabel("Temperature (Celsius)")
+        ylabel(L"z \, \mathrm{(meters)}")
+    end
 
     return fig, axs
 end
@@ -95,9 +106,17 @@ for the given `params`. If `column_model` and `params` are not provided,
 only the data is visualized.
 """
 function visualize_realization(params, column_model, column_data;
-                               figsize=(10, 4), modelstyle="--", datastyle="-",
-                               modelkwargs=Dict(), datakwargs=Dict(), legendkwargs=Dict(),
-                               showerror=false)
+                                    figsize = (10, 4),
+                                 modelstyle = "--",
+                                  datastyle = "-",
+                                modelkwargs = Dict(),
+                                 datakwargs = Dict(),
+                               legendkwargs = Dict(),
+                                     i_data = cat([column_data.initial],
+                                                  [j for j in column_data.targets], dims=1),
+                                     fields = (:U, :V, :T),
+                                  showerror = false
+                                  )
 
     # Default kwargs for plot routines
     default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8)
@@ -109,14 +128,11 @@ function visualize_realization(params, column_model, column_data;
       datakwargs = merge(default_datakwargs, datakwargs)
     legendkwargs = merge(default_legendkwargs, legendkwargs)
 
-    fields = (:U, :V, :T)
-    i_data = cat([column_data.initial], [j for j in column_data.targets], dims=1)
-
-    fig, axs = subplots(ncols=3, figsize=figsize)
+    fig, axs = subplots(ncols=length(fields), figsize=figsize)
 
     if column_model != nothing # initialize the model
         set!(column_model, params)
-        set!(column_model, column_data, column_data.initial)
+        set!(column_model, column_data, i_data[1])
     end
 
     for (iplot, i) in enumerate(i_data)
@@ -151,19 +167,27 @@ function visualize_realization(params, column_model, column_data;
     axs[3].yaxis.set_label_position("right")
 
     sca(axs[1])
-    xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-    ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "right")
     legend(; legendkwargs...)
 
     sca(axs[2])
-    xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
     removespines("top", "right", "left")
 
     sca(axs[3])
-    xlabel("Temperature (Celsius)")
-    ylabel(L"z \, \mathrm{(meters)}")
     removespines("top", "left")
+
+    if fields == (:U, :V, :T)
+        sca(axs[1])
+        xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+        ylabel(L"z \, \mathrm{(meters)}")
+
+        sca(axs[2])
+        xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+
+        sca(axs[3])
+        xlabel("Temperature (Celsius)")
+        ylabel(L"z \, \mathrm{(meters)}")
+    end
 
     return fig, axs
 end

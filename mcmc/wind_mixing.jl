@@ -4,10 +4,10 @@ using
     ColumnModelOptimizationProject,
     ColumnModelOptimizationProject.ModularKPPOptimization
 
-       N = 24          # Model resolution
+       N = 32          # Model resolution
        Δ = 64/N       # Model resolution
       dt = 5minute  # 10 minute time-steps
- r_error = 0.002
+   scale = 0.001 * 0.3
    Δsave = 10^2
 
 #dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128"
@@ -15,15 +15,13 @@ using
 dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128"
 #dataname = "simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128"
 
-savename = @sprintf("mcmc_strat_%s_e%0.1e_dt%.1f_Δ%.1f", dataname, r_error, dt/minute, Δ)
-#savename = @sprintf("mcmc_strat_%s_e%0.1e_dt%.1f_Δ%d", dataname, r_error, dt/minute, Δ)
+savename = @sprintf("mcmc_strat_%s_s%0.1e_dt%.1f_Δ%.1f", dataname, scale, dt/minute, Δ)
 savepath(name) = joinpath("data", name * ".jld2")
 
 # Initialize the 'data' and the 'model'
 datapath = joinpath(@__DIR__, "..", "les", "data", dataname * "_profiles.jld2")
-    data = ColumnData(datapath; initial=5, targets=[9, 25, 121], reversed=true)
+    data = ColumnData(datapath; initial=5, targets=[9, 121], reversed=true)
     #data = ColumnData(datapath; initial=5, targets=[9, 25], reversed=true)
-   #model = ModularKPPOptimization.ColumnModel(data, dt, Δ=Δ)
    model = ModularKPPOptimization.ColumnModel(data, dt, N=N)
 
 # Set up a Negative Log Likelihood function using the maximum
@@ -35,13 +33,13 @@ nll = NegativeLogLikelihood(model, data, weighted_fields_loss, weights=weights)
 # default parameters to determine the loss function scale/temperature
 defaultparams = DefaultFreeParameters(model, WindMixingParameters)
 defaultlink = MarkovLink(nll, defaultparams)
-nll.scale = r_error * defaultlink.error
+nll.scale = scale
 
 # Set up a random talk on periodic domain.
-stddev = WindMixingParameters((5e-3 for p in defaultparams)...)
+stddev = WindMixingParameters((1e-2 for p in defaultparams)...)
 bounds = WindMixingParameters(
                               (0.0, 2.0),
-                              (0.0, 2.0),
+                              (0.0, 1.0),
                               (0.0, 2.0)
                              )
 

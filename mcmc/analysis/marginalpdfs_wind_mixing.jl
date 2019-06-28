@@ -15,10 +15,10 @@ bins = 200
 chaindir = "/Users/gregorywagner/Projects/ColumnModelOptimizationProject.jl/mcmc/data"
 
 chainnames = (
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
-    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_e5.0e-03_dt5.0_Δ2.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-05_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq5e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    "mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq2e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2",
+    #"mcmc_strat_simple_flux_Fb0e+00_Fu-1e-04_Nsq1e-06_Lz64_Nz128_s3.0e-04_dt5.0_Δ2.0.jld2"
     )
 
 Δ, N² = [], []
@@ -27,17 +27,11 @@ markers = [
     "*",
     "^",
     "s",
-    "p"
-]
-
-legendkw = Dict(
-    :markerscale=>1.2, :fontsize=>10,
-    :loc=>"upper left", :bbox_to_anchor=>(1.1, 1.0),
-    :frameon=>true, :framealpha=>1.0)
+    "p"]
 
 markerstyle = Dict(
      :linestyle => "None",
-    :markersize => 6,
+    :markersize => 8,
     )
 
 chainpath = joinpath(chaindir, chainnames[1])
@@ -48,7 +42,7 @@ nparams = length(paramnames)
 
 defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-fig, axs = subplots(nrows=nparams, figsize=(10, 6))
+fig, axs = subplots(nrows=nparams, figsize=(9, 5.5))
 
 for (i, ax) in enumerate(axs)
     p = paramnames[i]
@@ -67,6 +61,7 @@ for (i, name) in enumerate(chainnames)
     c = defaultcolors[i]
 
     chainpath = joinpath(chaindir, name)
+    @show chainpath
     @load chainpath chain
     C₀ = chain[1].param
 
@@ -79,7 +74,7 @@ for (i, name) in enumerate(chainnames)
     push!(Δ, chain.nll.model.grid.Δc)
     push!(N², chain.nll.data.bottom_Bz)
 
-    after = 1
+    after = 1000
     samples = Dao.params(chain, after=after)
 
     for (j, Cname) in enumerate(paramnames)
@@ -99,28 +94,37 @@ for (i, name) in enumerate(chainnames)
 
     for (j, Cname) in enumerate(paramnames)
 
-        if j == 1
-            lbl₀ = "Large et al. (1994)"
-            lbl★ = @sprintf(
-                "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$, \$ \\Delta = %.0f \$ m", N²[i], Δ[i])
-        else
-            lbl₀ = ""
-            lbl★ = ""
-        end
-
+        lbl₀ = "Large et al. (1994)"
+        lbl★ = @sprintf(
+            "\$ N^2 = %.0e \\, \\mathrm{s^{-2}}\$, \$ \\Delta = %.0f \$ m", N²[i], Δ[i])
 
         sca(axs[j])
-        i == 1 && plot(C₀[j], 1.1ρCmax[j], label=lbl₀, marker="o", color="0.1",
-                        linestyle="None", markersize=4, alpha=0.8)
+        i == 1 && plot(C₀[j], 1.2ρCmax[j], label=lbl₀, marker="o", color="0.1",
+                        linestyle="None", markersize=8, alpha=0.8)
 
         marker = markers[i]
-        plot(C★[i][j], 1.1ρCmax[j], marker; label=lbl★, color=c, markerstyle...)
+        plot(C★[i][j], 1.2ρCmax[j], marker; label=lbl★, color=c, markerstyle...)
 
     end
 end
 
+legendkw = Dict(
+    :markerscale=>1.2, :fontsize=>10,
+    :loc=>"upper left", :bbox_to_anchor=>(1.2, 1.0),
+    :frameon=>true, :framealpha=>1.0)
+
 sca(axs[1])
+xlim(0.2, 0.7)
+
+sca(axs[2])
 legend(; legendkw...)
+#xlim(0.0, 0.4)
+
+sca(axs[3])
+xlim(0.2, 0.42)
 
 tight_layout()
 gcf()
+
+#savefig("/Users/gregorywagner/Desktop/pdf_examples.png", dpi=480)
+savefig("/Users/gregorywagner/Desktop/stratification_variation.png", dpi=480)
