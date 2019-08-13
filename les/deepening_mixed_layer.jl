@@ -1,4 +1,4 @@
-using Oceananigans, Random, Printf
+using Oceananigans, Random, Printf, JLD2
 
 # Set `makeplot=true` to enable plotting.
 makeplot = false
@@ -18,7 +18,7 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
                   :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5))
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 256
 Nz = 256             # Resolution    
 Lx = Lz = 128        # Domain extent
@@ -89,21 +89,25 @@ end
 # A wizard for managing the simulation time-step.
 wizard = TimeStepWizard(cfl=0.1, Δt=0.05, max_change=1.1, max_Δt=90.0)
 
-max_w² = nothing
+w²_filename = @sprintf("vertical_velocity_variance_%s_Nx%d_Nz%d.jld2", case, Nx, Nz)
+max_w² = []
 include("velocity_variance_utils.jl")
 
 # Spin up
 for i = 1:100
     update_Δt!(wizard, model)
-    walltime = @elapsed step_with_w²!(max_w², model, wizard.Δt, 10)
+    walltime = Base.@elapsed step_with_w²!(max_w², model, wizard.Δt, 10)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 end
 
 # Run the model
 while model.clock.time < tf
     update_Δt!(wizard, model)
-    walltime = @elapsed step_with_w²!(max_w², model, wizard.Δt, 100)
+    walltime = Base.@elapsed step_with_w²!(max_w², model, wizard.Δt, 100)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
+
+    rm(w²_filename, force=true)
+    @save w²_filename max_w²
     
     @withplots begin
         sca(axs); cla()
