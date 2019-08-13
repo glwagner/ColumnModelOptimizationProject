@@ -25,7 +25,7 @@ end
 
 function step_with_w²!(max_w², t, model, Δt, Nt)
     time_step!(model, 1, Δt)
-    compute_and_store_w²!(max_w², model)
+    compute_and_store_w²!(max_w², t, model)
 
     for i = 2:Nt
         time_step!(model, 1, Δt, init_with_euler=false)

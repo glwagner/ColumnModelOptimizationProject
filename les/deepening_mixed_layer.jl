@@ -66,8 +66,10 @@ u(model) = Array(model.velocities.u.data.parent)
 v(model) = Array(model.velocities.v.data.parent)
 w(model) = Array(model.velocities.w.data.parent)
 T(model) = Array(model.tracers.T.data.parent)
+νₑ(model) = Array(model.diffusivities.νₑ.data.parent)
+κₑ(model) = Array(model.diffusivities.κₑ.T.data.parent)
 
-fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T)
+fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
 filename = @sprintf("%s_Nx%d_Nz%d", case, Nx, Nz)
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 interval=6hour, force=true)
