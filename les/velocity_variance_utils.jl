@@ -15,23 +15,24 @@ end
 
 Base.typemin(::Type{Complex{T}}) where T = T
 
-function compute_and_store_w²!(max_w², model)
+function compute_and_store_w²!(max_w², t, model)
     @launch device(model.arch) config=launch_config(model.grid, 3) w²!(model.pressures.pHY′.data,
                                                                        model.velocities.w.data, model.grid)
     push!(max_w², maximum(model.pressures.pHY′.data.parent))
+    push!(t, model.clock.time)
     return nothing
 end
 
-function step_with_w²!(max_w², model, Δt, Nt)
+function step_with_w²!(max_w², t, model, Δt, Nt)
     time_step!(model, 1, Δt)
     compute_and_store_w²!(max_w², model)
 
     for i = 2:Nt
         time_step!(model, 1, Δt, init_with_euler=false)
-        compute_and_store_w²!(max_w², model)
+        compute_and_store_w²!(max_w², t, model)
     end
 
     return nothing
 end
 
-step_with_w²!(max_w²::Nothing, model, Δt, Nt) = time_step!(model, Nt, Δt)
+step_with_w²!(max_w²::Nothing, t, model, Δt, Nt) = time_step!(model, Nt, Δt)

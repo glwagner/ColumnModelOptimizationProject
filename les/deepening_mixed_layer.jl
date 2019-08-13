@@ -90,24 +90,24 @@ end
 wizard = TimeStepWizard(cfl=0.1, Δt=0.05, max_change=1.1, max_Δt=90.0)
 
 w²_filename = @sprintf("vertical_velocity_variance_%s_Nx%d_Nz%d.jld2", case, Nx, Nz)
-max_w² = []
+max_w², t = [], []
 include("velocity_variance_utils.jl")
 
 # Spin up
 for i = 1:100
     update_Δt!(wizard, model)
-    walltime = Base.@elapsed step_with_w²!(max_w², model, wizard.Δt, 10)
+    walltime = Base.@elapsed step_with_w²!(max_w², t, model, wizard.Δt, 10)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 end
 
 # Run the model
 while model.clock.time < tf
     update_Δt!(wizard, model)
-    walltime = Base.@elapsed step_with_w²!(max_w², model, wizard.Δt, 100)
+    walltime = Base.@elapsed step_with_w²!(max_w², t, model, wizard.Δt, 100)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     rm(w²_filename, force=true)
-    @save w²_filename max_w²
+    @save w²_filename max_w² t
     
     @withplots begin
         sca(axs); cla()
