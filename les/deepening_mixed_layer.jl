@@ -1,13 +1,4 @@
-using Oceananigans, Random, Printf, JLD2
-
-# Set `makeplot=true` to enable plotting.
-makeplot = false
-
-macro withplots(ex)
-    makeplot ? :($(esc(ex))) : :(nothing)
-end
-
-@withplots using PyPlot
+using Oceananigans, Random, Printf, JLD2, CuArrays, Statistics, UnicodePlots
 
 # 
 # Model set-up
@@ -19,7 +10,7 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
 
 # Simulation parameters
 case = :wind_stress
-Nx = 128
+Nx = 64 
 Nz = 128             # Resolution    
 Lx = Lz = 128        # Domain extent
 Δx = 3              # Grid spacing
@@ -51,6 +42,14 @@ uᵢ(x, y, z) = 1e-4 * Ξ(z)
 
 set!(model, u=uᵢ, v=uᵢ, T=θᵢ, S=uᵢ)
 
+T_gpu = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
+
+function plot_average_temperature(model)
+    T_gpu .= mean(model.tracers.T.data.parent, dims=(1, 2))
+    T = Array(T_gpu)
+    return lineplot(T[2:end-1], model.grid.zC, canvas=DotCanvas)
+end
+
 #
 # Set up output
 #
@@ -78,8 +77,6 @@ push!(model.output_writers, field_writer)
 # 
 # Run the simulation
 #
-
-@withplots fig, axs = subplots()
 
 function terse_message(model, walltime, Δt)
     wmax = maximum(abs, model.velocities.w.data.parent)
@@ -110,10 +107,10 @@ while model.clock.time < tf
 
     rm(w²_filename, force=true)
     @save w²_filename max_w² t
-    
-    @withplots begin
-        sca(axs); cla()
-        imshow(rotr90(view(data(model.velocities.w), :, 2, :)))
-        gcf(); pause(0.01)
+
+    if model.clock.iteration % 1000 == 0
+        plt = plot_average_temperature(model)
+        show(plt)
+        @printf "\n"
     end
 end
