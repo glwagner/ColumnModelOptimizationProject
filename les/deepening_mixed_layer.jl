@@ -30,7 +30,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = VerstappenAnisotropicMinimumDissipation(),
+                 closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
@@ -45,8 +45,8 @@ T_gpu = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
 function plot_average_temperature(model)
     T_gpu .= mean(model.tracers.T.data.parent, dims=(1, 2))
     T = Array(T_gpu)
-    return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
-                    xlim=[13, 20], ylim=[-128, 0])
+    return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=BrailleCanvas, 
+                    xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
 end
 
 #
@@ -85,7 +85,7 @@ function terse_message(model, walltime, Δt)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.2, Δt=0.05, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.05, Δt=0.05, max_change=1.1, max_Δt=90.0)
 
 w²_filename = @sprintf("data/vertical_velocity_variance_%s_Nx%d_Nz%d.jld2", case, Nx, Nz)
 max_w², t = [], []
