@@ -10,12 +10,10 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
 
 # Simulation parameters
 case = :wind_stress
-Nx = 64 
-Nz = 128             # Resolution    
-Lx = Lz = 128        # Domain extent
-Δx = 3              # Grid spacing
-Δz = 0.5            # Grid spacing
-tf = 8day            # Final simulation time
+Nx = 32 
+Nz = 64             # Resolution    
+Lx = Lz = 128       # Domain extent
+tf = 8day           # Final simulation time
 
 N², Qb, Qu, f = (parameters[case][p] for p in (:N², :Qb, :Qu, :f))
 αθ, g = 2e-4, 9.81
@@ -47,7 +45,8 @@ T_gpu = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
 function plot_average_temperature(model)
     T_gpu .= mean(model.tracers.T.data.parent, dims=(1, 2))
     T = Array(T_gpu)
-    return lineplot(T[2:end-1], model.grid.zC, canvas=DotCanvas)
+    return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
+                    xlim=[13, 20], ylim=[-128, 0])
 end
 
 #
