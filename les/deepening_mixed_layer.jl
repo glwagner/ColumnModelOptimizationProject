@@ -18,12 +18,12 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
                   :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5))
 
 # Simulation parameters
-case = :free_convection
-Nx = 256
-Nz = 256             # Resolution    
+case = :wind_stress
+Nx = 128
+Nz = 128             # Resolution    
 Lx = Lz = 128        # Domain extent
-Δx = 3               # Grid spacing
-Δz = 0.5             # Grid spacing
+Δx = 3              # Grid spacing
+Δz = 0.5            # Grid spacing
 tf = 8day            # Final simulation time
 
 N², Qb, Qu, f = (parameters[case][p] for p in (:N², :Qb, :Qu, :f))
@@ -41,7 +41,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = AnisotropicMinimumDissipation(), # closure = ConstantSmagorinsky(),
+                 closure = VerstappenAnisotropicMinimumDissipation(),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
@@ -70,7 +70,7 @@ T(model) = Array(model.tracers.T.data.parent)
 κₑ(model) = Array(model.diffusivities.κₑ.T.data.parent)
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
-filename = @sprintf("%s_Nx%d_Nz%d", case, Nx, Nz)
+filename = @sprintf("%s_Nx%d_Nz%d_verstappen%.1f", case, Nx, Nz, model.closure.C)
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 interval=6hour, force=true)
 push!(model.output_writers, field_writer)
@@ -89,9 +89,9 @@ function terse_message(model, walltime, Δt)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.1, Δt=0.05, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.2, Δt=0.05, max_change=1.1, max_Δt=90.0)
 
-w²_filename = @sprintf("vertical_velocity_variance_%s_Nx%d_Nz%d.jld2", case, Nx, Nz)
+w²_filename = @sprintf("data/vertical_velocity_variance_%s_Nx%d_Nz%d.jld2", case, Nx, Nz)
 max_w², t = [], []
 include("velocity_variance_utils.jl")
 
