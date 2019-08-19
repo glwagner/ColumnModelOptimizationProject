@@ -10,8 +10,8 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
 
 # Simulation parameters
 case = :wind_stress
-Nx = 32 
-Nz = 64             # Resolution    
+Nx = 128
+Nz = 128            # Resolution    
 Lx = Lz = 128       # Domain extent
 tf = 8day           # Final simulation time
 
@@ -30,7 +30,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
+                 closure = VerstappenAnisotropicMinimumDissipation(C=1/3),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
@@ -70,7 +70,7 @@ T(model) = Array(model.tracers.T.data.parent)
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
 filename = @sprintf("%s_Nx%d_Nz%d_verstappen%.1f", case, Nx, Nz, model.closure.C)
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
-                                interval=6hour, force=true)
+                                max_filesize=200MiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
 
 # 
@@ -85,7 +85,7 @@ function terse_message(model, walltime, Δt)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.05, Δt=0.05, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.2, Δt=0.05, max_change=1.1, max_Δt=90.0)
 
 w²_filename = @sprintf("data/vertical_velocity_variance_%s_Nx%d_Nz%d.jld2", case, Nx, Nz)
 max_w², t = [], []
@@ -107,9 +107,11 @@ while model.clock.time < tf
     rm(w²_filename, force=true)
     @save w²_filename max_w² t
 
+    #=
     if model.clock.iteration % 1000 == 0
         plt = plot_average_temperature(model)
         show(plt)
         @printf "\n"
     end
+    =#
 end
