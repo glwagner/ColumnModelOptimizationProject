@@ -9,9 +9,9 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
                   :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5))
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 128
-Nz = 128            # Resolution    
+Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
 tf = 8day           # Final simulation time
 
@@ -30,7 +30,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = VerstappenAnisotropicMinimumDissipation(C=1/3),
+                 closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
@@ -45,7 +45,7 @@ T_gpu = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
 function plot_average_temperature(model)
     T_gpu .= mean(model.tracers.T.data.parent, dims=(1, 2))
     T = Array(T_gpu)
-    return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=BrailleCanvas, 
+    return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
                     xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
 end
 
@@ -81,7 +81,7 @@ function terse_message(model, walltime, Δt)
     wmax = maximum(abs, model.velocities.w.data.parent)
     cfl = Δt / Oceananigans.cell_advection_timescale(model)
     return @sprintf("i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, cfl: %.3f, wall time: %s\n",
-                    model.clock.iteration, model.clock.time/3600, Δt, wmax, cfl, prettytime(1e9*walltime))
+                    model.clock.iteration, model.clock.time/3600, Δt, wmax, cfl, prettytime(walltime))
 end
 
 # A wizard for managing the simulation time-step.
@@ -107,11 +107,9 @@ while model.clock.time < tf
     rm(w²_filename, force=true)
     @save w²_filename max_w² t
 
-    #=
-    if model.clock.iteration % 1000 == 0
+    if model.clock.iteration % 10000 == 0
         plt = plot_average_temperature(model)
         show(plt)
         @printf "\n"
     end
-    =#
 end
