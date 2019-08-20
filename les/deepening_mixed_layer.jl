@@ -9,7 +9,7 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
                   :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5))
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 64 
 Nz = 128            # Resolution    
 Lx = Lz = 128       # Domain extent
@@ -48,7 +48,7 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.05, Δt=0.05, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.2, Δt=0.05, max_change=1.1, max_Δt=90.0)
 
 #
 # Set up output
@@ -71,7 +71,7 @@ T(model) = Array(model.tracers.T.data.parent)
 κₑ(model) = Array(model.diffusivities.κₑ.T.data.parent)
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
-filename = @sprintf("%s_Nx%d_Nz%d_cfl%.2f_amd_C%.2f%s", case, Nx, Nz, wizard.cfl, model.closure.C)
+filename = @sprintf("%s_Nx%d_Nz%d_amdC%.2f", case, Nx, Nz, model.closure.C)
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=1GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
