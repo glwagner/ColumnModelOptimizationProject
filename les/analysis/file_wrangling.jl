@@ -29,6 +29,13 @@ function get_snapshot(filename, fldname, iter)
     return fld
 end
 
+function get_time(filename, iter)
+    file = jldopen(filename)
+    t = file["timeseries/t/$iter"]
+    close(file)
+    return t
+end
+
 get_profile_snapshot(args...) = dropdims(get_snapshot(args...), dims=(1, 2))
 
 function get_oceanturb_snapshot(filename, fldname, iter)
@@ -42,8 +49,6 @@ function get_oceanturb_snapshot(filename, fldname, iter)
 
     return ϕ
 end
-
-
 
 function get_iters(filename)
     file = jldopen(filename)

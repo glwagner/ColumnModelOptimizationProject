@@ -1,4 +1,4 @@
-using CuArrays, CUDAnative, CUDAdrv
+@hascuda using CuArrays, CUDAnative, CUDAdrv
 using GPUifyLoops: @launch, @loop
 using Oceananigans: device, launch_config
 
