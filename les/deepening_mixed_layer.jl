@@ -10,8 +10,8 @@ parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4,
 
 # Simulation parameters
 case = :free_convection
-Nx = 64 
-Nz = 128            # Resolution    
+Nx = 32 
+Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
 tf = 8day           # Final simulation time
 
@@ -35,7 +35,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-θᵢ(x, y, z) = 20 + dθdz * z
+θᵢ(x, y, z) = 20 + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, T=θᵢ)
 
 T_gpu = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
@@ -48,11 +48,10 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.2, Δt=0.05, max_change=1.1, max_Δt=90.0)
+wizard = TimeStepWizard(cfl=0.2, Δt=10.0, max_change=1.1, max_Δt=10.0)
 
 #
 # Set up output
-#
 #
 
 function init_bcs(file, model)
@@ -80,24 +79,26 @@ push!(model.output_writers, field_writer)
 # Run the simulation
 #
 
-function terse_message(model, walltime, Δt)
-    wmax = maximum(abs, model.velocities.w.data.parent)
-    cfl = Δt / Oceananigans.cell_advection_timescale(model)
-    return @sprintf("i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, cfl: %.3f, wall time: %s\n",
-                    model.clock.iteration, model.clock.time/3600, Δt, wmax, cfl, prettytime(walltime))
+function cell_diffusion_timescale(model)
+    grid = model.grid
+    Δ = min(grid.Δx, grid.Δy, grid.Δz)
+    ν★ = maximum(model.diffusivities.νₑ.data.parent)
+    κT★ = maximum(model.diffusivities.κₑ.T.data.parent)
+    return min(Δ^2 / ν★, Δ^2 / κT★)
 end
 
-# Spin up
-for i = 1:100
-    update_Δt!(wizard, model)
-    walltime = Base.@elapsed time_step!(model, 10, wizard.Δt)
-    @printf "%s" terse_message(model, walltime, wizard.Δt)
+function terse_message(model, walltime, Δt)
+    wmax = maximum(abs, model.velocities.w.data.parent)
+    adv_cfl = Δt / Oceananigans.cell_advection_timescale(model)
+    diff_cfl = Δt / cell_diffusion_timescale(model)
+    return @sprintf("i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, adv cfl: %.3f, diff cfl: %.3f, wall time: %s\n",
+                    model.clock.iteration, model.clock.time/3600, Δt, wmax, adv_cfl, diff_cfl, prettytime(walltime))
 end
 
 # Run the model
 while model.clock.time < tf
     update_Δt!(wizard, model)
-    walltime = Base.@elapsed time_step!(model, 10, wizard.Δt)
+    walltime = Base.@elapsed time_step!(model, 100, wizard.Δt)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     if model.clock.iteration % 10000 == 0
