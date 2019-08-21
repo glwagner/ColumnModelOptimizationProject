@@ -10,8 +10,8 @@ include("utils.jl")
 
 # Two cases from Van Roekel et al (JAMES, 2018)
 parameters = Dict(
-    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4, :N²=>1.96e-5, :tf=>8day),
-    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>2day)
+    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day),
+    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day)
 )
 
 # Simulation parameters
