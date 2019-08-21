@@ -16,8 +16,8 @@ parameters = Dict(
 
 # Simulation parameters
 case = :free_convection
-Nx = 16 
-Nz = 64             # Resolution    
+Nx = 256
+Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
 
 N², Qb, Qu, f, tf = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf))
@@ -95,8 +95,8 @@ max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T)
 w² = MaxWsqDiagnostic()
 tdiag = TimeDiagnostic()
 
-push!(model.diagnostics, w², adv_cfl, diff_cfl, max_u, max_v, max_w, max_ν, max_κ, tdiag)
-diag_names = ("wsq", "adv_cfl", "diff_cfl", "max_u", "max_v", "max_w", "max_nu", "max_kappa", "t")
+push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, w², max_ν, max_κ, tdiag)
+diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "wsq", "max_nu", "max_kappa", "t")
 diag_filepath = joinpath("data", filename * "_diags.jld2")
 
 # 
