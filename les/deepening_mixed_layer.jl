@@ -78,7 +78,7 @@ T(model) = Array(model.tracers.T.data.parent)
 κₑ(model) = Array(model.diffusivities.κₑ.T.data.parent)
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
-filename = @sprintf("%s_Nx%d_Nz%d_amd%.2f_dt%d", case, Nx, Nz, model.closure.C, Δt)
+filename = @sprintf("%s_Nx%d_Nz%d_amd%.2f_dt%.2f", case, Nx, Nz, model.closure.C, Δt)
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=1GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
