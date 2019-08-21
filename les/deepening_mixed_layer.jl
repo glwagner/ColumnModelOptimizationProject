@@ -1,21 +1,26 @@
-using Oceananigans, Random, Printf, JLD2, CuArrays, Statistics, UnicodePlots
+using Oceananigans, Random, Printf, JLD2, Statistics, UnicodePlots
+
+@hascuda using CuArrays
+
+include("utils.jl")
 
 # 
 # Model set-up
 #
 
 # Two cases from Van Roekel et al (JAMES, 2018)
-parameters = Dict(:free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4, :N²=>1.96e-5),
-                  :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5))
+parameters = Dict(
+    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,     :f=>1e-4, :N²=>1.96e-5, :tf=>8day),
+    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>2day)
+)
 
 # Simulation parameters
 case = :free_convection
-Nx = 32 
-Nz = 256            # Resolution    
+Nx = 16 
+Nz = 64             # Resolution    
 Lx = Lz = 128       # Domain extent
-tf = 8day           # Final simulation time
 
-N², Qb, Qu, f = (parameters[case][p] for p in (:N², :Qb, :Qu, :f))
+N², Qb, Qu, f, tf = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf))
 αθ, g = 2e-4, 9.81
 Qθ, dθdz = Qb / (g*αθ), N² / (g*αθ)
 
@@ -38,11 +43,12 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
 θᵢ(x, y, z) = 20 + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, T=θᵢ)
 
-T_gpu = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
+T_dev = Array{Float64}(undef, 1, 1, model.grid.Tz)
+@hascuda T_dev = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
 
 function plot_average_temperature(model)
-    T_gpu .= mean(model.tracers.T.data.parent, dims=(1, 2))
-    T = Array(T_gpu)
+    T_dev .= mean(model.tracers.T.data.parent, dims=(1, 2))
+    T = Array(T_dev)
     return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
                     xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
 end
@@ -75,25 +81,37 @@ field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix
                                 max_filesize=1GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
 
+#
+# Set up diagnostics
+#
+
+diff_cfl = DiffusiveCFL(wizard)
+adv_cfl = AdvectiveCFL(wizard)
+max_u = MaxAbsFieldDiagnostic(model.velocities.u)
+max_v = MaxAbsFieldDiagnostic(model.velocities.v)
+max_w = MaxAbsFieldDiagnostic(model.velocities.w)
+max_ν = MaxAbsFieldDiagnostic(model.diffusivities.νₑ)
+max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T)
+w² = MaxWsqDiagnostic()
+tdiag = TimeDiagnostic()
+
+push!(model.diagnostics, w², adv_cfl, diff_cfl, max_u, max_v, max_w, max_ν, max_κ, tdiag)
+diag_names = ("wsq", "adv_cfl", "diff_cfl", "max_u", "max_v", "max_w", "max_nu", "max_kappa", "t")
+diag_filepath = joinpath("data", filename * "_diags.jld2")
+
 # 
 # Run the simulation
 #
 
-function cell_diffusion_timescale(model)
-    grid = model.grid
-    Δ = min(grid.Δx, grid.Δy, grid.Δz)
-    ν★ = maximum(model.diffusivities.νₑ.data.parent)
-    κT★ = maximum(model.diffusivities.κₑ.T.data.parent)
-    return min(Δ^2 / ν★, Δ^2 / κT★)
-end
-
-function terse_message(model, walltime, Δt)
-    wmax = maximum(abs, model.velocities.w.data.parent)
-    adv_cfl = Δt / Oceananigans.cell_advection_timescale(model)
-    diff_cfl = Δt / cell_diffusion_timescale(model)
-    return @sprintf("i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, adv cfl: %.3f, diff cfl: %.3f, wall time: %s\n",
-                    model.clock.iteration, model.clock.time/3600, Δt, wmax, adv_cfl, diff_cfl, prettytime(walltime))
-end
+terse_message(model, walltime, Δt) =
+    @sprintf(
+    "i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, adv cfl: %.3f, diff cfl: %.3f, wall time: %s\n",
+    model.clock.iteration, model.clock.time/3600, Δt, 
+    model.diagnostics[1].data[end], 
+    model.diagnostics[2].data[end],
+    model.diagnostics[3].data[end],
+    prettytime(walltime)
+   )
 
 # Run the model
 while model.clock.time < tf
@@ -102,6 +120,8 @@ while model.clock.time < tf
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     if model.clock.iteration % 10000 == 0
+        save_accumulated_diagnostics!(diag_filepath, diag_names, model)
+
         plt = plot_average_temperature(model)
         show(plt)
         @printf "\n"
