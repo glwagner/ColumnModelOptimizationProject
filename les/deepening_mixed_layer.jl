@@ -16,8 +16,8 @@ parameters = Dict(
 
 # Simulation parameters
 case = :free_convection
-Nx = 16 
-Nz = 64             # Resolution    
+Nx = 64 
+Nz = 128            # Resolution    
 Lx = Lz = 128       # Domain extent
 
 N², Qb, Qu, f, tf = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf))
@@ -54,7 +54,7 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=1.0)
+wizard = TimeStepWizard(cfl=0.1, Δt=10.0, max_change=1.1, max_Δt=10.0)
 
 #
 # Set up output
