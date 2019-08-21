@@ -54,7 +54,7 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=1.0)
+wizard = TimeStepWizard(cfl=0.1, Δt=10.0, max_change=1.1, max_Δt=10.0)
 
 #
 # Set up output
