@@ -16,7 +16,7 @@ parameters = Dict(
 
 # Simulation parameters
 case = :free_convection
-Nx = 256
+Nx = 128
 Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
 
