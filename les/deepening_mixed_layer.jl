@@ -41,7 +41,8 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
 θᵢ(x, y, z) = 20 + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
-set!(model, T=θᵢ)
+wᵢ(x, y, z) = 1e-3 * Ξ(z)
+set!(model, w=wᵢ, T=θᵢ)
 
 T_dev = Array{Float64}(undef, 1, 1, model.grid.Tz)
 @hascuda T_dev = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
@@ -85,15 +86,17 @@ push!(model.output_writers, field_writer)
 # Set up diagnostics
 #
 
-diff_cfl = DiffusiveCFL(wizard)
-adv_cfl = AdvectiveCFL(wizard)
-max_u = MaxAbsFieldDiagnostic(model.velocities.u)
-max_v = MaxAbsFieldDiagnostic(model.velocities.v)
-max_w = MaxAbsFieldDiagnostic(model.velocities.w)
-max_ν = MaxAbsFieldDiagnostic(model.diffusivities.νₑ)
-max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T)
-w² = MaxWsqDiagnostic()
-tdiag = TimeDiagnostic()
+frequency = 10
+
+diff_cfl = DiffusiveCFL(wizard, frequency=frequency)
+adv_cfl = AdvectiveCFL(wizard, frequency=frequency)
+max_u = MaxAbsFieldDiagnostic(model.velocities.u, frequency=frequency)
+max_v = MaxAbsFieldDiagnostic(model.velocities.v, frequency=frequency)
+max_w = MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency)
+max_ν = MaxAbsFieldDiagnostic(model.diffusivities.νₑ, frequency=frequency)
+max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T, frequency=frequency)
+w² = MaxWsqDiagnostic(frequency=frequency)
+tdiag = TimeDiagnostic(frequency=frequency)
 
 push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, w², max_ν, max_κ, tdiag)
 diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "wsq", "max_nu", "max_kappa", "t")
