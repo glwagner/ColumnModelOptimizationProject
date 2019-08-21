@@ -41,8 +41,8 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
 θᵢ(x, y, z) = 20 + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
-wᵢ(x, y, z) = 1e-3 * Ξ(z)
-set!(model, w=wᵢ, T=θᵢ)
+uᵢ(x, y, z) = 1e-3 * Ξ(z)
+set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
 T_dev = Array{Float64}(undef, 1, 1, model.grid.Tz)
 @hascuda T_dev = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
@@ -55,7 +55,7 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.1, Δt=10.0, max_change=1.1, max_Δt=10.0)
+wizard = TimeStepWizard(cfl=0.1, Δt=1.0, max_change=1.1, max_Δt=1.0)
 
 #
 # Set up output
