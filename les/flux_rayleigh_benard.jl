@@ -23,8 +23,8 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (2, 2, 1),
                      eos = LinearEquationOfState(βT=1.0, βS=0.0),
                constants = PlanetaryConstants(f=0.0, g=1.0),
-                 closure = ConstantIsotropicDiffusivity(ν=ν, κ=κ),
-                 #closure = VerstappenAnisotropicMinimumDissipation(ν=ν, κ=κ, C=1/12),
+                 #closure = ConstantIsotropicDiffusivity(ν=ν, κ=κ),
+                 closure = VerstappenAnisotropicMinimumDissipation(ν=ν, κ=κ, C=1/12),
                      bcs = BoundaryConditions(T=bbcs))
 
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise

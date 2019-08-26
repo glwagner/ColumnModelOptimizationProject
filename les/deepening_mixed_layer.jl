@@ -32,6 +32,13 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 θbcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qθ), 
                                bottom=BoundaryCondition(Gradient, dθdz))
 
+const μ = 1/minute
+const θbottom = 20.0 - dθdz * Lz
+@inline Fu(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * U.u[i, j, k], zero(eltype(grid)))
+@inline Fv(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * U.v[i, j, k], zero(eltype(grid)))
+@inline Fw(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * U.w[i, j, k], zero(eltype(grid)))
+@inline Fθ(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * (Φ.T[i, j, k] - θbottom), zero(eltype(grid)))
+
 # Instantiate the model
 model = Model(      arch = HAVE_CUDA ? GPU() : CPU(), 
                        N = (Nx, Nx, Nz), 
@@ -39,8 +46,10 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
                  #closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
-                 closure = ConstantSmagorinsky(),
+                 #closure = ConstantSmagorinsky(),
                  #closure = BlasiusSmagorinsky(),
+                 forcing = Forcing(u=Fu, v=Fv, w=Fw, T=Fθ),
+                 #forcing = Forcing(), 
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
