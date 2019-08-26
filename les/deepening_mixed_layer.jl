@@ -1,5 +1,7 @@
 using Oceananigans, Random, Printf, JLD2, Statistics, UnicodePlots
 
+using Oceananigans.TurbulenceClosures: AbstractSmagorinsky
+
 @hascuda using CuArrays
 
 include("utils.jl")
@@ -11,15 +13,15 @@ include("utils.jl")
 # Two cases from Van Roekel et al (JAMES, 2018)
 parameters = Dict(
     :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day),
-    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day)
+    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>8day)
 )
 
 # Simulation parameters
-case = :free_convection
-Nx = 64
-Nz = 128            # Resolution    
+case = :wind_stress
+Nx = 128
+Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
-Δt = 5.0
+Δt = 0.5
 
 N², Qb, Qu, f, tf = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf))
 αθ, g = 2e-4, 9.81
@@ -36,7 +38,9 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
+                 #closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
+                 #closure = ConstantSmagorinsky(),
+                 closure = BlasiusSmagorinsky(),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
@@ -75,10 +79,16 @@ v(model) = Array(model.velocities.v.data.parent)
 w(model) = Array(model.velocities.w.data.parent)
 T(model) = Array(model.tracers.T.data.parent)
 νₑ(model) = Array(model.diffusivities.νₑ.data.parent)
-κₑ(model) = Array(model.diffusivities.κₑ.T.data.parent)
+κₑ(model::Model{TS, <:VerstappenAnisotropicMinimumDissipation}) where TS = 
+	Array(model.diffusivities.κₑ.T.data.parent)
+κₑ(model::Model{TS, <:AbstractSmagorinsky}) where TS = 0.0
+
+closurename(closure::VerstappenAnisotropicMinimumDissipation) = @sprintf("amd%.2f", closure.C)
+closurename(closure::BlasiusSmagorinsky) = @sprintf("bsmag%.2f", closure.C)
+closurename(closure::ConstantSmagorinsky) = @sprintf("dsmag%.2f", closure.Cs)
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
-filename = @sprintf("%s_Nx%d_Nz%d_amd%.2f_dt%.2f", case, Nx, Nz, model.closure.C, Δt)
+filename = @sprintf("%s_Nx%d_Nz%d_%s_dt%.2f", case, Nx, Nz, closurename(model.closure), Δt)
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=1GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
@@ -99,8 +109,14 @@ max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T, frequency=frequency)
 w² = MaxWsqDiagnostic(frequency=frequency)
 tdiag = TimeDiagnostic(frequency=frequency)
 
-push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, w², max_ν, max_κ, tdiag)
-diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "wsq", "max_nu", "max_kappa", "t")
+if typeof(model.clousre) <: VerstappenAnisotropicMinimumDissipation
+	push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, w², max_ν, max_κ, tdiag)
+	diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "wsq", "max_nu", "max_kappa", "t")
+else
+	push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, w², max_ν, tdiag)
+	diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "wsq", "max_nu", "t")
+end
+
 diag_filepath = joinpath("data", filename * "_diags.jld2")
 
 # 
