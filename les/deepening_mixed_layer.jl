@@ -17,11 +17,11 @@ parameters = Dict(
 )
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 128
 Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
-Δt = 0.1
+Δt = 5.0
 
 N², Qb, Qu, f, tf = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf))
 αθ, g = 2e-4, 9.81
@@ -84,7 +84,7 @@ T(model) = Array(model.tracers.T.data.parent)
 κₑ(model::Model{TS, <:AbstractSmagorinsky}) where TS = 0.0
 
 closurename(closure::VerstappenAnisotropicMinimumDissipation) = @sprintf("amd%.2f", closure.C)
-closurename(closure::BlasiusSmagorinsky) = @sprintf("bsmag%.2f", closure.C)
+closurename(closure::BlasiusSmagorinsky) = "bsmag"
 closurename(closure::ConstantSmagorinsky) = @sprintf("dsmag%.2f", closure.Cs)
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
