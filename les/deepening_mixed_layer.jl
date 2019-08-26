@@ -34,10 +34,10 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 
 const μ = 1/minute
 const θbottom = 20.0 - dθdz * Lz
-@inline Fu(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * U.u[i, j, k], zero(eltype(grid)))
-@inline Fv(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * U.v[i, j, k], zero(eltype(grid)))
-@inline Fw(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * U.w[i, j, k], zero(eltype(grid)))
-@inline Fθ(i, j, k, grid, U, Φ) = ifelse(k==grid.Nz, -μ * (Φ.T[i, j, k] - θbottom), zero(eltype(grid)))
+@inline Fu(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * U.u[i, j, k], zero(eltype(grid)))
+@inline Fv(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * U.v[i, j, k], zero(eltype(grid)))
+@inline Fw(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * U.w[i, j, k], zero(eltype(grid)))
+@inline Fθ(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * (Φ.T[i, j, k] - θbottom), zero(eltype(grid)))
 
 # Instantiate the model
 model = Model(      arch = HAVE_CUDA ? GPU() : CPU(), 
@@ -92,9 +92,9 @@ T(model) = Array(model.tracers.T.data.parent)
 	Array(model.diffusivities.κₑ.T.data.parent)
 κₑ(model::Model{TS, <:AbstractSmagorinsky}) where TS = 0.0
 
-closurename(closure::VerstappenAnisotropicMinimumDissipation) = @sprintf("amd%.2f", closure.C)
+closurename(closure::VerstappenAnisotropicMinimumDissipation) = "amd"
 closurename(closure::BlasiusSmagorinsky) = "bsmag"
-closurename(closure::ConstantSmagorinsky) = @sprintf("dsmag%.2f", closure.Cs)
+closurename(closure::ConstantSmagorinsky) = "dsmag"
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
 filename = @sprintf("%s_Nx%d_Nz%d_%s_newbcs", case, Nx, Nz, closurename(model.closure))
