@@ -39,8 +39,8 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
                  #closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
-                 #closure = ConstantSmagorinsky(),
-                 closure = BlasiusSmagorinsky(),
+                 closure = ConstantSmagorinsky(),
+                 #closure = BlasiusSmagorinsky(),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
