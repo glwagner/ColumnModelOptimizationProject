@@ -105,11 +105,11 @@ max_u = MaxAbsFieldDiagnostic(model.velocities.u, frequency=frequency)
 max_v = MaxAbsFieldDiagnostic(model.velocities.v, frequency=frequency)
 max_w = MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency)
 max_ν = MaxAbsFieldDiagnostic(model.diffusivities.νₑ, frequency=frequency)
-max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T, frequency=frequency)
 w² = MaxWsqDiagnostic(frequency=frequency)
 tdiag = TimeDiagnostic(frequency=frequency)
 
-if typeof(model.clousre) <: VerstappenAnisotropicMinimumDissipation
+if typeof(model.closure) <: VerstappenAnisotropicMinimumDissipation
+	max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T, frequency=frequency)
 	push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, w², max_ν, max_κ, tdiag)
 	diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "wsq", "max_nu", "max_kappa", "t")
 else
