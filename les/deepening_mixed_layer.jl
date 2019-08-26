@@ -45,7 +45,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 #closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
+                 closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
                  #closure = ConstantSmagorinsky(),
                  #closure = BlasiusSmagorinsky(),
                  forcing = Forcing(u=Fu, v=Fv, w=Fw, T=Fθ),
@@ -69,7 +69,7 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=1.0, Δt=Δt, max_change=1.1, max_Δt=Δt)
+wizard = TimeStepWizard(cfl=0.6, Δt=Δt, max_change=1.1, max_Δt=10Δt)
 
 #
 # Set up output
@@ -97,7 +97,7 @@ closurename(closure::BlasiusSmagorinsky) = "bsmag"
 closurename(closure::ConstantSmagorinsky) = @sprintf("dsmag%.2f", closure.Cs)
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
-filename = @sprintf("%s_Nx%d_Nz%d_%s_dt%.2f", case, Nx, Nz, closurename(model.closure), Δt)
+filename = @sprintf("%s_Nx%d_Nz%d_%s_newbcs", case, Nx, Nz, closurename(model.closure))
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=1GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
