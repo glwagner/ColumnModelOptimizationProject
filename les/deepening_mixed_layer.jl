@@ -48,7 +48,7 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                  closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
                  #closure = ConstantSmagorinsky(),
                  #closure = BlasiusSmagorinsky(),
-                 forcing = Forcing(u=Fu, v=Fv, w=Fw, T=Fθ),
+                 forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
                  #forcing = Forcing(), 
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
