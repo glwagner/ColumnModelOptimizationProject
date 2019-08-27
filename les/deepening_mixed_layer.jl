@@ -95,11 +95,16 @@ T(model) = Array(model.tracers.T.data.parent)
 	Array(model.diffusivities.κₑ.T.data.parent)
 κₑ(model::Model{TS, <:AbstractSmagorinsky}) where TS = 0.0
 
+function p(model)
+    model.pressures.pNHS.data.parent .+= model.pressures.pHY′.data.parent
+    return Array(model.pressures.data.parent)
+end
+
 closurename(closure::VerstappenAnisotropicMinimumDissipation) = "amd"
 closurename(closure::BlasiusSmagorinsky) = "bsmag"
 closurename(closure::ConstantSmagorinsky) = "dsmag"
 
-fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
+fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ, :p=>p)
 filename = @sprintf("%s_Nx%d_Nz%d_%s_sponge", case, Nx, Nz, closurename(model.closure))
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=1GiB, interval=6hour, force=true)
