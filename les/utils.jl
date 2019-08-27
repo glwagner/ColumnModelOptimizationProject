@@ -75,7 +75,6 @@ timescalename(::typeof(cell_advection_timescale)) = "Advective"
 timescalename(::typeof(cell_diffusion_timescale)) = "Diffusive"
 diagname(c::CFL) = timescalename(c.timescale) * "CFL"
 
-
 #
 # Max diffusivity diagnostic
 #
@@ -97,6 +96,7 @@ end
 # Max vertical variance diagnostic
 #
 
+#=
 struct MaxWsqDiagnostic{T} <: AccumulatedDiagnostic
     frequency :: Int
     data :: Vector{T}
@@ -123,3 +123,5 @@ function w²!(w², w, grid)
     return nothing
 end
 
+Base.typemin(::Type{Complex{T}}) where T = T
+=#
