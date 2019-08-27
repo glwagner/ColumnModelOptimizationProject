@@ -13,7 +13,7 @@ include("utils.jl")
 # Two cases from Van Roekel et al (JAMES, 2018)
 parameters = Dict(
     :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day),
-    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>8day)
+    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day)
 )
 
 # Simulation parameters
@@ -32,12 +32,16 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 θbcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qθ), 
                                bottom=BoundaryCondition(Gradient, dθdz))
 
-const μ = 1/minute
-const θbottom = 20.0 - dθdz * Lz
-@inline Fu(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * U.u[i, j, k], zero(eltype(grid)))
-@inline Fv(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * U.v[i, j, k], zero(eltype(grid)))
-@inline Fw(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * U.w[i, j, k], zero(eltype(grid)))
-@inline Fθ(i, j, k, grid, U, Φ) = @inbounds ifelse(k==grid.Nz, -μ * (Φ.T[i, j, k] - θbottom), zero(eltype(grid)))
+const θz = dθdz
+const Δμ = 3 * Lz/Nz
+
+@inline μ(z, Lz) = 0.2 * exp(-(z+Lz) / Δμ)
+@inline θ₀(z) = 20.0 - θz * z
+
+@inline Fu(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
+@inline Fv(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
+@inline Fw(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
+@inline Fθ(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - θ₀(grid.zC[k]))
 
 # Instantiate the model
 model = Model(      arch = HAVE_CUDA ? GPU() : CPU(), 
@@ -47,7 +51,6 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                constants = PlanetaryConstants(f=f, g=g),
                  closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
                  #closure = ConstantSmagorinsky(),
-                 #closure = BlasiusSmagorinsky(),
                  forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
                  #forcing = Forcing(), 
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
