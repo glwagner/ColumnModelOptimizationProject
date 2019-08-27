@@ -17,7 +17,7 @@ parameters = Dict(
 )
 
 # Simulation parameters
-case = :free_convection
+case = :wind_stress
 Nx = 128
 Nz = 256            # Resolution    
 Lx = Lz = 128       # Domain extent
@@ -52,7 +52,6 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                  closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
                  #closure = ConstantSmagorinsky(),
                  forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
-                 #forcing = Forcing(), 
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
@@ -100,7 +99,7 @@ closurename(closure::BlasiusSmagorinsky) = "bsmag"
 closurename(closure::ConstantSmagorinsky) = "dsmag"
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ)
-filename = @sprintf("%s_Nx%d_Nz%d_%s_newbcs", case, Nx, Nz, closurename(model.closure))
+filename = @sprintf("%s_Nx%d_Nz%d_%s_sponge", case, Nx, Nz, closurename(model.closure))
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=1GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
