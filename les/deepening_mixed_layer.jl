@@ -12,8 +12,8 @@ include("utils.jl")
 
 # Two cases from Van Roekel et al (JAMES, 2018)
 parameters = Dict(
-    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day, :Δt=>1.0),
-    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day, :Δt=>0.1)
+    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day, :dt=>5.0),
+    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day, :dt=>0.1)
 )
 
 # Simulation parameters
@@ -23,7 +23,7 @@ Nz = 256
 Lx = 128
 Lz = 128
 
-N², Qb, Qu, f, tf, Δt = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf, :Δt))
+N², Qb, Qu, f, tf, Δt = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf, :dt))
 αθ, g = 2e-4, 9.81
 Qθ = Qb / (g*αθ)
 const dθdz = N² / (g*αθ)
