@@ -12,31 +12,32 @@ include("utils.jl")
 
 # Two cases from Van Roekel et al (JAMES, 2018)
 parameters = Dict(
-    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day),
-    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day)
+    :free_convection => Dict(:Qb=>3.39e-8, :Qu=>0.0,      :f=>1e-4, :N²=>1.96e-5, :tf=>8day, :Δt=>1.0),
+    :wind_stress     => Dict(:Qb=>0.0,     :Qu=>-9.66e-5, :f=>0.0,  :N²=>9.81e-5, :tf=>4day, :Δt=>0.1)
 )
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 128
-Nz = 256            # Resolution    
-Lx = Lz = 128       # Domain extent
-Δt = 5.0
+Nz = 256
+Lx = 128
+Lz = 128
 
-N², Qb, Qu, f, tf = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf))
+N², Qb, Qu, f, tf, Δt = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf, :Δt))
 αθ, g = 2e-4, 9.81
-Qθ, dθdz = Qb / (g*αθ), N² / (g*αθ)
+Qθ = Qb / (g*αθ)
+const dθdz = N² / (g*αθ)
 
 # Create boundary conditions.
 ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 θbcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qθ), 
                                bottom=BoundaryCondition(Gradient, dθdz))
 
-const θz = dθdz
+const θᵣ = 20.0
 const Δμ = 3 * Lz/Nz
 
 @inline μ(z, Lz) = 0.05 * exp(-(z+Lz) / Δμ)
-@inline θ₀(z) = 20.0 - θz * z
+@inline θ₀(z) = θᵣ + dθdz * z
 
 @inline Fu(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
 @inline Fv(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
@@ -49,14 +50,14 @@ model = Model(      arch = HAVE_CUDA ? GPU() : CPU(),
                        L = (Lx, Lx, Lz),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = VerstappenAnisotropicMinimumDissipation(C=1/12),
+                 closure = VerstappenAnisotropicMinimumDissipation(),
                  #closure = ConstantSmagorinsky(),
                  forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
                      bcs = BoundaryConditions(u=ubcs, T=θbcs))
 
 # Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-θᵢ(x, y, z) = 20 + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
+θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 uᵢ(x, y, z) = 1e-3 * Ξ(z)
 set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
