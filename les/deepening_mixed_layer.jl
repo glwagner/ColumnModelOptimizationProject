@@ -35,7 +35,7 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 const θz = dθdz
 const Δμ = 3 * Lz/Nz
 
-@inline μ(z, Lz) = 0.2 * exp(-(z+Lz) / Δμ)
+@inline μ(z, Lz) = 0.05 * exp(-(z+Lz) / Δμ)
 @inline θ₀(z) = 20.0 - θz * z
 
 @inline Fu(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
