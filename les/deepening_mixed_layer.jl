@@ -36,7 +36,7 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 const θᵣ = 20.0
 const Δμ = 3 * Lz/Nz
 
-@inline μ(z, Lz) = 0.05 * exp(-(z+Lz) / Δμ)
+@inline μ(z, Lz) = 0.02 * exp(-(z+Lz) / Δμ)
 @inline θ₀(z) = θᵣ + dθdz * z
 
 @inline Fu(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
@@ -72,7 +72,7 @@ function plot_average_temperature(model)
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=20.0)
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
 
 #
 # Set up output
