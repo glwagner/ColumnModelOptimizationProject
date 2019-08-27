@@ -97,7 +97,7 @@ T(model) = Array(model.tracers.T.data.parent)
 
 function p(model)
     model.pressures.pNHS.data.parent .+= model.pressures.pHY′.data.parent
-    return Array(model.pressures.data.parent)
+    return Array(model.pressures.pNHS.data.parent)
 end
 
 closurename(closure::VerstappenAnisotropicMinimumDissipation) = "amd"
@@ -107,7 +107,7 @@ closurename(closure::ConstantSmagorinsky) = "dsmag"
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ, :p=>p)
 filename = @sprintf("%s_Nx%d_Nz%d_%s_sponge", case, Nx, Nz, closurename(model.closure))
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
-                                max_filesize=1GiB, interval=6hour, force=true)
+                                max_filesize=2GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
 
 #
