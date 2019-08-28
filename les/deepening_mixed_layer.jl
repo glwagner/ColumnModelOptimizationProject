@@ -17,7 +17,7 @@ parameters = Dict(
 )
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 256
 Nz = 256
 Lx = 128
@@ -34,7 +34,7 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
                                bottom=BoundaryCondition(Gradient, dθdz))
 
 const θᵣ = 20.0
-const Δμ = 0.1 * Lz
+const Δμ = 0.05 * Lz
 
 @inline μ(z, Lz) = 0.02 * exp(-(z+Lz) / Δμ)
 @inline θ₀(z) = θᵣ + dθdz * z
@@ -105,7 +105,7 @@ closurename(closure::BlasiusSmagorinsky) = "bsmag"
 closurename(closure::ConstantSmagorinsky) = "dsmag"
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ, :p=>p)
-filename = @sprintf("%s_Nx%d_Nz%d_%s_bigsponge", case, Nx, Nz, closurename(model.closure))
+filename = @sprintf("%s_Nx%d_Nz%d_%s_medsponge", case, Nx, Nz, closurename(model.closure))
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
