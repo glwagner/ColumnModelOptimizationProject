@@ -9,7 +9,7 @@ import Oceananigans: run_diagnostic, time_to_run
 # Cell diffusion timescale
 #
 
-function cell_diffusion_timescale(model::Model{TS, <:VerstappenAnisotropicMinimumDissipation}) where TS
+function cell_diffusion_timescale(model::Model{TS, <:AnisotropicMinimumDissipation}) where TS
     Δ = min(model.grid.Δx, model.grid.Δy, model.grid.Δz)
     max_ν = maximum(model.diffusivities.νₑ.data.parent)
     max_κ = max(Tuple(maximum(κₑ.data.parent) for κₑ in model.diffusivities.κₑ)...)

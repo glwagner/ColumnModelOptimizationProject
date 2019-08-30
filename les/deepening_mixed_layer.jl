@@ -1,9 +1,5 @@
 using Oceananigans, Random, Printf, JLD2, Statistics, UnicodePlots
 
-using Oceananigans.TurbulenceClosures: AbstractSmagorinsky
-
-@hascuda using CuArrays
-
 include("utils.jl")
 
 # 
@@ -17,11 +13,10 @@ parameters = Dict(
 )
 
 # Simulation parameters
-case = :free_convection
-Nx = 256
-Nz = 256
-Lx = 128
-Lz = 128
+case = :wind_stress
+Nx = 128
+Nz = 128
+L = 128
 
 N², Qb, Qu, f, tf, Δt = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf, :dt))
 αθ, g = 2e-4, 9.81
@@ -33,8 +28,9 @@ ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 θbcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qθ), 
                                bottom=BoundaryCondition(Gradient, dθdz))
 
+# Halo parameters
 const θᵣ = 20.0
-const Δμ = 0.02 * Lz
+const Δμ = 3.2
 
 @inline μ(z, Lz) = 0.02 * exp(-(z+Lz) / Δμ)
 @inline θ₀(z) = θᵣ + dθdz * z
@@ -46,27 +42,24 @@ const Δμ = 0.02 * Lz
 
 # Instantiate the model
 model = Model(      arch = HAVE_CUDA ? GPU() : CPU(), 
-                       N = (Nx, Nx, Nz), 
-                       L = (Lx, Lx, Lz),
+                       N = (Nx, Nx, Nz), L = (L, L, L),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = VerstappenAnisotropicMinimumDissipation(),
-                 #closure = ConstantSmagorinsky(),
+                 closure = AnisotropicMinimumDissipation(Cb=1.0),
                  forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
-                     bcs = BoundaryConditions(u=ubcs, T=θbcs))
+                     bcs = BoundaryConditions(u=ubcs, T=θbcs)
+)
 
-# Set initial condition. Initial velocity and salinity fluctuations needed for AMD.
+# Set initial condition.
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 uᵢ(x, y, z) = 1e-3 * Ξ(z)
+θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
-T_dev = Array{Float64}(undef, 1, 1, model.grid.Tz)
-@hascuda T_dev = CuArray{Float64}(undef, 1, 1, model.grid.Tz)
+Tavg = HorizontalAverage(model, model.tracers.T)
 
-function plot_average_temperature(model)
-    T_dev .= mean(model.tracers.T.data.parent, dims=(1, 2))
-    T = Array(T_dev)
+function plot_average_temperature(model, Tavg)
+    T = Array(Tavg(model))
     return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
                     xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
 end
@@ -91,7 +84,7 @@ v(model) = Array(model.velocities.v.data.parent)
 w(model) = Array(model.velocities.w.data.parent)
 T(model) = Array(model.tracers.T.data.parent)
 νₑ(model) = Array(model.diffusivities.νₑ.data.parent)
-κₑ(model::Model{TS, <:VerstappenAnisotropicMinimumDissipation}) where TS = 
+κₑ(model::Model{TS, <:AnisotropicMinimumDissipation}) where TS = 
 	Array(model.diffusivities.κₑ.T.data.parent)
 κₑ(model::Model{TS, <:AbstractSmagorinsky}) where TS = 0.0
 
@@ -100,12 +93,12 @@ function p(model)
     return Array(model.pressures.pNHS.data.parent)
 end
 
-closurename(closure::VerstappenAnisotropicMinimumDissipation) = "amd"
+closurename(closure::AnisotropicMinimumDissipation) = "amd"
 closurename(closure::BlasiusSmagorinsky) = "bsmag"
 closurename(closure::ConstantSmagorinsky) = "dsmag"
 
 fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ, :p=>p)
-filename = @sprintf("%s_Nx%d_Nz%d_%s_smsponge", case, Nx, Nz, closurename(model.closure))
+filename = @sprintf("%s_Nx%d_Nz%d_%s_goodhalos", case, Nx, Nz, closurename(model.closure))
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
@@ -115,25 +108,10 @@ push!(model.output_writers, field_writer)
 #
 
 frequency = 10
-
-diff_cfl = DiffusiveCFL(wizard, frequency=frequency)
-adv_cfl = AdvectiveCFL(wizard, frequency=frequency)
-max_u = MaxAbsFieldDiagnostic(model.velocities.u, frequency=frequency)
-max_v = MaxAbsFieldDiagnostic(model.velocities.v, frequency=frequency)
-max_w = MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency)
-max_ν = MaxAbsFieldDiagnostic(model.diffusivities.νₑ, frequency=frequency)
-tdiag = TimeDiagnostic(frequency=frequency)
-
-if typeof(model.closure) <: VerstappenAnisotropicMinimumDissipation
-	max_κ = MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T, frequency=frequency)
-	push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, max_ν, max_κ, tdiag)
-	diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "max_nu", "max_kappa", "t")
-else
-	push!(model.diagnostics, max_w, adv_cfl, diff_cfl, max_u, max_v, max_ν, tdiag)
-	diag_names = ("max_w", "adv_cfl", "diff_cfl", "max_u", "max_v", "max_nu", "t")
-end
-
-diag_filepath = joinpath("data", filename * "_diags.jld2")
+push!(model.diagnostics, 
+    MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
+    AdvectiveCFL(wizard, frequency=frequency)
+    DiffusiveCFL(wizard, frequency=frequency))
 
 # 
 # Run the simulation
@@ -143,9 +121,7 @@ terse_message(model, walltime, Δt) =
     @sprintf(
     "i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, adv cfl: %.3f, diff cfl: %.3f, wall time: %s\n",
     model.clock.iteration, model.clock.time/3600, Δt, 
-    model.diagnostics[1].data[end], 
-    model.diagnostics[2].data[end],
-    model.diagnostics[3].data[end],
+    model.diagnostics[1].data[end], model.diagnostics[2].data[end], model.diagnostics[3].data[end],
     prettytime(walltime)
    )
 
@@ -156,8 +132,6 @@ while model.clock.time < tf
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     if model.clock.iteration % 10000 == 0
-        save_accumulated_diagnostics!(diag_filepath, diag_names, model)
-
         plt = plot_average_temperature(model)
         show(plt)
         @printf "\n"
