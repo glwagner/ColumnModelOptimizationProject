@@ -16,6 +16,9 @@ Qu = -9.66e-5
 tf = 1day
 Δt = 0.1 # initial time-step
 
+# A wizard for managing the simulation time-step.
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
+
 # Create boundary conditions.
 ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 
@@ -51,17 +54,6 @@ set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 #
 # Set up time stepping, output and diagnostics
 #
-
-# A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
-
-Tavg = HorizontalAverage(model, model.tracers.T)
-
-function plot_average_temperature(model, Tavg)
-    T = Array(Tavg(model))
-    return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
-                    xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
-end
 
 function init_bcs(file, model)
     file["boundary_conditions/top/Qb"] = 0.0
@@ -110,6 +102,12 @@ terse_message(model, walltime, Δt) =
     prettytime(walltime)
    )
 
+plot_average_temperature(model, Tavg) =
+    lineplot(Array(Tavg(model))[2:end-1], model.grid.zC, 
+             height=40, canvas=DotCanvas, xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
+
+Tavg = HorizontalAverage(model, model.tracers.T, frequency=1)
+
 # Run the model
 while model.clock.time < tf
     update_Δt!(wizard, model)
@@ -117,7 +115,7 @@ while model.clock.time < tf
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     if model.clock.iteration % 10000 == 0
-        plt = plot_average_temperature(model)
+        plt = plot_average_temperature(model, Tavg)
         show(plt)
         @printf "\n"
     end
