@@ -14,15 +14,14 @@ N² = 9.81e-5
 Qu = -9.66e-5
  f = 0.0
 tf = 1day
-
-Δt = 0.1
-αθ, g = 2e-4, 9.81
-const dθdz = N² / (g*αθ)
+Δt = 0.1 # initial time-step
 
 # Create boundary conditions.
 ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 
-# Sponge layer parameters
+# Setup bottom sponge layer
+αθ, g = 2e-4, 9.81
+const dθdz = N² / (g*αθ)
 const θᵣ = 20.0
 const Δμ = 3.2
 
@@ -43,12 +42,20 @@ model = Model(      arch = GPU(),
                      bcs = BoundaryConditions(u=ubcs)
 )
 
-# Set initial condition.
+# Set initial condition
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
 uᵢ(x, y, z) = 1e-3 * Ξ(z)
 θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
+#
+# Set up time stepping, output and diagnostics
+#
+
+# A wizard for managing the simulation time-step.
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
+
+#=
 Tavg = HorizontalAverage(model, model.tracers.T)
 
 function plot_average_temperature(model, Tavg)
@@ -56,13 +63,7 @@ function plot_average_temperature(model, Tavg)
     return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
                     xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
 end
-
-# A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
-
-#
-# Set up output and diagnostics
-#
+=#
 
 function init_bcs(file, model)
     file["boundary_conditions/top/Qb"] = 0.0
@@ -77,25 +78,26 @@ function p(model)
     return Array(model.pressures.pNHS.data.parent)
 end
 
-closurename(::AnisotropicMinimumDissipation) = "amd"
-closurename(::ConstantSmagorinsky) = "smag"
-
-fields = FieldOutputs(model.velocities)
+fields = Dict{Symbol, Any}()
+merge!(fields, FieldOutputs(model.velocities))
 merge!(fields, FieldOutputs((T=model.tracers.T, νₑ=model.diffusivities.νₑ)))
 fields[:p] = p
 
-if typeof(closure) <: AnisotropicMinimumDissipation
+if typeof(model.closure) <: AnisotropicMinimumDissipation
     fields[:κₑ] = FieldOutput(model.diffusivities.κₑ.T)
 end
 
+closurename(::AnisotropicMinimumDissipation) = "amd"
+closurename(::ConstantSmagorinsky) = "smag"
 filename = @sprintf("wind_stress_Nx%d_Nz%d_%s_bmod", Nx, Nz, closurename(model.closure))
+
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
-                                max_filesize=2GiB, interval=6hour, force=true)
+                                max_filesize=2GiB, interval=3hour, force=true)
 push!(model.output_writers, field_writer)
 
 frequency = 10
 push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
-                         AdvectiveCFL(wizard, frequency=frequency)
+                         AdvectiveCFL(wizard, frequency=frequency),
                          DiffusiveCFL(wizard, frequency=frequency))
 
 # 
@@ -116,9 +118,11 @@ while model.clock.time < tf
     walltime = Base.@elapsed time_step!(model, 100, wizard.Δt)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
+    #=
     if model.clock.iteration % 10000 == 0
         plt = plot_average_temperature(model)
         show(plt)
         @printf "\n"
     end
+    =#
 end
