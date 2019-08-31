@@ -5,6 +5,20 @@ using FileIO: save
 
 import Oceananigans: run_diagnostic, time_to_run
 
+struct FieldOutput{O, F}
+    outputtype :: O
+    field :: F
+end
+
+FieldOutput(field) = FieldOutput(Array, field) # default
+(fo::FieldOutput)(model) = fo.outputtype(fo.field.data.parent)
+
+function FieldOutputs(fields)
+    names = propertynames(fields)
+    nfields = length(fields)
+    return Dict((names[i], FieldOutput(fields[i])) for i in 1:nfields)
+end
+
 #
 # Cell diffusion timescale
 #
@@ -21,8 +35,6 @@ function cell_diffusion_timescale(model)
     max_ν = maximum(model.diffusivities.νₑ.data.parent)
     return Δ^2 / max_ν
 end
-
-
 
 #
 # Accumulated diagnostics
