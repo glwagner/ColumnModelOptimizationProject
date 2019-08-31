@@ -7,7 +7,7 @@ include("utils.jl")
 #
 
 Nx = Nz = 128
-Lx = Lz = 128
+Lx = Lz = 64 
 
 # From Van Roekel et al (JAMES, 2018)
 N² = 9.81e-5 
