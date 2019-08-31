@@ -27,10 +27,10 @@ const Δμ = 3.2
 
 @inline μ(z, Lz) = 0.02 * exp(-(z+Lz) / Δμ)
 @inline θ₀(z) = θᵣ + dθdz * z
-@inline Fu(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
-@inline Fv(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
-@inline Fw(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
-@inline Fθ(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - θ₀(grid.zC[k]))
+@inline Fu(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
+@inline Fv(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
+@inline Fw(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
+@inline Fθ(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - θ₀(grid.zC[k]))
 
 # Instantiate the model
 model = Model(      arch = GPU(),
@@ -55,7 +55,6 @@ set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 # A wizard for managing the simulation time-step.
 wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
 
-#=
 Tavg = HorizontalAverage(model, model.tracers.T)
 
 function plot_average_temperature(model, Tavg)
@@ -63,7 +62,6 @@ function plot_average_temperature(model, Tavg)
     return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
                     xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
 end
-=#
 
 function init_bcs(file, model)
     file["boundary_conditions/top/Qb"] = 0.0
@@ -118,11 +116,9 @@ while model.clock.time < tf
     walltime = Base.@elapsed time_step!(model, 100, wizard.Δt)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
-    #=
     if model.clock.iteration % 10000 == 0
         plt = plot_average_temperature(model)
         show(plt)
         @printf "\n"
     end
-    =#
 end
