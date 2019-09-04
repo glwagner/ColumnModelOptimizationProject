@@ -5,6 +5,14 @@ using FileIO: save
 
 import Oceananigans: run_diagnostic, time_to_run
 
+struct TimeDependentBoundaryCondition{C} <: Function
+    c :: C
+end
+
+TimeDependentBoundaryCondition(Tbc, c) = BoundaryCondition(Tbc, TimeDependentBoundaryCondition(c))
+
+@inline (bc::TimeDependentBoundaryCondition)(i, j, grid, time, args...) = bc.c(time)
+
 struct FieldOutput{O, F}
     outputtype :: O
     field :: F

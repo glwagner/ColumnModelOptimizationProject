@@ -6,47 +6,48 @@ include("utils.jl")
 # Model set-up
 #
 
-Nx = Nz = 256
-Lx = Lz = 128
+τ₀_table = [0.995, 1.485, 2.12, 2.75] .* 1e-5
+dρdz_table = [1.92, 3.84, 7.69] .* 1e2
 
-N² = 1e-5
-Qu = 1e-4
- f = 5e-5
-tf = 1day
-Δt = 0.1 # initial time-step
+# From Kato and Phillips (1969)
+Ny = 32 
+N = (2Ny, Ny, Ny)
+L = (0.46, 0.23, 0.23)
+
+τ₀ = τ₀_table[4]
+dρdz = dρdz_table[3]
+
+ρ₀ = 1000.0
+tf = 240.0
+Δt = 1e-2 # initial time-step
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
-
-# Create boundary conditions.
-ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.05, max_Δt=1.0)
 
 # Setup bottom sponge layer
-αθ, g = 2e-4, 9.81
-const dθdz = N² / (g*αθ)
-const θᵣ = 20.0
-const Δμ = 3.2
+αθ, g, f, θᵣ = 2e-4, 9.81, 0.0, 20.0
+N² = g * dρdz / ρ₀
+dθdz = N² / (g*αθ)
 
-@inline μ(z, Lz) = 0.02 * exp(-(z+Lz) / Δμ)
-@inline θ₀(z) = θᵣ + dθdz * z
-@inline Fu(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
-@inline Fv(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
-@inline Fw(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
-@inline Fθ(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - θ₀(grid.zC[k]))
+const Qu = -τ₀ / ρ₀
+@inline smoothstep(x, x₀, dx) = (1 + tanh((x-x₀) / dx)) / 2
+@inline Qu_ramp_up(t) = Qu * smoothstep(t, 2.0, 1.0)
+
+# Create boundary conditions.
+ubcs = HorizontallyPeriodicBCs(top=TimeDependentBoundaryCondition(Flux, Qu_ramp_up))
 
 # Instantiate the model
 model = Model(      arch = GPU(),
-                       N = (Nx, Nx, Nz), L = (Lx, Lx, Lz),
+                       N = N, L = L,
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = AnisotropicMinimumDissipation(Cb=1.0),
-                 forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
+                 closure = AnisotropicMinimumDissipation(Cb=1.0, κ=1.2e-9),
                      bcs = BoundaryConditions(u=ubcs)
 )
 
 # Set initial condition
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-uᵢ(x, y, z) = 1e-3 * Ξ(z)
+uᵢ(x, y, z) = 1e-3 * sqrt(abs(Qu)) * Ξ(z)
 θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
@@ -55,8 +56,6 @@ set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 #
 
 function init_bcs(file, model)
-    file["boundary_conditions/top/Qb"] = 0.0
-    file["boundary_conditions/top/Qθ"] = 0.0
     file["boundary_conditions/top/Qu"] = Qu
     file["boundary_conditions/bottom/N²"] = N²
     return nothing
@@ -76,7 +75,9 @@ if typeof(model.closure) <: AnisotropicMinimumDissipation
     fields[:κₑ] = FieldOutput(model.diffusivities.κₑ.T)
 end
 
-filename = esprintf("rotating_wind_stress_Nx%d_Nz%d", Nx, Nz)
+closurename(::AnisotropicMinimumDissipation) = "amd"
+closurename(::ConstantSmagorinsky) = "smag"
+filename = @sprintf("kato_phillips_Nx%d_Nz%d_%s", model.grid.Nx, model.grid.Nz, closurename(model.closure))
 
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=3hour, force=true)
