@@ -5,6 +5,95 @@ using FileIO: save
 
 import Oceananigans: run_diagnostic, time_to_run
 
+include("kernels.jl")
+
+mutable struct HorizontalFluxAverage{K, H, P, I, Ω, R} <: Diagnostic
+       calculate_flux! :: K
+    horizontal_average :: H
+               profile :: P
+              interval :: I
+             frequency :: Ω
+              previous :: Float64
+           return_type :: R
+end
+
+function HorizontalFluxAverage(model, flux_name; interval=nothing, frequency=nothing, return_type=Array)
+    kernel_name = Symbol(:calculate_, flux_name, :!)
+    calculate_flux! = eval(kernel_name)
+    havg = HorizontalAverage(model, model.pressures.pHY′, frequency=1, return_type=return_type)
+    return HorizontalFluxAverage(calculate_flux!, havg, havg.profile, interval, frequency, 0.0, return_type)
+end
+
+function run_diagnostic(model, flux_avg::HorizontalFluxAverage)
+    flux_avg.calculate_flux!(model.pressures.pHY′.data, model) 
+    run_diagnostic(model, flux_avg.horizontal_average)
+    return nothing
+end
+
+#
+# Time averaging...
+#
+
+mutable struct TimeAndHorizontalAverage{I, T, H, R} <: Diagnostic
+                interval :: I
+            time_average :: T
+      horizontal_average :: H
+    averaging_start_time :: Float64
+    increment_start_time :: Float64
+                previous :: Float64
+             return_type :: R
+end
+
+function TimeAndHorizontalAverage(model, interval, horizontal_average; return_type=Array)
+    time_average = zeros(model.arch, model.grid, 1, 1, model.grid.Tz)
+    return TimeAndHorizontalAverage(interval, time_average, horizontal_average, 0.0, 0.0, 0.0, return_type)
+end
+
+function TimeAndHorizontalAverage(model, interval, fields::Union{Field, Tuple}; return_type=Array)
+    horizontal_average = HorizontalAverage(model, fields, frequency=1, return_type=return_type)
+    return TimeAndHorizontalAverage(model, interval, horizontal_average; return_type=return_type)
+end
+
+function TimeAndHorizontalFluxAverage(model, interval, flux_name; return_type=Array)
+    horizontal_average = HorizontalFluxAverage(model, flux_name, frequency=1, return_type=return_type)
+    return TimeAndHorizontalAverage(model, interval, horizontal_average; return_type=return_type)
+end
+
+
+function run_diagnostic(model, tavg::TimeAndHorizontalAverage)
+    if tavg.increment_start_time == tavg.increment_start_time
+        # First increment: zero out time-averaged profile
+        tavg.time_average .= 0
+    end
+
+    # Compute current horizontal average
+    run_diagnostic(model, tavg.horizontal_average)
+
+    # Add increment to time-averaged profile
+    Δt = model.clock.time - tavg.increment_start_time
+    tavg.time_average .+= tavg.horizontal_average.profile .* Δt
+
+    tavg.increment_start_time = model.clock.time
+    return nothing
+end
+
+function (tavg::TimeAndHorizontalAverage)(model)
+    ΔT = model.clock.time - tavg.averaging_start_time
+
+    # Compute average.
+    tavg.time_average ./= ΔT
+
+    # Reset
+    tavg.averaging_start_time = model.clock.time
+    tavg.increment_start_time = model.clock.time
+
+    return return_type(tavg.time_average)
+end
+
+#
+# Time dependent boundary conditions
+#
+
 struct TimeDependentBoundaryCondition{C} <: Function
     c :: C
 end
@@ -14,12 +103,12 @@ TimeDependentBoundaryCondition(Tbc, c) = BoundaryCondition(Tbc, TimeDependentBou
 @inline (bc::TimeDependentBoundaryCondition)(i, j, grid, time, args...) = bc.c(time)
 
 struct FieldOutput{O, F}
-    outputtype :: O
-    field :: F
+    return_type :: O
+          field :: F
 end
 
 FieldOutput(field) = FieldOutput(Array, field) # default
-(fo::FieldOutput)(model) = fo.outputtype(fo.field.data.parent)
+(fo::FieldOutput)(model) = fo.return_type(fo.field.data.parent)
 
 function FieldOutputs(fields)
     names = propertynames(fields)
