@@ -76,7 +76,7 @@ if typeof(model.closure) <: AnisotropicMinimumDissipation
     fields[:κₑ] = FieldOutput(model.diffusivities.κₑ.T)
 end
 
-filename = esprintf("rotating_wind_stress_Nx%d_Nz%d", Nx, Nz)
+filename = @sprintf("rotating_wind_stress_Nx%d_Nz%d", Nx, Nz)
 
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=3hour, force=true)
