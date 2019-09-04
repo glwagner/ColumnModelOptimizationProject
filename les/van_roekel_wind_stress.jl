@@ -6,12 +6,13 @@ include("utils.jl")
 # Model set-up
 #
 
-Nx = Nz = 256
-Lx = Lz = 128
+Nx = Nz = 384
+Lx = Lz = 64 
 
-N² = 1e-5
-Qu = 1e-4
- f = 5e-5
+# From Van Roekel et al (JAMES, 2018)
+N² = 9.81e-5 
+Qu = -9.66e-5
+ f = 0.0
 tf = 1day
 Δt = 0.1 # initial time-step
 
@@ -76,7 +77,9 @@ if typeof(model.closure) <: AnisotropicMinimumDissipation
     fields[:κₑ] = FieldOutput(model.diffusivities.κₑ.T)
 end
 
-filename = esprintf("rotating_wind_stress_Nx%d_Nz%d", Nx, Nz)
+closurename(::AnisotropicMinimumDissipation) = "amd"
+closurename(::ConstantSmagorinsky) = "smag"
+filename = @sprintf("wind_stress_Nx%d_Nz%d_%s_bmod", Nx, Nz, closurename(model.closure))
 
 field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=3hour, force=true)

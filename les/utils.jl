@@ -51,7 +51,7 @@ end
 abstract type AccumulatedDiagnostic <: Diagnostic end
 
 run_diagnostic(model, a::AccumulatedDiagnostic) = push!(a.data, a(model))
-time_to_run(clock, a::AccumulatedDiagnostic) = (clock.iteration % a.frequency) == 0
+time_to_run(clock::Clock, a::AccumulatedDiagnostic) = (clock.iteration % a.frequency) == 0
 
 function save_accumulated_diagnostics!(filepath, names, model)
     rm(filepath, force=true)
