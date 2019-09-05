@@ -11,7 +11,7 @@ include("utils.jl")
 τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
-Ny = 128
+Ny = 64 
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
@@ -24,7 +24,7 @@ tf = 240.0 # seconds
 N² = - g * ρz / ρ₀
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.1, Δt=Δt, max_change=1.1, max_Δt=0.1)
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=0.1)
 
 const Qu = -τ₀ / ρ₀
 @inline smoothstep(x, x₀, dx) = (1 + tanh((x-x₀) / dx)) / 2
@@ -60,15 +60,18 @@ push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.u, frequency=fre
                          AdvectiveCFL(wizard, frequency=frequency),
                          DiffusiveCFL(wizard, frequency=frequency))
 
-terse_message(model, walltime, Δt) =
-    @sprintf(
-    "i: %d, t: %.2f s, Δt: %.4f s, umax: %.1e ms⁻¹, wmax: %.1e ms⁻¹, νmax: %.1e m²s⁻¹, κmax: %.1e m²s⁻¹, CFL: %.3f, dCFL: %.3f, wall time: %s\n",
-    model.clock.iteration, model.clock.time, Δt, 
-    model.diagnostics[1].data[end], model.diagnostics[2].data[end], 
-    model.diagnostics[3].data[end], model.diagnostics[4].data[end],
-    model.diagnostics[5].data[end], model.diagnostics[6].data[end],
-    prettytime(walltime)
-   )
+function terse_message(model, walltime, Δt)
+    msg1 = @sprintf("i: %d, t: %.2f s, Δt: %.4f s, umax: %.1e ms⁻¹, wmax: %.1e ms⁻¹, ",
+                    model.clock.iteration, model.clock.time, Δt, 
+                    model.diagnostics[1].data[end], model.diagnostics[2].data[end])
+
+    msg2 = @sprintf("νmax: %.1e m²s⁻¹, κmax: %.1e m²s⁻¹, CFL: %.3f, dCFL: %.3f, wall time: %s\n",
+                    model.diagnostics[3].data[end], model.diagnostics[4].data[end],
+                    model.diagnostics[5].data[end], model.diagnostics[6].data[end],
+                    prettytime(walltime))
+
+    return msg1 * msg2
+end
 
 function init_bcs(file, model)
     file["boundary_conditions/top/Qu"] = Qu
@@ -80,18 +83,21 @@ filename = @sprintf("kato_phillips_tau%.1f_rhoz%.1f_Nx%d_Nz%d", τ₀, -ρz, mod
 
 fields = merge(model.velocities, (b=model.tracers.T,),
                (νₑ=model.diffusivities.νₑ, κₑ=model.diffusivities.κₑ.T))
+
 outputs = FieldOutputs(fields)
 field_writer = JLD2OutputWriter(model, outputs; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=10.0, force=true)
 
 average_profiles = Dict{Symbol, Any}()
-average_fluxes = Dict(:wb=>TimeAveragedFlux(model, :wθ), :wu=>TimeAveragedFlux(model, :wu))
-average_fields = Dict(:U=>TimeAveragedField(model, model.velocities.u), 
-                      :B=>TimeAveragedField(model, model.tracers.T)) 
 
-merge!(average_profiles, average_fluxes, average_fields)
+average_fluxes = Dict(:qb=>TimeAveragedFlux(model, :qθ), :qu=>TimeAveragedFlux(model, :qu))
+merge!(average_profiles, average_fluxes)
+
+average_fields = Dict(:U=>TimeAveragedField(model, model.velocities.u), :B=>TimeAveragedField(model, model.tracers.T)) 
+merge!(average_profiles, average_fields)
+
 profile_writer = JLD2OutputWriter(model, average_profiles; dir="data", prefix=filename * "_fluxes", 
-                                  max_filesize=2GiB, interval=0.2, force=true)
+                                  max_filesize=2GiB, interval=2.0, force=true)
 
 push!(model.output_writers, field_writer, profile_writer)
 
@@ -101,7 +107,7 @@ function normalize!(a)
     return nothing
 end
 
-function plot_average_solution(model, U, B, wb)
+function plot_average_solution(model, U, B, qb)
 
     canvas = BrailleCanvas
     Lz = model.grid.Lz
@@ -109,27 +115,27 @@ function plot_average_solution(model, U, B, wb)
     Bnorm = B(model)[2:end-1]
     Unorm = U(model)[2:end-1]
 
-    avg_wb = wb.horizontal_average
-    run_diagnostic(model, avg_wb)
-    wbnorm = Array(avg_wb.profile)[3:end-1]
+    avg_qb = qb.horizontal_average
+    run_diagnostic(model, avg_qb)
+    qbnorm = Array(avg_qb.profile)[3:end-1]
 
     normalize!(Bnorm)
     normalize!(Unorm)
-    normalize!(wbnorm)
+    normalize!(qbnorm)
     
-    plt = lineplot(Bnorm, model.grid.zC, name="buoyancy",
+    plt = lineplot(Bnorm, model.grid.zC, name="b",
                     height=20, canvas=canvas, xlim=[0, 1], ylim=[-Lz, 0],
-                    xlabel="Normalized buoyancy and velocity", ylabel="z")
+                    xlabel="Normalized u, b, and qᵇ", ylabel="z")
 
     lineplot!(plt, Unorm, model.grid.zC, name="u")
-    lineplot!(plt, wbnorm, model.grid.zF[2:end-1], name="buoyancy flux")
+    lineplot!(plt, qbnorm, model.grid.zF[2:end-1], name="qᵇ")
 
     return plt
 end
 
 U = HorizontalAverage(model, model.velocities.u, frequency=1, return_type=Array)
 B = HorizontalAverage(model, model.tracers.T, frequency=1, return_type=Array)
-wb = average_fluxes[:wb]
+qb = average_fluxes[:qb]
 
 # 
 # Run the simulation
@@ -138,12 +144,14 @@ wb = average_fluxes[:wb]
 # Run the model
 while model.clock.time < tf
     update_Δt!(wizard, model)
+
     walltime = Base.@elapsed time_step!(model, 100, wizard.Δt)
+
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
-    #if model.clock.iteration % 1000 == 0
-    #    plt = plot_average_solution(model, U, B, wb)
-    #    show(plt)
-    #    @printf "\n"
-    #end
+    if model.clock.iteration % 1000 == 0
+        plt = plot_average_solution(model, U, B, qb)
+        show(plt)
+        @printf "\n"
+    end
 end
