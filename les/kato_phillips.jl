@@ -66,7 +66,7 @@ function init_bcs(file, model)
     return nothing
 end
 
-filename = @sprintf("kato_phillips_τ%.1f_ρ%.1f_Nx%d_Nz%d", τ₀, -ρz, model.grid.Nx, model.grid.Nz)
+filename = @sprintf("kato_phillips_tau%.1f_rhoz%.1f_Nx%d_Nz%d", τ₀, -ρz, model.grid.Nx, model.grid.Nz)
 
 fields = merge(model.velocities, (b=model.tracers.T,),
                (νₑ=model.diffusivities.νₑ, κₑ=model.diffusivities.κₑ.T))
