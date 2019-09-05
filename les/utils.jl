@@ -30,6 +30,11 @@ function run_diagnostic(model, flux_avg::HorizontallyAveragedFlux)
     return nothing
 end
 
+const HAF = HorizontallyAveragedFlux
+Base.getproperty(fluxavg::HAF, name::Symbol) = get_fluxavg_property(fluxavg, Val(name))
+get_fluxavg_property(fluxavg::HAF, ::Val{N}) where N = getfield(fluxavg, N)
+get_fluxavg_property(fluxavg::HAF, ::Val{:profile}) = fluxavg.horizontal_average.profile
+
 #
 # Time averaging...
 #
@@ -64,7 +69,6 @@ end
 function run_diagnostic(model, tavg::TimeAndHorizontalAverage)
     if tavg.increment_start_time == tavg.averaging_start_time
         # First increment: zero out time-averaged profile
-        @warn "Zeroing out the time-average."
         tavg.time_average .= 0
     end
 

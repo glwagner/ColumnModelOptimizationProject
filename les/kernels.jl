@@ -33,7 +33,7 @@ end
 
 function prepare_flux_calculation(model)
     arch, grid = model.arch, model.grid
-    U, Φ, K  = datatuples(model.velocities, model.tracers, model.diffusivities)  
+    U, Φ, K = datatuples(model.velocities, model.tracers, model.diffusivities)  
     bcs_args = (model.clock.time, model.clock.iteration, U, Φ)
     fill_halo_regions!(merge(U, Φ), model.boundary_conditions, arch, grid, bcs_args...)
 
