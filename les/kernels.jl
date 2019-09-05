@@ -83,22 +83,19 @@ function calculate_wϕ!(wϕ, grid, w, ϕ, ▶w, ▶ϕ)
 end
 
 function calculate_wu!(wu, model)
-    arch, grid = model.arch, model.grid
-    U = datatuple(model.velocities)
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wu, grid, U.w, U.u, ▶z_aaf, ▶x_faa)
     return nothing
 end
 
 function calculate_wv!(wv, model)
-    arch, grid = model.arch, model.grid
-    U = datatuple(model.velocities)
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wv, grid, U.w, U.v, ▶z_aaf, ▶y_afa)
     return nothing
 end
 
 function calculate_wθ!(wθ, model)
-    arch, grid = model.arch, model.grid
-    U, Φ = datatuples(model.velocities, model.tracers)
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wθ, grid, U.w, Φ.T, ▶z_aaf, nointerp)
     return nothing
 end
