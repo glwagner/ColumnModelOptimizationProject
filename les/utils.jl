@@ -7,7 +7,7 @@ import Oceananigans: run_diagnostic, time_to_run
 
 include("kernels.jl")
 
-mutable struct HorizontalFluxAverage{K, H, P, I, Ω, R} <: Diagnostic
+mutable struct HorizontallyAveragedFlux{K, H, P, I, Ω, R} <: Diagnostic
        calculate_flux! :: K
     horizontal_average :: H
                profile :: P
@@ -17,14 +17,14 @@ mutable struct HorizontalFluxAverage{K, H, P, I, Ω, R} <: Diagnostic
            return_type :: R
 end
 
-function HorizontalFluxAverage(model, flux_name; interval=nothing, frequency=nothing, return_type=Array)
+function HorizontallyAveragedFlux(model, flux_name; interval=nothing, frequency=nothing, return_type=Array)
     kernel_name = Symbol(:calculate_, flux_name, :!)
     calculate_flux! = eval(kernel_name)
     havg = HorizontalAverage(model, model.pressures.pHY′, frequency=1, return_type=return_type)
-    return HorizontalFluxAverage(calculate_flux!, havg, havg.profile, interval, frequency, 0.0, return_type)
+    return HorizontallyAveragedFlux(calculate_flux!, havg, havg.profile, interval, frequency, 0.0, return_type)
 end
 
-function run_diagnostic(model, flux_avg::HorizontalFluxAverage)
+function run_diagnostic(model, flux_avg::HorizontallyAveragedFlux)
     flux_avg.calculate_flux!(model.pressures.pHY′.data, model) 
     run_diagnostic(model, flux_avg.horizontal_average)
     return nothing
@@ -34,34 +34,35 @@ end
 # Time averaging...
 #
 
-mutable struct TimeAndHorizontalAverage{I, T, H, R} <: Diagnostic
-                interval :: I
+mutable struct TimeAndHorizontalAverage{T, H, Ω, R} <: Diagnostic
             time_average :: T
       horizontal_average :: H
+               frequency :: Ω
+             return_type :: R
     averaging_start_time :: Float64
     increment_start_time :: Float64
                 previous :: Float64
-             return_type :: R
 end
 
-function TimeAndHorizontalAverage(model, interval, horizontal_average; return_type=Array)
-    time_average = zeros(model.arch, model.grid, 1, 1, model.grid.Tz)
-    return TimeAndHorizontalAverage(interval, time_average, horizontal_average, 0.0, 0.0, 0.0, return_type)
+function TimeAndHorizontalAverage(model, havg; return_type=Array)
+    profile = zeros(model.arch, model.grid, 1, 1, model.grid.Tz)
+    time_average = TimeAndHorizontalAverage(profile, havg, 1, return_type, 0.0, 0.0, 0.0)
+    push!(model.diagnostics, time_average)
+    return time_average
 end
 
-function TimeAndHorizontalAverage(model, interval, fields::Union{Field, Tuple}; return_type=Array)
-    horizontal_average = HorizontalAverage(model, fields, frequency=1, return_type=return_type)
-    return TimeAndHorizontalAverage(model, interval, horizontal_average; return_type=return_type)
+function TimeAveragedField(model, fields::Union{Field, Tuple}; return_type=Array)
+    havg = HorizontalAverage(model, fields, frequency=1, return_type=return_type)
+    return TimeAndHorizontalAverage(model, havg; return_type=return_type)
 end
 
-function TimeAndHorizontalFluxAverage(model, interval, flux_name; return_type=Array)
-    horizontal_average = HorizontalFluxAverage(model, flux_name, frequency=1, return_type=return_type)
-    return TimeAndHorizontalAverage(model, interval, horizontal_average; return_type=return_type)
+function TimeAveragedFlux(model, flux_name; return_type=Array)
+    havg = HorizontallyAveragedFlux(model, flux_name, frequency=1, return_type=return_type)
+    return TimeAndHorizontalAverage(model, havg; return_type=return_type)
 end
-
 
 function run_diagnostic(model, tavg::TimeAndHorizontalAverage)
-    if tavg.increment_start_time == tavg.increment_start_time
+    if tavg.increment_start_time == tavg.averaging_start_time
         # First increment: zero out time-averaged profile
         tavg.time_average .= 0
     end
@@ -71,23 +72,28 @@ function run_diagnostic(model, tavg::TimeAndHorizontalAverage)
 
     # Add increment to time-averaged profile
     Δt = model.clock.time - tavg.increment_start_time
-    tavg.time_average .+= tavg.horizontal_average.profile .* Δt
+    @. tavg.time_average += tavg.horizontal_average.profile * Δt
 
+    # Reset increment start time
     tavg.increment_start_time = model.clock.time
     return nothing
 end
 
+returnit(::Nothing, obj) = obj
+returnit(return_type, obj) = return_type(obj)
+
 function (tavg::TimeAndHorizontalAverage)(model)
+    # Compute total interval duration
     ΔT = model.clock.time - tavg.averaging_start_time
 
-    # Compute average.
+    # Compute average assuming that time_average contains the time integral.
     tavg.time_average ./= ΔT
 
     # Reset
     tavg.averaging_start_time = model.clock.time
     tavg.increment_start_time = model.clock.time
 
-    return return_type(tavg.time_average)
+    return returnit(tavg.return_type, tavg.time_average)
 end
 
 #

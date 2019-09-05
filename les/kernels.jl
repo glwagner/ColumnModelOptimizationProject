@@ -1,6 +1,8 @@
 using Oceananigans.TurbulenceClosures: ▶xz_caf, ▶yz_acf, ▶z_aaf, ▶x_faa, ▶y_afa, 
                                        ν_Σᵢⱼ_cff, ν_Σᵢⱼ_fcf, ν_Σᵢⱼ_ccc, κ_∂z_c, Σ₁₃, Σ₂₃, Σ₃₃
 
+using Oceananigans: datatuple, datatuples
+
 #####
 ##### Subgrid-scale fluxes
 #####
@@ -62,7 +64,7 @@ end
 ##### Advective fluxes
 #####
 
-function calculate_wϕ!(wϕ, grid, w, ϕ, ▶w, ▶u)
+function calculate_wϕ!(wϕ, grid, w, ϕ, ▶w, ▶ϕ)
     @loop for k in (1:grid.Nz; (blockIdx().z - 1) * blockDim().z + threadIdx().z)
         @loop for j in (1:grid.Ny; (blockIdx().y - 1) * blockDim().y + threadIdx().y)
             @loop for i in (1:grid.Nx; (blockIdx().x - 1) * blockDim().x + threadIdx().x)
@@ -76,20 +78,20 @@ end
 function calculate_wu!(wu, model)
     arch, grid = model.arch, model.grid
     U = datatuple(model.velocities)
-    @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wu, grid, U.w, U.u, ▶x_faa, ▶z_aaf) 
+    @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wu, grid, U.w, U.u, ▶z_aaf, ▶x_faa)
     return nothing
 end
 
 function calculate_wv!(wv, model)
     arch, grid = model.arch, model.grid
     U = datatuple(model.velocities)
-    @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wv, grid, U.w, U.v, ▶y_afa, ▶z_aaf) 
+    @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wv, grid, U.w, U.v, ▶z_aaf, ▶y_afa)
     return nothing
 end
 
-function calculate_wT!(wT, model)
+function calculate_wθ!(wθ, model)
     arch, grid = model.arch, model.grid
-    U, Φ = datatuple(model.velocities, model.tracers)
-    @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wT, grid, U.w, Φ.T, nointerp, ▶z_aaf) 
+    U, Φ = datatuples(model.velocities, model.tracers)
+    @launch device(arch) config=launch_config(grid, 3) calculate_wϕ!(wθ, grid, U.w, Φ.T, ▶z_aaf, nointerp)
     return nothing
 end
