@@ -11,24 +11,24 @@ include("utils.jl")
 τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
-Ny = 256
-Δt = 1e-4 # initial time-step
+Ny = 128
+Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
 
- N = (2Ny, Ny, Ny)
- L = (0.46, 0.23, 0.23) # meters
+ N = (Ny, Ny, Ny)
+ L = (0.23, 0.23, 0.23) # meters
  g = 9.81 # m s⁻²
 ρ₀ = 1000.0 # kg m⁻³
 tf = 240.0 # seconds
 @show N² = - g * ρz / ρ₀
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.05, max_Δt=0.1)
+wizard = TimeStepWizard(cfl=0.1, Δt=Δt, max_change=1.1, max_Δt=0.1)
 
 const Qu = -τ₀ / ρ₀
 @inline smoothstep(x, x₀, dx) = (1 + tanh((x-x₀) / dx)) / 2
-@inline Qu_ramp_up(t) = Qu * smoothstep(t, 2.0, 1.0)
+@inline Qu_ramp_up(t) = Qu * smoothstep(t, 1.0, 1.0)
 
 # Create boundary conditions.
 ubcs = HorizontallyPeriodicBCs(top=TimeDependentBoundaryCondition(Flux, Qu_ramp_up))
@@ -55,6 +55,8 @@ set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=bᵢ)
 frequency = 1
 push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.u, frequency=frequency),
                          MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
+                         MaxAbsFieldDiagnostic(model.diffusivities.νₑ, frequency=frequency),
+                         MaxAbsFieldDiagnostic(model.diffusivities.κₑ.T, frequency=frequency),
                          AdvectiveCFL(wizard, frequency=frequency),
                          DiffusiveCFL(wizard, frequency=frequency))
 
@@ -89,10 +91,11 @@ push!(model.output_writers, field_writer, profile_writer)
 
 terse_message(model, walltime, Δt) =
     @sprintf(
-    "i: %d, t: %.2f s, Δt: %.4f s, umax: %.1e ms⁻¹, wmax: %.1e ms⁻¹, CFL: %.3f, dCFL: %.3f, wall time: %s\n",
+    "i: %d, t: %.2f s, Δt: %.4f s, umax: %.1e ms⁻¹, wmax: %.1e ms⁻¹, νmax: %.1e m²s⁻¹, κmax: %.1e m²s⁻¹, CFL: %.3f, dCFL: %.3f, wall time: %s\n",
     model.clock.iteration, model.clock.time, Δt, 
     model.diagnostics[1].data[end], model.diagnostics[2].data[end], 
     model.diagnostics[3].data[end], model.diagnostics[4].data[end],
+    model.diagnostics[5].data[end], model.diagnostics[6].data[end],
     prettytime(walltime)
    )
 
