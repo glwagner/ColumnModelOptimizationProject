@@ -7,7 +7,7 @@ include("utils.jl")
 #
 
 τ₀_table = [0.995, 1.485, 2.12, 2.75] .* 1e-5
-dρdz_table = [1.92, 3.84, 7.69] .* 1e2
+dρdz_table = [1.92, 3.84, 7.69] .* 1e-2
 
 # From Kato and Phillips (1969)
 Ny = 32 
@@ -15,18 +15,18 @@ N = (2Ny, Ny, Ny)
 L = (0.46, 0.23, 0.23)
 
 τ₀ = τ₀_table[4]
-dρdz = dρdz_table[3]
+dρdz = dρdz_table[1]
 
 ρ₀ = 1000.0
-tf = 240.0
+tf = 240.0 # seconds
 Δt = 1e-2 # initial time-step
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.05, max_Δt=1.0)
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.05, max_Δt=0.1)
 
 # Setup bottom sponge layer
 αθ, g, f, θᵣ = 2e-4, 9.81, 0.0, 20.0
-N² = g * dρdz / ρ₀
+@show N² = g * dρdz / ρ₀
 dθdz = N² / (g*αθ)
 
 const Qu = -τ₀ / ρ₀
@@ -47,7 +47,7 @@ model = Model(      arch = GPU(),
 
 # Set initial condition
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-uᵢ(x, y, z) = 1e-3 * sqrt(abs(Qu)) * Ξ(z)
+uᵢ(x, y, z) = 1e-1 * sqrt(abs(Qu)) * Ξ(z)
 θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
@@ -55,38 +55,36 @@ set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 # Set up time stepping, output and diagnostics
 #
 
+frequency = 1
+push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.u, frequency=frequency),
+                         MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
+                         AdvectiveCFL(wizard, frequency=frequency),
+                         DiffusiveCFL(wizard, frequency=frequency))
+
+
 function init_bcs(file, model)
     file["boundary_conditions/top/Qu"] = Qu
     file["boundary_conditions/bottom/N²"] = N²
     return nothing
 end
 
-function p(model)
-    model.pressures.pNHS.data.parent .+= model.pressures.pHY′.data.parent
-    return Array(model.pressures.pNHS.data.parent)
-end
+filename = @sprintf("kato_phillips_Nx%d_Nz%d", model.grid.Nx, model.grid.Nz)
 
-fields = Dict{Symbol, Any}()
-merge!(fields, FieldOutputs(model.velocities))
-merge!(fields, FieldOutputs((T=model.tracers.T, νₑ=model.diffusivities.νₑ)))
-fields[:p] = p
+fields = merge(model.velocities, (T=model.tracers.T, νₑ=model.diffusivities.νₑ, κₑ=model.diffusivities.κₑ.T))
+outputs = FieldOutputs(fields)
+field_writer = JLD2OutputWriter(model, outputs; dir="data", init=init_bcs, prefix=filename, 
+                                max_filesize=2GiB, interval=10.0, force=true)
 
-if typeof(model.closure) <: AnisotropicMinimumDissipation
-    fields[:κₑ] = FieldOutput(model.diffusivities.κₑ.T)
-end
+average_profiles = Dict{Symbol, Any}()
+average_fluxes = Dict(flux=>TimeAveragedFlux(model, flux) for flux in (:wθ, :wu))
+average_fields = Dict(:U=>TimeAveragedField(model, model.velocities.u), 
+                      :T=>TimeAveragedField(model, model.tracers.T)) 
 
-closurename(::AnisotropicMinimumDissipation) = "amd"
-closurename(::ConstantSmagorinsky) = "smag"
-filename = @sprintf("kato_phillips_Nx%d_Nz%d_%s", model.grid.Nx, model.grid.Nz, closurename(model.closure))
+merge!(average_profiles, average_fluxes, average_fields)
+profile_writer = JLD2OutputWriter(model, average_profiles; dir="data", prefix=filename * "fluxes", 
+                                  max_filesize=2GiB, interval=1.0, force=true)
 
-field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
-                                max_filesize=2GiB, interval=3hour, force=true)
-push!(model.output_writers, field_writer)
-
-frequency = 10
-push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
-                         AdvectiveCFL(wizard, frequency=frequency),
-                         DiffusiveCFL(wizard, frequency=frequency))
+push!(model.output_writers, field_writer, profile_writer)
 
 # 
 # Run the simulation
@@ -94,25 +92,27 @@ push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.w, frequency=fre
 
 terse_message(model, walltime, Δt) =
     @sprintf(
-    "i: %d, t: %.4f hours, Δt: %.3f s, wmax: %.6f ms⁻¹, adv cfl: %.3f, diff cfl: %.3f, wall time: %s\n",
+    "i: %d, t: %.4f hours, Δt: %.3f s, umax: %.2e ms⁻¹, wmax: %.2e ms⁻¹, adv cfl: %.3f, diff cfl: %.3f, wall time: %s\n",
     model.clock.iteration, model.clock.time/3600, Δt, 
-    model.diagnostics[1].data[end], model.diagnostics[2].data[end], model.diagnostics[3].data[end],
+    model.diagnostics[1].data[end], model.diagnostics[2].data[end], 
+    model.diagnostics[3].data[end], model.diagnostics[4].data[end],
     prettytime(walltime)
    )
 
 plot_average_temperature(model, Tavg) =
     lineplot(Array(Tavg(model))[2:end-1], model.grid.zC, 
-             height=40, canvas=DotCanvas, xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
+             height=40, canvas=DotCanvas, 
+             xlim=[θᵣ-dθdz*model.grid.Lz, θᵣ], ylim=[-model.grid.Lz, 0])
 
 Tavg = HorizontalAverage(model, model.tracers.T, frequency=1)
 
 # Run the model
 while model.clock.time < tf
-    update_Δt!(wizard, model)
-    walltime = Base.@elapsed time_step!(model, 100, wizard.Δt)
+    #update_Δt!(wizard, model)
+    walltime = Base.@elapsed time_step!(model, 10, wizard.Δt)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
-    if model.clock.iteration % 10000 == 0
+    if model.clock.iteration % 100 == 0
         plt = plot_average_temperature(model, Tavg)
         show(plt)
         @printf "\n"
