@@ -6,28 +6,29 @@ include("utils.jl")
 # Model set-up
 #
 
-τ₀_table = [0.995, 1.485, 2.12, 2.75] .* 1e-5
-dρdz_table = [1.92, 3.84, 7.69] .* 1e-2
+# From Kato and Phillips (1969).
+# Note that [g cm⁻¹ s⁻²] = 10⁻¹ [kg m⁻¹ s⁻²] and [g cm⁻⁴] = 10⁵ [kg m⁻⁴].
+τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
+ρz_kato = [1.92, 3.84, 7.69] .* 1e2
 
-# From Kato and Phillips (1969)
-Ny = 32 
+Ny = 128
 N = (2Ny, Ny, Ny)
-L = (0.46, 0.23, 0.23)
+L = (0.46, 0.23, 0.23) # meters
 
-τ₀ = τ₀_table[4]
-dρdz = dρdz_table[1]
+τ₀ = τ₀_kato[4]
+ρz = ρz_kato[1]
 
-ρ₀ = 1000.0
+ρ₀ = 1000.0 # kg m⁻³
 tf = 240.0 # seconds
-Δt = 1e-2 # initial time-step
+Δt = 1e-3 # initial time-step
 
 # A wizard for managing the simulation time-step.
 wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.05, max_Δt=0.1)
 
 # Setup bottom sponge layer
-αθ, g, f, θᵣ = 2e-4, 9.81, 0.0, 20.0
-@show N² = g * dρdz / ρ₀
-dθdz = N² / (g*αθ)
+α, g, f, θᵣ = 2e-4, 9.81, 0.0, 20.0
+@show N² = g * ρz / ρ₀
+dθdz = N² / (α*g)
 
 const Qu = -τ₀ / ρ₀
 @inline smoothstep(x, x₀, dx) = (1 + tanh((x-x₀) / dx)) / 2
@@ -39,7 +40,7 @@ ubcs = HorizontallyPeriodicBCs(top=TimeDependentBoundaryCondition(Flux, Qu_ramp_
 # Instantiate the model
 model = Model(      arch = GPU(),
                        N = N, L = L,
-                     eos = LinearEquationOfState(βT=αθ, βS=0.0),
+                     eos = LinearEquationOfState(βT=α, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
                  closure = AnisotropicMinimumDissipation(Cb=1.0, κ=1.2e-9),
                      bcs = BoundaryConditions(u=ubcs)
@@ -47,7 +48,7 @@ model = Model(      arch = GPU(),
 
 # Set initial condition
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
-uᵢ(x, y, z) = 1e-1 * sqrt(abs(Qu)) * Ξ(z)
+uᵢ(x, y, z) = 1e-3 * sqrt(abs(Qu)) * Ξ(z)
 θᵢ(x, y, z) = θᵣ + dθdz * z + 1e-3 * dθdz * model.grid.Lz * Ξ(z)
 set!(model, u=uᵢ, v=uᵢ, w=uᵢ, T=θᵢ)
 
@@ -108,7 +109,7 @@ Tavg = HorizontalAverage(model, model.tracers.T, frequency=1)
 
 # Run the model
 while model.clock.time < tf
-    #update_Δt!(wizard, model)
+    update_Δt!(wizard, model)
     walltime = Base.@elapsed time_step!(model, 10, wizard.Δt)
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
