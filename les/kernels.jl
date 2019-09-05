@@ -1,7 +1,7 @@
 using Oceananigans.TurbulenceClosures: ▶xz_caf, ▶yz_acf, ▶z_aaf, ▶x_faa, ▶y_afa, 
                                        ν_Σᵢⱼ_cff, ν_Σᵢⱼ_fcf, ν_Σᵢⱼ_ccc, κ_∂z_c, Σ₁₃, Σ₂₃, Σ₃₃
 
-using Oceananigans: datatuple, datatuples
+using Oceananigans: datatuple, datatuples, PressureBoundaryConditions
 
 #####
 ##### Subgrid-scale fluxes
@@ -31,31 +31,38 @@ function calculate_κϕz!(κϕz, grid, κ, ϕ)
     return nothing
 end
 
+function prepare_flux_calculation(model)
+    arch, grid = model.arch, model.grid
+    U, Φ, K  = datatuples(model.velocities, model.tracers, model.diffusivities)  
+    bcs_args = (model.clock.time, model.clock.iteration, U, Φ)
+    fill_halo_regions!(merge(U, Φ), model.boundary_conditions, arch, grid, bcs_args...)
+
+    pressure_bcs = PressureBoundaryConditions(model.boundary_conditions.v)
+    fill_halo_regions!(K, pressure_bcs, arch, grid)
+
+    return U, Φ, K, arch, grid
+end
 
 function calculate_νΣ₁₃!(νΣ, model)
-    arch, grid = model.arch, model.grid
-    U, K  = datatuples(model.velocities, model.diffusivities)  
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_νΣᵢⱼ!(νΣ, grid, U.u, U.v, U.w, U.νₑ, Σ₁₃, ν_Σᵢⱼ_fcf)
     return nothing
 end
 
 function calculate_νΣ₂₃!(νΣ, model)
-    arch, grid = model.arch, model.grid
-    U, K  = datatuples(model.velocities, model.diffusivities)  
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_νΣᵢⱼ!(νΣ, grid, U.u, U.v, U.w, U.νₑ, Σ₂₃, ν_Σᵢⱼ_cff)
     return nothing
 end
 
 function calculate_νΣ₃₃!(νΣ, model)
-    arch, grid = model.arch, model.grid
-    U, K  = datatuples(model.velocities, model.diffusivities)  
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_νΣᵢⱼ!(νΣ, grid, U.u, U.v, U.w, U.νₑ, Σ₃₃, ν_Σᵢⱼ_ccc)
     return nothing
 end
 
 function calculate_κθz!(κθz, model)
-    arch, grid = model.arch, model.grid
-    Φ, K  = datatuples(model.tracers, model.diffusivities)  
+    U, Φ, K, arch, grid = prepare_flux_calculation(model)
     @launch device(arch) config=launch_config(grid, 3) calculate_κϕz!(κθz, grid, K.κₑ.T, Φ.T)
     return nothing
 end

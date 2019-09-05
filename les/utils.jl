@@ -64,6 +64,7 @@ end
 function run_diagnostic(model, tavg::TimeAndHorizontalAverage)
     if tavg.increment_start_time == tavg.averaging_start_time
         # First increment: zero out time-averaged profile
+        @warn "Zeroing out the time-average."
         tavg.time_average .= 0
     end
 
