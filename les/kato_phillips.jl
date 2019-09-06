@@ -11,13 +11,14 @@ include("utils.jl")
 τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
-Ny = 128
+prefix = "kato_phillips_long"
+Ny = 64
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
 
- N = (Ny, Ny, Ny)
- L = (0.23, 0.23, 0.23) # meters
+ N = (4Ny, Ny, Ny)
+ L = (4 * 0.23, 0.23, 0.23) # meters
  g = 9.81 # m s⁻²
 ρ₀ = 1000.0 # kg m⁻³
 tf = 240.0 # seconds
@@ -92,20 +93,20 @@ function init_bcs(file, model)
     return nothing
 end
 
-filename = @sprintf("kato_phillips_tau%.1f_rhoz%.1f_Nx%d_Nz%d", τ₀, -ρz, model.grid.Nx, model.grid.Nz)
+filename = @sprintf("%s_tau%.1f_rhoz%.1f_Ny%d_Nz%d", prefix, τ₀, -ρz, model.grid.Ny, model.grid.Nz)
 
 # Fields
 fields = merge(model.velocities, (b=model.tracers.T,),
                (νₑ=model.diffusivities.νₑ, κₑ=model.diffusivities.κₑ.T))
 outputs = FieldOutputs(fields)
 field_writer = JLD2OutputWriter(model, outputs; dir="data", init=init_bcs, prefix=filename, 
-                                max_filesize=2GiB, interval=20.0, force=true)
+                                max_filesize=2GiB, interval=10.0, force=true)
 
 # Averages
 avgfluxes = (qb=TimeAveragedFlux(model, :qθ), qu=TimeAveragedFlux(model, :qu))
 avgfields = (U=TimeAveragedField(model, model.velocities.u), B=TimeAveragedField(model, model.tracers.T)) 
-profile_writer = JLD2OutputWriter(model, merge(avgfluxes, avgfields); dir="data", prefix=filename * "_fluxes", 
-                                  max_filesize=2GiB, interval=10.0, force=true)
+profile_writer = JLD2OutputWriter(model, merge(avgfluxes, avgfields); dir="data", interval=10.0, 
+                                  prefix=filename * "_fluxes", max_filesize=2GiB, force=true)
 
 push!(model.output_writers, field_writer, profile_writer)
 
