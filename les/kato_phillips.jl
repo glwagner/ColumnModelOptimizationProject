@@ -11,14 +11,14 @@ include("utils.jl")
 τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
-prefix = "kato_phillips_long"
-Ny = 64
+prefix = "kato_phillips_med"
+Ny = 128
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
 
- N = (4Ny, Ny, Ny)
- L = (4 * 0.23, 0.23, 0.23) # meters
+ N = (2Ny, Ny, 2Ny)
+ L = (2 * 0.23, 0.23, 0.23) # meters
  g = 9.81 # m s⁻²
 ρ₀ = 1000.0 # kg m⁻³
 tf = 240.0 # seconds
@@ -27,7 +27,7 @@ const N² = - g * ρz / ρ₀
 const Qu = - τ₀ / ρ₀
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.1, Δt=Δt, max_change=1.1, max_Δt=0.1)
+wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=0.1)
 
 # Sponge
 @inline μ(z, Lz) = 10.0 * exp(-(z + Lz) / 0.05Lz)
@@ -116,7 +116,7 @@ function normalize!(a)
     return nothing
 end
 
-function plot_average_solution(model, U, B, qb)
+function plot_average_solution(model, U, B, qb, qu)
 
     canvas = BrailleCanvas
     Lz = model.grid.Lz
@@ -128,9 +128,14 @@ function plot_average_solution(model, U, B, qb)
     run_diagnostic(model, avg_qb)
     qbnorm = Array(avg_qb.profile)[3:end-1]
 
+    avg_qu = qu.horizontal_average
+    run_diagnostic(model, avg_qu)
+    qunorm = Array(avg_qu.profile)[3:end-1]
+
     normalize!(Bnorm)
     normalize!(Unorm)
     normalize!(qbnorm)
+    normalize!(qunorm)
     
     plt = lineplot(Bnorm, model.grid.zC, name="b",
                     height=20, canvas=canvas, xlim=[0, 1], ylim=[-Lz, 0],
@@ -138,6 +143,7 @@ function plot_average_solution(model, U, B, qb)
 
     lineplot!(plt, Unorm, model.grid.zC, name="u")
     lineplot!(plt, qbnorm, model.grid.zF[2:end-1], name="qᵇ")
+    lineplot!(plt, qunorm, model.grid.zF[2:end-1], name="qᵘ")
 
     return plt
 end
@@ -145,6 +151,7 @@ end
 U = HorizontalAverage(model, model.velocities.u, frequency=1, return_type=Array)
 B = HorizontalAverage(model, model.tracers.T, frequency=1, return_type=Array)
 qb = avgfluxes[:qb]
+qu = avgfluxes[:qu]
 
 # 
 # Run the simulation
@@ -159,7 +166,7 @@ while model.clock.time < tf
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     if model.clock.iteration % 1000 == 0
-        plt = plot_average_solution(model, U, B, qb)
+        plt = plot_average_solution(model, U, B, qb, qu)
         show(plt)
         @printf "\n"
     end
