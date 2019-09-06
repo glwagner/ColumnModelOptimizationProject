@@ -11,7 +11,7 @@ include("utils.jl")
 τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
-Ny = 64 
+Ny = 128
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
@@ -21,17 +21,29 @@ Ny = 64
  g = 9.81 # m s⁻²
 ρ₀ = 1000.0 # kg m⁻³
 tf = 240.0 # seconds
-N² = - g * ρz / ρ₀
+
+const N² = - g * ρz / ρ₀
+const Qu = - τ₀ / ρ₀
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=0.1)
+wizard = TimeStepWizard(cfl=0.1, Δt=Δt, max_change=1.1, max_Δt=0.1)
 
-const Qu = -τ₀ / ρ₀
+# Sponge
+@inline μ(z, Lz) = 10.0 * exp(-(z + Lz) / 0.05Lz)
+@inline b₀(z) = N² * z
+
+@inline Fu(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
+@inline Fv(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
+@inline Fw(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
+@inline Fb(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - b₀(grid.zC[k]))
+
+# Initial condition
 @inline smoothstep(x, x₀, dx) = (1 + tanh((x-x₀) / dx)) / 2
 @inline Qu_ramp_up(t) = Qu * smoothstep(t, 1.0, 1.0)
 
 # Create boundary conditions.
 ubcs = HorizontallyPeriodicBCs(top=TimeDependentBoundaryCondition(Flux, Qu_ramp_up))
+bbcs = HorizontallyPeriodicBCs(bottom=BoundaryCondition(Gradient, N²))
 
 # Instantiate the model
 model = Model(      arch = GPU(),
@@ -39,8 +51,9 @@ model = Model(      arch = GPU(),
                      eos = LinearEquationOfState(βT=1.0, βS=0.0),
                constants = PlanetaryConstants(f=0.0, g=1.0),
                  closure = AnisotropicMinimumDissipation(ν=1.43e-6, κ=1.2e-9),
-                     bcs = BoundaryConditions(u=ubcs)
-)
+                 forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fb),
+                     bcs = BoundaryConditions(u=ubcs, T=bbcs)
+            )
 
 # Set initial condition
 Ξ(z) = randn() * z / model.grid.Lz * (1 + z / model.grid.Lz) # noise
@@ -61,7 +74,7 @@ push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.u, frequency=fre
                          DiffusiveCFL(wizard, frequency=frequency))
 
 function terse_message(model, walltime, Δt)
-    msg1 = @sprintf("i: %d, t: %.2f s, Δt: %.4f s, umax: %.1e ms⁻¹, wmax: %.1e ms⁻¹, ",
+    msg1 = @sprintf("i: %d, t: %.2f s, Δt: %.6f s, umax: %.1e ms⁻¹, wmax: %.1e ms⁻¹, ",
                     model.clock.iteration, model.clock.time, Δt, 
                     model.diagnostics[1].data[end], model.diagnostics[2].data[end])
 
@@ -81,23 +94,18 @@ end
 
 filename = @sprintf("kato_phillips_tau%.1f_rhoz%.1f_Nx%d_Nz%d", τ₀, -ρz, model.grid.Nx, model.grid.Nz)
 
+# Fields
 fields = merge(model.velocities, (b=model.tracers.T,),
                (νₑ=model.diffusivities.νₑ, κₑ=model.diffusivities.κₑ.T))
-
 outputs = FieldOutputs(fields)
 field_writer = JLD2OutputWriter(model, outputs; dir="data", init=init_bcs, prefix=filename, 
-                                max_filesize=2GiB, interval=10.0, force=true)
+                                max_filesize=2GiB, interval=20.0, force=true)
 
-average_profiles = Dict{Symbol, Any}()
-
-average_fluxes = Dict(:qb=>TimeAveragedFlux(model, :qθ), :qu=>TimeAveragedFlux(model, :qu))
-merge!(average_profiles, average_fluxes)
-
-average_fields = Dict(:U=>TimeAveragedField(model, model.velocities.u), :B=>TimeAveragedField(model, model.tracers.T)) 
-merge!(average_profiles, average_fields)
-
-profile_writer = JLD2OutputWriter(model, average_profiles; dir="data", prefix=filename * "_fluxes", 
-                                  max_filesize=2GiB, interval=2.0, force=true)
+# Averages
+avgfluxes = (qb=TimeAveragedFlux(model, :qθ), qu=TimeAveragedFlux(model, :qu))
+avgfields = (U=TimeAveragedField(model, model.velocities.u), B=TimeAveragedField(model, model.tracers.T)) 
+profile_writer = JLD2OutputWriter(model, merge(avgfluxes, avgfields); dir="data", prefix=filename * "_fluxes", 
+                                  max_filesize=2GiB, interval=10.0, force=true)
 
 push!(model.output_writers, field_writer, profile_writer)
 
@@ -135,7 +143,7 @@ end
 
 U = HorizontalAverage(model, model.velocities.u, frequency=1, return_type=Array)
 B = HorizontalAverage(model, model.tracers.T, frequency=1, return_type=Array)
-qb = average_fluxes[:qb]
+qb = avgfluxes[:qb]
 
 # 
 # Run the simulation
