@@ -14,7 +14,7 @@ include("utils.jl")
 prefix = "kato_phillips_med"
 Ny = 128
 Δt = 1e-3 # initial time-step
-τ₀ = τ₀_kato[1]
+τ₀ = τ₀_kato[3]
 ρz = ρz_kato[1]
 
  N = (2Ny, Ny, 2Ny)
@@ -93,7 +93,7 @@ function init_bcs(file, model)
     return nothing
 end
 
-filename = @sprintf("%s_tau%.1f_rhoz%.1f_Ny%d_Nz%d", prefix, τ₀, -ρz, model.grid.Ny, model.grid.Nz)
+filename = @sprintf("%s_tau%.3f_rhoz%.1f_Ny%d_Nz%d", prefix, τ₀, -ρz, model.grid.Ny, model.grid.Nz)
 
 # Fields
 fields = merge(model.velocities, (b=model.tracers.T,),
