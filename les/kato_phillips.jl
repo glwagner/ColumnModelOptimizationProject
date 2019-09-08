@@ -27,7 +27,7 @@ const N² = - g * ρz / ρ₀
 const Qu = - τ₀ / ρ₀
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=0.1)
+wizard = TimeStepWizard(cfl=0.05, Δt=Δt, max_change=1.1, max_Δt=0.1)
 
 # Sponge
 @inline μ(z, Lz) = 10.0 * exp(-(z + Lz) / 0.05Lz)
