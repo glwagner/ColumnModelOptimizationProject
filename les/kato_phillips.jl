@@ -14,10 +14,10 @@ include("utils.jl")
 prefix = "kato_phillips"
 Ny = 64 
 Δt = 1e-3 # initial time-step
-τ₀ = τ₀_kato[3]
+τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
 
- N = (2Ny, Ny, 2Ny)
+ N = (2Ny, Ny, 4Ny)
  L = (2 * 0.23, 0.23, 0.23) # meters
  g = 9.81 # m s⁻²
 ρ₀ = 1000.0 # kg m⁻³
