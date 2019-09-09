@@ -11,7 +11,7 @@ include("utils.jl")
 τ₀_kato = [0.995, 1.485, 2.12, 2.75] .* 1e-1
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
-prefix = "kato_phillips_med"
+prefix = "kato_phillips"
 Ny = 128
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[3]
@@ -43,7 +43,8 @@ wizard = TimeStepWizard(cfl=0.05, Δt=Δt, max_change=1.1, max_Δt=0.1)
 @inline Qu_ramp_up(t) = Qu * smoothstep(t, 1.0, 1.0)
 
 # Create boundary conditions.
-ubcs = HorizontallyPeriodicBCs(top=TimeDependentBoundaryCondition(Flux, Qu_ramp_up))
+#ubcs = HorizontallyPeriodicBCs(top=TimeDependentBoundaryCondition(Flux, Qu_ramp_up))
+ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 bbcs = HorizontallyPeriodicBCs(bottom=BoundaryCondition(Gradient, N²))
 
 # Instantiate the model
@@ -105,7 +106,7 @@ field_writer = JLD2OutputWriter(model, outputs; dir="data", init=init_bcs, prefi
 # Averages
 avgfluxes = (qb=TimeAveragedFlux(model, :qθ), qu=TimeAveragedFlux(model, :qu))
 avgfields = (U=TimeAveragedField(model, model.velocities.u), B=TimeAveragedField(model, model.tracers.T)) 
-profile_writer = JLD2OutputWriter(model, merge(avgfluxes, avgfields); dir="data", interval=10.0, 
+profile_writer = JLD2OutputWriter(model, merge(avgfluxes, avgfields); dir="data", interval=1.0, 
                                   prefix=filename * "_fluxes", max_filesize=2GiB, force=true)
 
 push!(model.output_writers, field_writer, profile_writer)
