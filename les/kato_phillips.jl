@@ -12,7 +12,7 @@ include("utils.jl")
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
 prefix = "kato_phillips"
-Ny = 128
+Ny = 64 
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[3]
 ρz = ρz_kato[1]
