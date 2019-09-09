@@ -12,12 +12,12 @@ include("utils.jl")
 ρz_kato = -[1.92, 3.84, 7.69] .* 1e2
 
 prefix = "kato_phillips"
-Ny = 64 
+Ny = 128
 Δt = 1e-3 # initial time-step
 τ₀ = τ₀_kato[1]
 ρz = ρz_kato[1]
 
- N = (2Ny, Ny, 4Ny)
+ N = (2Ny, Ny, Ny)
  L = (2 * 0.23, 0.23, 0.23) # meters
  g = 9.81 # m s⁻²
 ρ₀ = 1000.0 # kg m⁻³
