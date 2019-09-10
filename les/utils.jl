@@ -35,6 +35,11 @@ Base.getproperty(fluxavg::HAF, name::Symbol) = get_fluxavg_property(fluxavg, Val
 get_fluxavg_property(fluxavg::HAF, ::Val{N}) where N = getfield(fluxavg, N)
 get_fluxavg_property(fluxavg::HAF, ::Val{:profile}) = fluxavg.horizontal_average.profile
 
+function (fluxavg::HAF)(model)
+    run_diagnostic(model, fluxavg)
+    return fluxavg.return_type(fluxavg.profile)
+end
+
 #
 # Time averaging...
 #
@@ -185,11 +190,8 @@ end
 (c::CFL{<:Number})(model) = c.Δt / c.timescale(model)
 (c::CFL{<:TimeStepWizard})(model) = c.Δt.Δt / c.timescale(model)
 
-AdvectiveCFL(Δt; frequency=1) = 
-    CFL(frequency, Δt, eltype(model.grid)[], cell_advection_timescale)
-
-DiffusiveCFL(Δt; frequency=1) = 
-    CFL(frequency, Δt, eltype(model.grid)[], cell_diffusion_timescale)
+AdvectiveCFL(Δt; frequency=1) = CFL(frequency, Δt, Float64[], cell_advection_timescale)
+DiffusiveCFL(Δt; frequency=1) = CFL(frequency, Δt, Float64[], cell_diffusion_timescale)
 
 timescalename(::typeof(cell_advection_timescale)) = "Advective"
 timescalename(::typeof(cell_diffusion_timescale)) = "Diffusive"
