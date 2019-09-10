@@ -15,14 +15,14 @@ parameters = Dict(
 # Simulation parameters
 case = :free_convection
 Nx = 128
-Nz = 128
+Nz = 256
  L = 128
 
 N² = 1.96e-5
 Qb = 3.39e-8
  f = 1e-4
 tf = 8day
-dt = 1.0
+Δt = 1.0
 αθ, g = 2e-4, 9.81
 
 Qθ = Qb / (g*αθ)
