@@ -13,41 +13,45 @@ parameters = Dict(
 )
 
 # Simulation parameters
-case = :wind_stress
+case = :free_convection
 Nx = 128
 Nz = 128
-L = 128
+ L = 128
 
-N², Qb, Qu, f, tf, Δt = (parameters[case][p] for p in (:N², :Qb, :Qu, :f, :tf, :dt))
+N² = 1.96e-5
+Qb = 3.39e-8
+ f = 1e-4
+tf = 8day
+dt = 1.0
 αθ, g = 2e-4, 9.81
+
 Qθ = Qb / (g*αθ)
 const dθdz = N² / (g*αθ)
 
 # Create boundary conditions.
-ubcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qu))
 θbcs = HorizontallyPeriodicBCs(top=BoundaryCondition(Flux, Qθ), 
                                bottom=BoundaryCondition(Gradient, dθdz))
 
 # Halo parameters
 const θᵣ = 20.0
-const Δμ = 3.2
+const Δμ = 3.0
 
 @inline μ(z, Lz) = 0.02 * exp(-(z+Lz) / Δμ)
 @inline θ₀(z) = θᵣ + dθdz * z
 
-@inline Fu(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
-@inline Fv(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
-@inline Fw(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
-@inline Fθ(i, j, k, grid, U, Φ) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - θ₀(grid.zC[k]))
+@inline Fu(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.u[i, j, k]
+@inline Fv(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * U.v[i, j, k]
+@inline Fw(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zF[k], grid.Lz) * U.w[i, j, k]
+@inline Fθ(grid, U, Φ, i, j, k) = @inbounds -μ(grid.zC[k], grid.Lz) * (Φ.T[i, j, k] - θ₀(grid.zC[k]))
 
 # Instantiate the model
-model = Model(      arch = HAVE_CUDA ? GPU() : CPU(), 
+model = Model(      arch = GPU(), 
                        N = (Nx, Nx, Nz), L = (L, L, L),
                      eos = LinearEquationOfState(βT=αθ, βS=0.0),
                constants = PlanetaryConstants(f=f, g=g),
-                 closure = AnisotropicMinimumDissipation(Cb=1.0),
+                 closure = AnisotropicMinimumDissipation(Cb=0.0),
                  forcing = Forcing(Fu=Fu, Fv=Fv, Fw=Fw, FT=Fθ),
-                     bcs = BoundaryConditions(u=ubcs, T=θbcs)
+                     bcs = BoundaryConditions(T=θbcs)
 )
 
 # Set initial condition.
@@ -61,45 +65,30 @@ Tavg = HorizontalAverage(model, model.tracers.T)
 function plot_average_temperature(model, Tavg)
     T = Array(Tavg(model))
     return lineplot(T[2:end-1], model.grid.zC, height=40, canvas=DotCanvas, 
-                    xlim=[20-dθdz*Lz, 20], ylim=[-Lz, 0])
+                    xlim=[θᵣ-dθdz*model.grid.Lz, θᵣ], ylim=[-model.grid.Lz, 0])
 end
 
 # A wizard for managing the simulation time-step.
-wizard = TimeStepWizard(cfl=0.5, Δt=Δt, max_change=1.1, max_Δt=10.0)
+wizard = TimeStepWizard(cfl=0.05, Δt=Δt, max_change=1.1, max_Δt=10.0)
 
 #
 # Set up output
 #
 
-function init_bcs(file, model)
-    file["boundary_conditions/top/Qb"] = Qb
-    file["boundary_conditions/top/Qθ"] = Qθ
-    file["boundary_conditions/top/Qu"] = Qu
-    file["boundary_conditions/bottom/N²"] = N²
-    return nothing
-end
+init_bcs(file, model) = file["boundary_conditions"] = model.boundary_conditions
+
+filename = @sprintf("%s_Nx%d_Nz%d", case, Nx, Nz)
 
 u(model) = Array(model.velocities.u.data.parent)
 v(model) = Array(model.velocities.v.data.parent)
 w(model) = Array(model.velocities.w.data.parent)
 T(model) = Array(model.tracers.T.data.parent)
 νₑ(model) = Array(model.diffusivities.νₑ.data.parent)
-κₑ(model::Model{TS, <:AnisotropicMinimumDissipation}) where TS = 
-	Array(model.diffusivities.κₑ.T.data.parent)
-κₑ(model::Model{TS, <:AbstractSmagorinsky}) where TS = 0.0
+κₑ(model) = Array(model.diffusivities.κₑ.T.data.parent)
 
-function p(model)
-    model.pressures.pNHS.data.parent .+= model.pressures.pHY′.data.parent
-    return Array(model.pressures.pNHS.data.parent)
-end
-
-closurename(closure::AnisotropicMinimumDissipation) = "amd"
-closurename(closure::BlasiusSmagorinsky) = "bsmag"
-closurename(closure::ConstantSmagorinsky) = "dsmag"
-
-fields = Dict(:u=>u, :v=>v, :w=>w, :T=>T, :ν=>νₑ, :κ=>κₑ, :p=>p)
-filename = @sprintf("%s_Nx%d_Nz%d_%s_goodhalos", case, Nx, Nz, closurename(model.closure))
-field_writer = JLD2OutputWriter(model, fields; dir="data", init=init_bcs, prefix=filename, 
+fields = merge(model.velocities, (T=model.tracers.T,), (νₑ=model.diffusivities.νₑ, κₑ=model.diffusivities.κₑ.T))
+outputs = FieldOutputs(fields)
+field_writer = JLD2OutputWriter(model, outputs; dir="data", init=init_bcs, prefix=filename, 
                                 max_filesize=2GiB, interval=6hour, force=true)
 push!(model.output_writers, field_writer)
 
@@ -108,10 +97,9 @@ push!(model.output_writers, field_writer)
 #
 
 frequency = 10
-push!(model.diagnostics, 
-    MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
-    AdvectiveCFL(wizard, frequency=frequency)
-    DiffusiveCFL(wizard, frequency=frequency))
+push!(model.diagnostics, MaxAbsFieldDiagnostic(model.velocities.w, frequency=frequency),
+                         AdvectiveCFL(wizard, frequency=frequency),
+                         DiffusiveCFL(wizard, frequency=frequency))
 
 # 
 # Run the simulation
@@ -132,7 +120,7 @@ while model.clock.time < tf
     @printf "%s" terse_message(model, walltime, wizard.Δt)
 
     if model.clock.iteration % 10000 == 0
-        plt = plot_average_temperature(model)
+        plt = plot_average_temperature(model, Tavg)
         show(plt)
         @printf "\n"
     end
