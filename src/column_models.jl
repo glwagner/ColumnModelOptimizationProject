@@ -1,16 +1,18 @@
-struct ColumnData{T, G, C, F, TS}
-         Fb :: T
-         Fu :: T
-  bottom_Bz :: T
-          κ :: T
-          ν :: T
+#####
+##### ColumnData
+#####
+
+struct ColumnData{FT, F, G, C, UU, VV, TT, SS}
+     fluxes :: F
        grid :: G
   constants :: C
-          U :: Vector{F}
-          V :: Vector{F}
-          T :: Vector{F}
-          S :: TS
-          t :: Vector{T}
+          κ :: FT
+          ν :: FT
+          U :: UU
+          V :: VV
+          T :: TT
+          S :: SS
+          t :: Vector{FT}
     initial :: Int
     targets :: Vector{Int}
 end
@@ -21,58 +23,55 @@ end
 Construct ColumnData, a time-series of 1D profiles from observations or LES,
 from a standardized dataset.
 """
-function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, T=Float64)
+function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=Float64)
 
     constants_dict = Dict()
 
     file = jldopen(datapath, "r")
-    constants_dict[:ρ₀] = file["eos/ρ₀"]
-     constants_dict[:α] = file["eos/βT"]
-     constants_dict[:β] = file["eos/βS"]
-     constants_dict[:g] = file["constants/g"]
-     constants_dict[:f] = file["constants/f"]
+    constants_dict[:α] = file["buoyancy/equation_of_state/α"]
+    constants_dict[:β] = file["buoyancy/equation_of_state/β"]
+    constants_dict[:g] = file["buoyancy/gravitational_acceleration"]
+    constants_dict[:f] = file["coriolis/f"]
     close(file)
 
-    constants = Constants(T; constants_dict...)
+    constants = Constants(FT; constants_dict...)
 
-    bcs = Dict()
+    Qᶿ = get_parameter(datapath, "boundary_conditions", "Qᶿ")
+    Qˢ = get_parameter(datapath, "boundary_conditions", "Qˢ")
+    Qᵘ = get_parameter(datapath, "boundary_conditions", "Qᵘ")
+    Qᵛ = get_parameter(datapath, "boundary_conditions", "Qᵛ")
 
-    try
-        bcs[:Fb] = T(getbc("Fb", datapath))
-        bcs[:Fu] = T(getbc("Fu", datapath))
-        bcs[:bottom_Bz] = T(getbc("Bz", datapath))
-    catch
-        bcs[:Fb] = T(getbc("Fb", "top", datapath))
-        bcs[:Fu] = T(getbc("Fu", "top", datapath))
-        bcs[:bottom_Bz] = T(getbc("dbdz", "bottom", datapath))
-    end
+    dθdz = get_parameter(datapath, "initial_conditions", dθdz)
 
     N, L = getgridparams(datapath)
     grid = UniformGrid(N, L)
 
-    file = jldopen(datapath, "r")
-    κ = T(file["closure/κ"])
-    ν = T(file["closure/ν"])
+    ν = get_parameter(datapath, "closure", "ν")
+    κ = get_parameter(datapath, "closure", "κ")
 
     iters = iterations(datapath)
-    U = [ CellField(getdata("U", datapath, i; reversed=reversed), grid) for i in 1:length(iters) ]
-    V = [ CellField(getdata("V", datapath, i; reversed=reversed), grid) for i in 1:length(iters) ]
-    T = [ CellField(getdata("T", datapath, i; reversed=reversed), grid) for i in 1:length(iters) ]
 
+    U = [ CellField(get_field("U", datapath, i), grid) for i in iters ]
+    V = [ CellField(get_field("V", datapath, i), grid) for i in iters ]
+    T = [ CellField(get_field("T", datapath, i), grid) for i in iters ]
     S = nothing
 
     try
-        S = [ CellField(getdata("S", datapath, i; reversed=reversed), grid) for i in 1:length(iters) ]
-    catch
-    end
+        S = [ CellField(get_field("S", datapath, i), grid) for i in iters ]
+    catch end
 
     t = times(datapath)
 
-    ColumnData(bcs[:Fb], bcs[:Fu], bcs[:bottom_Bz], κ, ν, grid, constants, U, V, T, S, t, initial, targets)
+    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), grid, constants, κ, ν, 
+                      U, V, T, S, t, initial, targets)
 end
 
 target_times(cd::ColumnData) = [cd.t[i] for i in cd.targets]
 initial_time(cd::ColumnData) = cd.t[cd.initial]
+
+#####
+##### ColumnModel
+#####
 
 struct ColumnModel{M<:AbstractModel, T}
     model :: M

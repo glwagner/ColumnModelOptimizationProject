@@ -11,21 +11,29 @@ function ColumnModel(cd::ColumnData, Δt; Δ=nothing, N=nothing, kwargs...)
 end
 
 """
-    simple_flux_model(constants=KPP.Constants(f=2Ω*sin(45π/180));
-                            N=40, L=400, h₀=0, d=0.1L/N, dBdz=0.01, Fb=1e-8, Fu=0,
-                            parameters=KPP.Parameters())
+    simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Qᵘ, Qᵛ,
+                             diffusivity = ModularKPP.LMDDiffusivity(),
+                             mixingdepth = ModularKPP.LMDMixingDepth(),
+                            nonlocalflux = ModularKPP.LMDCounterGradientFlux(),
+                                kprofile = ModularKPP.Cubic())
 
-Construct a model forced by 'simple', constant atmospheric buoyancy flux `Fb`
-and velocity flux `Fu`, with resolution `N`, domain size `L`, and
-and initial linear buoyancy gradient `Bz`.
+Construct a model with `Constants`, resolution `N`, domain size `L`,
+bottom temperature gradient `dTdz`, and forced by
+
+    - temperature flux `Qᶿ`
+    - salinity flux `Qˢ`
+    - x-momentum flux `Qᵘ`
+    - y-momentum flux `Qᵛ`.
+
+The keyword arguments `diffusivity`, `mixingdepth`, nonlocalflux`, and `kprofile` set
+their respective components of the `OceanTurb.ModularKPP.Model`.
 """
-function simple_flux_model(constants=Constants(); N=128, L, dBdz, Fb, Fu,
+function simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Qᵘ, Qᵛ,
                              diffusivity = ModularKPP.LMDDiffusivity(),
                              mixingdepth = ModularKPP.LMDMixingDepth(),
                             nonlocalflux = ModularKPP.LMDCounterGradientFlux(),
                                 kprofile = ModularKPP.Cubic()
                             )
-
 
     model = ModularKPP.Model(N=N, L=L,
            constants = constants,
@@ -34,17 +42,17 @@ function simple_flux_model(constants=Constants(); N=128, L, dBdz, Fb, Fu,
          mixingdepth = mixingdepth,
         nonlocalflux = nonlocalflux,
             kprofile = kprofile
-        )
+    )
 
     # Initial condition
-    dTdz = dBdz / (model.constants.α * model.constants.g)
     T₀(z) = 20 + dTdz * z
     model.solution.T = T₀
 
     # Fluxes
-    Fθ = Fb / (model.constants.α * model.constants.g)
-    model.bcs.U.top = FluxBoundaryCondition(Fu)
-    model.bcs.T.top = FluxBoundaryCondition(Fθ)
+    model.bcs.U.top = FluxBoundaryCondition(Qᵘ)
+    model.bcs.V.top = FluxBoundaryCondition(Qᵛ)
+    model.bcs.T.top = FluxBoundaryCondition(Qᶿ)
+    model.bcs.S.top = FluxBoundaryCondition(Qˢ)
     model.bcs.T.bottom = GradientBoundaryCondition(dTdz)
 
     return model

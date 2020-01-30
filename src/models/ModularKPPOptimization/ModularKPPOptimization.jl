@@ -46,6 +46,7 @@ include("modular_kpp_utils.jl")
 #
 # Basic functionality
 #
+
 function set!(cm::ColumnModel{<:ModularKPP.Model}, freeparams::FreeParameters{N, T}) where {N, T}
 
     paramnames, paramtypes = get_free_parameters(cm)

@@ -16,6 +16,29 @@ function times(datapath)
     return t
 end
 
+function get_parameter(filename, group, parameter_name)
+    parameter = nothing
+
+    jldopen(filename) do file
+        if parameter_name ∈ keys(file["$group"])
+            parameter = file["$group/$parameter_name"]
+        end
+    end
+
+    return parameter
+end
+
+function get_field(fieldname, filename, i)
+    file = jldopen(filename)
+
+    ϕ = file["timeseries/$fieldname/$i"]
+
+    close(file)
+
+    return ϕ
+end
+
+
 function getdata(varname, datapath, i; reversed=false)
     iter = iterations(datapath)[i]
     file = jldopen(datapath, "r")
