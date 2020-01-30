@@ -4,10 +4,36 @@ function ColumnModel(cd::ColumnData, Δt; Δ=nothing, N=nothing, kwargs...)
         N = ceil(Int, cd.grid.L / Δ)
     end
 
-    model = simple_flux_model(cd.constants; L=cd.grid.L, Fb=cd.Fb, Fu=cd.Fu,
-                              dBdz=cd.bottom_Bz, N=N, kwargs...)
+    model = simple_flux_model(cd.constants; N=N, L=cd.grid.L, 
+                              Qᶿ=cd.surface_fluxes.Qᶿ, Qˢ=cd.surface_fluxes.Qˢ,
+                              Qᵘ=cd.surface_fluxes.Qᵘ, Qᵛ=cd.surface_fluxes.Qᵛ,
+                              dTdz=cd.initial_conditions.dTdz, 
+                              dSdz=cd.initial_conditions.dSdz, 
+                              kwargs...)
 
     return ColumnModelOptimizationProject.ColumnModel(model, Δt)
+end
+
+function set_top_flux!(model, variable, flux)
+    boundary_conditions = getproperty(model.bcs, variable)
+    top_boundary_condition = boundary_condition.top
+
+    if flux != 0.0
+        top_boundary_condition = FluxBoundaryConditions(flux)
+    end
+
+    return nothing
+end
+
+function set_bottom_gradient!(model, variable, gradient)
+    boundary_conditions = getproperty(model.bcs, variable)
+    bottom_boundary_condition = boundary_condition.bottom
+
+    if gradient != 0.0
+        bottom_boundary_condition = GradientBoundaryCondition(gradient)
+    end
+
+    return nothing
 end
 
 """
@@ -29,6 +55,7 @@ The keyword arguments `diffusivity`, `mixingdepth`, nonlocalflux`, and `kprofile
 their respective components of the `OceanTurb.ModularKPP.Model`.
 """
 function simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Qᵘ, Qᵛ,
+                           T₀=20.0, S₀=35.0,
                              diffusivity = ModularKPP.LMDDiffusivity(),
                              mixingdepth = ModularKPP.LMDMixingDepth(),
                             nonlocalflux = ModularKPP.LMDCounterGradientFlux(),
@@ -45,15 +72,19 @@ function simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Q�
     )
 
     # Initial condition
-    T₀(z) = 20 + dTdz * z
+    Tᵢ(z) = T₀ + dTdz * z
+    Sᵢ(z) = S₀ + dSdz * z
     model.solution.T = T₀
+    model.solution.S = S₀
 
     # Fluxes
-    model.bcs.U.top = FluxBoundaryCondition(Qᵘ)
-    model.bcs.V.top = FluxBoundaryCondition(Qᵛ)
-    model.bcs.T.top = FluxBoundaryCondition(Qᶿ)
-    model.bcs.S.top = FluxBoundaryCondition(Qˢ)
-    model.bcs.T.bottom = GradientBoundaryCondition(dTdz)
+    set_top_flux!(model, :U, Qᵘ)
+    set_top_flux!(model, :V, Qᵛ)
+    set_top_flux!(model, :T, Qᶿ)
+    set_top_flux!(model, :S, Qˢ)
+
+    set_bottom_gradient!(model, :T, dTdz)
+    set_bottom_gradient!(model, :S, dSdz)
 
     return model
 end

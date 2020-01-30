@@ -6,14 +6,11 @@ export
     get_free_parameters,
 
     # file_wrangling.jl
-    iterations,
-    times,
-    getdata,
-    getconstant,
-    getbc,
-    getic,
-    getgridparams,
-    getdataparams,
+    get_iterations,
+    get_times,
+    get_data,
+    get_parameter,
+    get_grid_params,
 
     # data_analysis.jl
     removespines,
@@ -78,12 +75,12 @@ function get_free_parameters(cm)
 end
 
 include("file_wrangling.jl")
-include("data_analysis.jl")
+#include("data_analysis.jl")
 include("column_models.jl")
+include("uq_problem.jl")
 include("loss_functions.jl")
 include("visualization.jl")
 
-#include("models/kpp_optimization.jl")
-include("models/modular_kpp_optimization.jl")
+include("ModularKPPOptimization/ModularKPPOptimization.jl")
 
 end # module

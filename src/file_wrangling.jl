@@ -1,11 +1,11 @@
-function iterations(datapath)
+function get_iterations(datapath)
     file = jldopen(datapath, "r")
     iters = parse.(Int, keys(file["timeseries/t"]))
     close(file)
     return iters
 end
 
-function times(datapath)
+function get_times(datapath)
     iters = iterations(datapath)
     t = zeros(length(iters))
     jldopen(datapath, "r") do file
@@ -28,19 +28,7 @@ function get_parameter(filename, group, parameter_name)
     return parameter
 end
 
-function get_field(fieldname, filename, i)
-    file = jldopen(filename)
-
-    ϕ = file["timeseries/$fieldname/$i"]
-
-    close(file)
-
-    return ϕ
-end
-
-
-function getdata(varname, datapath, i; reversed=false)
-    iter = iterations(datapath)[i]
+function get_data(varname, datapath, iter; reversed=false)
     file = jldopen(datapath, "r")
     var = file["timeseries/$varname/$iter"]
     close(file)
@@ -59,61 +47,10 @@ function getdata(varname, datapath, i; reversed=false)
     return var
 end
 
-function getconstant(varname, datapath)
-    file = jldopen(datapath, "r")
-    var = file["constants/$varname"]
-    close(file)
-    return var
-end
-
-function getbc(varname, datapath::String)
-    file = jldopen(datapath, "r")
-    var = file["boundary_conditions/$varname"]
-    close(file)
-    return var
-end
-
-
-function getbc(varname, side, datapath::String)
-    file = jldopen(datapath, "r")
-    var = file["boundary_conditions/$side/$varname"]
-    close(file)
-    return var
-end
-
-
-function getic(varname, datapath::String)
-    file = jldopen(datapath, "r")
-    var = file["initial_condition/$varname"]
-    close(file)
-    return var
-end
-
-function getgridparams(datapath::String)
+function get_grid_params(datapath::String)
     file = jldopen(datapath, "r")
     N = file["grid/Nz"]
     L = file["grid/Lz"]
     close(file)
     return N, L
-end
-
-
-function getdataparams(datapath)
-    data_params = Dict{Symbol, Any}()
-    constants = Dict{Symbol, Float64}()
-
-    jldopen(datapath, "r") do file
-        data_params[:N] = file["grid/N"]
-        data_params[:L] = file["grid/L"]
-
-        data_params[:Fb] = file["boundary_conditions/Fb"]
-        data_params[:Fu] = file["boundary_conditions/Fu"]
-        data_params[:Bz] = file["initial_condition/Bz"]
-
-        for c in (:ρ₀, :cP, :g, :α, :f)
-            constants[c] = file["constants/$c"]
-        end
-    end
-
-    return data_params, constants
 end

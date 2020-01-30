@@ -1,30 +1,48 @@
 #####
+##### ColumnModel
+#####
+
+struct ColumnModel{M<:AbstractModel, T}
+    model :: M
+       Δt :: T
+end
+
+Base.getproperty(m::ColumnModel, p::Symbol) = getproperty(m, Val(p))
+Base.getproperty(m::ColumnModel, ::Val{p}) where p = getproperty(m.model, p)
+Base.getproperty(m::ColumnModel, ::Val{:Δt}) = getfield(m, :Δt)
+Base.getproperty(m::ColumnModel, ::Val{:model}) = getfield(m, :model)
+
+#####
 ##### ColumnData
 #####
 
-struct ColumnData{FT, F, G, C, UU, VV, TT, SS}
-     fluxes :: F
-       grid :: G
-  constants :: C
-          κ :: FT
-          ν :: FT
-          U :: UU
-          V :: VV
-          T :: TT
-          S :: SS
-          t :: Vector{FT}
-    initial :: Int
-    targets :: Vector{Int}
+"""
+    struct ColumnData{FT, F, G, C, ICS, UU, VV, TT, SS}
+
+A time series of horizontally-averaged observational or LES data
+gridded as OceanTurb fields.
+"""
+struct ColumnData{FT, F, G, C, ICS, UU, VV, TT, SS}
+    surface_fluxes :: F
+    initial_conditions :: ICS
+    grid :: G
+    constants :: C
+    diffusivities :: D
+    U :: UU
+    V :: VV
+    T :: TT
+    S :: SS
+    t :: Vector{FT}
 end
 
 """
     ColumnData(datapath)
 
-Construct ColumnData, a time-series of 1D profiles from observations or LES,
-from a standardized dataset.
+Construct ColumnData from a time-series of Oceananigans LES data.
 """
 function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=Float64)
 
+    # For OceanTurb.Constants
     constants_dict = Dict()
 
     file = jldopen(datapath, "r")
@@ -36,18 +54,22 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=F
 
     constants = Constants(FT; constants_dict...)
 
-    Qᶿ = get_parameter(datapath, "boundary_conditions", "Qᶿ")
-    Qˢ = get_parameter(datapath, "boundary_conditions", "Qˢ")
+    # Surface fluxes
     Qᵘ = get_parameter(datapath, "boundary_conditions", "Qᵘ")
     Qᵛ = get_parameter(datapath, "boundary_conditions", "Qᵛ")
+    Qᶿ = get_parameter(datapath, "boundary_conditions", "Qᶿ")
+    Qˢ = get_parameter(datapath, "boundary_conditions", "Qˢ")
 
-    dθdz = get_parameter(datapath, "initial_conditions", dθdz)
+    # Bottom temperature and salinity gradient
+    dTdz = get_parameter(datapath, "initial_conditions", dθdz)
+    dSdz = 0.0 #get_parameter(datapath, "initial_conditions", dsdz)
 
-    N, L = getgridparams(datapath)
+    # Grid
+    N, L = get_grid_params(datapath)
     grid = UniformGrid(N, L)
 
-    ν = get_parameter(datapath, "closure", "ν")
-    κ = get_parameter(datapath, "closure", "κ")
+    background_ν = get_parameter(datapath, "closure", "ν")
+    background_κ = get_parameter(datapath, "closure", "κ")
 
     iters = iterations(datapath)
 
@@ -62,23 +84,10 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=F
 
     t = times(datapath)
 
-    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), grid, constants, κ, ν, 
-                      U, V, T, S, t, initial, targets)
+    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), (dTdz=dTdz, dSdz=dSdz), 
+                      grid, constants, (ν=background_ν, κ=(T=background_κ, S=background_κ)), 
+                      initial, targets, U, V, T, S, t)
 end
 
 target_times(cd::ColumnData) = [cd.t[i] for i in cd.targets]
 initial_time(cd::ColumnData) = cd.t[cd.initial]
-
-#####
-##### ColumnModel
-#####
-
-struct ColumnModel{M<:AbstractModel, T}
-    model :: M
-       Δt :: T
-end
-
-Base.getproperty(m::ColumnModel, p::Symbol) = getproperty(m, Val(p))
-Base.getproperty(m::ColumnModel, ::Val{p}) where p = getproperty(m.model, p)
-Base.getproperty(m::ColumnModel, ::Val{:Δt}) = getfield(m, :Δt)
-Base.getproperty(m::ColumnModel, ::Val{:model}) = getfield(m, :model)

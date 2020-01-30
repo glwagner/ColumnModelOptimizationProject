@@ -117,7 +117,7 @@ version = "1.6.0"
 
 [[Dao]]
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "572355165261fd77064644261ecdc83dbe30729a"
+git-tree-sha1 = "b15144f39c058a2065d303fd2c617b540cee9138"
 repo-rev = "master"
 repo-url = "https://github.com/glwagner/Dao.jl.git"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
