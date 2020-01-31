@@ -1,60 +1,78 @@
-time_averaged_error(err, nerr) = isnan(err) ? Inf : err / nerr
+nan2inf(err) = isnan(err) ? Inf : err
 
-function initialize_forward_run(column_model, column_data, params)
-    set!(column_model, params)
-    set!(column_model, column_data, column_data.initial)
-    return zero(eltype(column_model.model.solution.U))
+function initialize_forward_run(model, data, params, index)
+    set!(model, params)
+    set!(model, data, index)
+    model.clock.iter = 0
+    return nothing
 end
 
-function temperature_loss(params, column_model, column_data)
-    err = initialize_forward_run(column_model, column_data, params)
-    # Run the model forward and collect error
-    for i in column_data.targets
-        run_until!(column_model.model, column_model.Δt, column_data.t[i])
-        err += absolute_error(column_model.model.solution.T, column_data.T[i])
+get_weight(weights, j) = weights[j]
+get_weight(::Nothing, j) = 1
+
+"Returns a weighted sum of the absolute error over `fields` of `model` and `data`."
+function weighted_error(fields::Tuple, weights, model, data, iᵈᵃᵗᵃ)
+    total_err = zero(eltype(model.grid))
+
+    for (kᶠⁱᵉˡᵈ, field) in enumerate(fields)
+        field_err = absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
+        total_err += get_weight(weights, kᶠⁱᵉˡᵈ) * field_err # accumulate error
     end
-    return time_averaged_error(err, length(column_data.targets))
+
+    return total_err
 end
 
-function velocity_loss(params, column_model, column_data)
-    err = initialize_forward_run(column_model, column_data, params)
-    # Run the model forward and collect error
-    for i in column_data.targets
-        run_until!(column_model.model, column_model.Δt, column_data.t[i])
-        err += absolute_error(column_model.model.solution.U, column_data.U[i])
-        err += absolute_error(column_model.model.solution.V, column_data.V[i])
-    end
-    return time_averaged_error(err, length(column_data.targets))
+"Returns the absolute error between `model.solution.field` and `data.field`."
+weighted_error(field::Symbol, ::Nothing, model, data, iᵈᵃᵗᵃ) =
+    absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
+
+"""
+    struct TimeAveragedLossFunction{T, F, W}
+
+A time-averaged loss function.
+"""
+struct TimeAveragedLossFunction{T, F, W}
+    targets :: T
+     fields :: F
+    weights :: W
 end
 
-function weighted_fields_loss(params, column_model, column_data, field_weights;
-                                fields=(:U, :V, :T))
-    total_err = initialize_forward_run(column_model, column_data, params)
-    for i in column_data.targets
-        run_until!(column_model.model, column_model.Δt, column_data.t[i])
+TimeAveragedLossFunction(; targets, fields, weights=nothing) =
+    TimeAveragedLossFunction(targets, fields, weights)
 
-        for (j, field) in enumerate(fields)
-            field_err = absolute_error(
-                getproperty(column_model.model.solution, field),
-                getproperty(column_data, field)[i])
-            total_err += field_weights[j] * field_err # accumulate error
-        end
+function (loss::TimeAveragedLossFunction)(parameters, whole_model, data)
+
+    # Initialize
+    j¹ = loss.targets[1]
+    initialize_forward_run(whole_model, data, parameters, j¹)
+    time_averaged_error = zero(eltype(whole_model.grid))
+
+    # Integrate error using trapezoidal rule
+    ntargets = length(loss.targets)
+    for i in 2:length(loss.targets)-1
+        jⁱ = loss.targets[i]
+        j⁻ = loss.targets[i-1]
+
+        run_until!(whole_model.model, whole_model.Δt, data.t[jⁱ])
+
+        interval = data.t[jⁱ] - data.t[j⁻]
+        time_averaged_error += interval * weighted_error(loss.fields, loss.weights, whole_model,
+                                                         data, i)
     end
-    return time_averaged_error(total_err, length(column_data.targets))
-end
 
-function relative_fields_loss(params, column_model, column_data;
-                                fields=(:U, :V, :T))
-    total_err = initialize_forward_run(column_model, column_data, params)
-    for i in column_data.targets
-        run_until!(column_model.model, column_model.Δt, column_data.t[i])
+    # Sum error from final target
+    jᵉⁿᵈ = loss.targets[end]
+    j⁻ = loss.targets[end-1]
 
-        for (j, field) in enumerate(fields)
-            field_err = relative_error(
-                getproperty(column_model.model.solution, field),
-                getproperty(column_data, field)[i])
-            total_err += field_err # accumulate error
-        end
-    end
-    return time_averaged_error(total_err, length(column_data.targets))
+    run_until!(whole_model.model, whole_model.Δt, data.t[jᵉⁿᵈ])
+
+    interval = data.t[jᵉⁿᵈ] - data.t[j⁻]
+
+    time_averaged_error += interval/2 * weighted_error(loss.fields, loss.weights, whole_model, 
+                                                       data, length(loss.targets))
+
+    # Divide by total length of time-interval
+    time_averaged_error /= (data.t[jᵉⁿᵈ] - data.t[j¹])
+
+    return nan2inf(time_averaged_error)
 end

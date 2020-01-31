@@ -29,10 +29,7 @@ export
     visualize_realizations,
 
     # loss_functions.jl
-    temperature_loss,
-    velocity_loss,
-    weighted_fields_loss,
-    relative_fields_loss,
+    TimeAveragedLossFunction,
 
     # models/kpp_optimization.jl
     #KPPOptimization,
@@ -43,6 +40,7 @@ using
     StaticArrays,
     OceanTurb,
     JLD2,
+    OffsetArrays,
     Printf
 
 include( joinpath(pathof(OceanTurb), "..", "..", "plotting", "pyplot_utils.jl") )
@@ -50,6 +48,8 @@ include( joinpath(pathof(OceanTurb), "..", "..", "plotting", "pyplot_utils.jl") 
 using PyPlot, PyCall, .OceanTurbPyPlotUtils
 
 import OceanTurb: set!, absolute_error
+
+import Base: length
 
 abstract type FreeParameters{N, T} <: FieldVector{N, T} end
 
@@ -75,8 +75,8 @@ function get_free_parameters(cm)
 end
 
 include("file_wrangling.jl")
-#include("data_analysis.jl")
-include("column_models.jl")
+include("data_analysis.jl")
+include("models_and_data.jl")
 include("uq_problem.jl")
 include("loss_functions.jl")
 include("visualization.jl")

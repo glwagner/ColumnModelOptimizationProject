@@ -14,34 +14,12 @@ function ColumnModel(cd::ColumnData, Δt; Δ=nothing, N=nothing, kwargs...)
     return ColumnModelOptimizationProject.ColumnModel(model, Δt)
 end
 
-function set_top_flux!(model, variable, flux)
-    boundary_conditions = getproperty(model.bcs, variable)
-    top_boundary_condition = boundary_condition.top
-
-    if flux != 0.0
-        top_boundary_condition = FluxBoundaryConditions(flux)
-    end
-
-    return nothing
-end
-
-function set_bottom_gradient!(model, variable, gradient)
-    boundary_conditions = getproperty(model.bcs, variable)
-    bottom_boundary_condition = boundary_condition.bottom
-
-    if gradient != 0.0
-        bottom_boundary_condition = GradientBoundaryCondition(gradient)
-    end
-
-    return nothing
-end
-
 """
     simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Qᵘ, Qᵛ,
                              diffusivity = ModularKPP.LMDDiffusivity(),
                              mixingdepth = ModularKPP.LMDMixingDepth(),
                             nonlocalflux = ModularKPP.LMDCounterGradientFlux(),
-                                kprofile = ModularKPP.Cubic())
+                                kprofile = ModularKPP.StandardCubicPolynomial())
 
 Construct a model with `Constants`, resolution `N`, domain size `L`,
 bottom temperature gradient `dTdz`, and forced by
@@ -54,12 +32,12 @@ bottom temperature gradient `dTdz`, and forced by
 The keyword arguments `diffusivity`, `mixingdepth`, nonlocalflux`, and `kprofile` set
 their respective components of the `OceanTurb.ModularKPP.Model`.
 """
-function simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Qᵘ, Qᵛ,
+function simple_flux_model(constants=Constants(); N=128, L, dTdz, dSdz, Qᶿ, Qˢ, Qᵘ, Qᵛ,
                            T₀=20.0, S₀=35.0,
                              diffusivity = ModularKPP.LMDDiffusivity(),
                              mixingdepth = ModularKPP.LMDMixingDepth(),
                             nonlocalflux = ModularKPP.LMDCounterGradientFlux(),
-                                kprofile = ModularKPP.Cubic()
+                                kprofile = ModularKPP.StandardCubicPolynomial()
                             )
 
     model = ModularKPP.Model(N=N, L=L,
@@ -77,14 +55,15 @@ function simple_flux_model(constants=Constants(); N=128, L, dTdz, Qᶿ, Qˢ, Q�
     model.solution.T = T₀
     model.solution.S = S₀
 
-    # Fluxes
-    set_top_flux!(model, :U, Qᵘ)
-    set_top_flux!(model, :V, Qᵛ)
-    set_top_flux!(model, :T, Qᶿ)
-    set_top_flux!(model, :S, Qˢ)
+    # Surface fluxes
+    model.bcs.U.top = FluxBoundaryCondition(Qᵘ)
+    model.bcs.V.top = FluxBoundaryCondition(Qᵛ)
+    model.bcs.T.top = FluxBoundaryCondition(Qᶿ)
+    model.bcs.S.top = FluxBoundaryCondition(Qˢ)
 
-    set_bottom_gradient!(model, :T, dTdz)
-    set_bottom_gradient!(model, :S, dSdz)
+    # Bottom gradients
+    model.bcs.T.bottom = GradientBoundaryCondition(dTdz)
+    model.bcs.S.bottom = GradientBoundaryCondition(dSdz)
 
     return model
 end

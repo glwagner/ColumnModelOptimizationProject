@@ -6,7 +6,7 @@ function get_iterations(datapath)
 end
 
 function get_times(datapath)
-    iters = iterations(datapath)
+    iters = get_iterations(datapath)
     t = zeros(length(iters))
     jldopen(datapath, "r") do file
         for (i, iter) in enumerate(iters)
@@ -44,7 +44,7 @@ function get_data(varname, datapath, iter; reversed=false)
 
     reversed && reverse!(var)
 
-    return var
+    return OffsetArray(var, 0:length(var)-1)
 end
 
 function get_grid_params(datapath::String)

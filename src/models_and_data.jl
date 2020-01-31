@@ -17,12 +17,12 @@ Base.getproperty(m::ColumnModel, ::Val{:model}) = getfield(m, :model)
 #####
 
 """
-    struct ColumnData{FT, F, G, C, ICS, UU, VV, TT, SS}
+    struct ColumnData{FT, F, ICS, G, C, D, UU, VV, TT, SS}
 
 A time series of horizontally-averaged observational or LES data
 gridded as OceanTurb fields.
 """
-struct ColumnData{FT, F, G, C, ICS, UU, VV, TT, SS}
+struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, TT}
     surface_fluxes :: F
     initial_conditions :: ICS
     grid :: G
@@ -30,9 +30,9 @@ struct ColumnData{FT, F, G, C, ICS, UU, VV, TT, SS}
     diffusivities :: D
     U :: UU
     V :: VV
-    T :: TT
+    T :: TΘ
     S :: SS
-    t :: Vector{FT}
+    t :: TT
 end
 
 """
@@ -40,7 +40,7 @@ end
 
 Construct ColumnData from a time-series of Oceananigans LES data.
 """
-function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=Float64)
+function ColumnData(datapath)
 
     # For OceanTurb.Constants
     constants_dict = Dict()
@@ -52,7 +52,7 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=F
     constants_dict[:f] = file["coriolis/f"]
     close(file)
 
-    constants = Constants(FT; constants_dict...)
+    constants = Constants(; constants_dict...)
 
     # Surface fluxes
     Qᵘ = get_parameter(datapath, "boundary_conditions", "Qᵘ")
@@ -61,8 +61,8 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=F
     Qˢ = get_parameter(datapath, "boundary_conditions", "Qˢ")
 
     # Bottom temperature and salinity gradient
-    dTdz = get_parameter(datapath, "initial_conditions", dθdz)
-    dSdz = 0.0 #get_parameter(datapath, "initial_conditions", dsdz)
+    dTdz = get_parameter(datapath, "initial_conditions", "dθdz")
+    dSdz = 0.0 #get_parameter(datapath, "initial_conditions", "dsdz")
 
     # Grid
     N, L = get_grid_params(datapath)
@@ -71,23 +71,22 @@ function ColumnData(datapath; initial=1, targets=(2, 3, 4), reversed=false, FT=F
     background_ν = get_parameter(datapath, "closure", "ν")
     background_κ = get_parameter(datapath, "closure", "κ")
 
-    iters = iterations(datapath)
+    iters = get_iterations(datapath)
 
-    U = [ CellField(get_field("U", datapath, i), grid) for i in iters ]
-    V = [ CellField(get_field("V", datapath, i), grid) for i in iters ]
-    T = [ CellField(get_field("T", datapath, i), grid) for i in iters ]
+    U = [ CellField(get_data("U", datapath, iter), grid) for iter in iters ]
+    V = [ CellField(get_data("V", datapath, iter), grid) for iter in iters ]
+    T = [ CellField(get_data("T", datapath, iter), grid) for iter in iters ]
     S = nothing
 
     try
-        S = [ CellField(get_field("S", datapath, i), grid) for i in iters ]
+        S = [ CellField(get_data("S", datapath, i), grid) for i in iters ]
     catch end
 
-    t = times(datapath)
+    t = get_times(datapath)
 
-    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), (dTdz=dTdz, dSdz=dSdz), 
-                      grid, constants, (ν=background_ν, κ=(T=background_κ, S=background_κ)), 
-                      initial, targets, U, V, T, S, t)
+    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), (dTdz=dTdz, dSdz=dSdz),
+                      grid, constants, (ν=background_ν, κ=(T=background_κ, S=background_κ)),
+                      U, V, T, S, t)
 end
 
-target_times(cd::ColumnData) = [cd.t[i] for i in cd.targets]
-initial_time(cd::ColumnData) = cd.t[cd.initial]
+length(cd::ColumnData) = length(cd.t)

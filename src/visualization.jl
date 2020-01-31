@@ -7,14 +7,12 @@ defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 Visualize the data alongside several realizations of `column_model`
 for each set of parameters in `params`.
 """
-function visualize_realizations(column_data, column_model, params::FreeParameters...;
+function visualize_realizations(column_model, column_data, targets, params::FreeParameters...;
                                      figsize = (10, 4),
                                  paramlabels = ["" for p in params], datastyle="-",
                                  modelkwargs = Dict(),
                                   datakwargs = Dict(),
                                 legendkwargs = Dict(),
-                                      i_data = cat([column_data.initial],
-                                                   [j for j in column_data.targets], dims=1),
                                       fields = (:U, :V, :T)
                                 )
 
@@ -36,9 +34,9 @@ function visualize_realizations(column_data, column_model, params::FreeParameter
 
     for (iparam, param) in enumerate(params)
         set!(column_model, param)
-        set!(column_model, column_data, i_data[1])
+        set!(column_model, column_data, targets[1])
 
-        for (iplot, i) in enumerate(i_data)
+        for (iplot, i) in enumerate(targets)
             run_until!(column_model.model, column_model.Δt, column_data.t[i])
 
             if iplot == 1
@@ -57,7 +55,7 @@ function visualize_realizations(column_data, column_model, params::FreeParameter
         end
     end
 
-    for (iplot, i) in enumerate(i_data)
+    for (iplot, i) in enumerate(targets)
         lbl = iplot == 1 ? "LES, " : ""
         lbl *= @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
 
@@ -105,15 +103,13 @@ Visualize the data alongside a realization of `column_model`
 for the given `params`. If `column_model` and `params` are not provided,
 only the data is visualized.
 """
-function visualize_realization(params, column_model, column_data;
+function visualize_realization(column_model, column_data, targets, param;
                                     figsize = (10, 4),
                                  modelstyle = "--",
                                   datastyle = "-",
                                 modelkwargs = Dict(),
                                  datakwargs = Dict(),
                                legendkwargs = Dict(),
-                                     i_data = cat([column_data.initial],
-                                                  [j for j in column_data.targets], dims=1),
                                      fields = (:U, :V, :T),
                                   showerror = false
                                   )
@@ -132,10 +128,10 @@ function visualize_realization(params, column_model, column_data;
 
     if column_model != nothing # initialize the model
         set!(column_model, params)
-        set!(column_model, column_data, i_data[1])
+        set!(column_model, column_data, targets[1])
     end
 
-    for (iplot, i) in enumerate(i_data)
+    for (iplot, i) in enumerate(targets)
         column_model != nothing && run_until!(column_model.model, column_model.Δt, column_data.t[i])
 
         for (ipanel, field) in enumerate(fields)

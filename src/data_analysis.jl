@@ -1,14 +1,11 @@
-function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
-                        figaxs=subplots(ncols=2, sharey=true, figsize=(8, 4)),
-                        title=nothing)
-
+function summarize_data(filepath; figaxs=subplots(ncols=2, sharey=true, figsize=(8, 4)),
+                        idata=nothing, title=nothing)
+                        
     fig, axs = figaxs
 
     if title != nothing
         fig.suptitle(title)
     end
-
-    font_manager = pyimport("matplotlib.font_manager")
 
     # Setup
     N, L = get_grid_params(filepath)
@@ -17,12 +14,13 @@ function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
     V = CellField(grid)
     𝒰 = CellField(grid) # speed
     T = CellField(grid)
-    S = CellField(grid)
+    #S = CellField(grid)
 
     iters = get_iterations(filepath)
     t = get_times(filepath)
 
     defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    font_manager = pyimport("matplotlib.font_manager")
 
     font = font_manager.FontProperties()
     font.set_style("normal")
@@ -31,7 +29,10 @@ function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
 
     axs[2].tick_params(left=false, labelleft=false)
 
-    iters = iterations(filepath)
+    if idata === nothing
+        niters = length(iters)
+        idata = [1, round(Int, (niters-1)/2)+1, length(iters)]
+    end
 
     for (iplot, i) = enumerate(idata)
 
@@ -42,7 +43,7 @@ function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
         OceanTurb.set!(U, get_data("U", filepath, iter))
         OceanTurb.set!(V, get_data("V", filepath, iter))
         OceanTurb.set!(T, get_data("T", filepath, iter))
-        OceanTurb.set!(S, get_data("S", filepath, iter))
+        #OceanTurb.set!(S, get_data("S", filepath, iter))
 
         OceanTurb.set!(𝒰, sqrt.(U.data.^2 + V.data.^2))
 
@@ -66,11 +67,11 @@ function summarize_data(filepath; idata=[1, 2, 10, 18, 26],
     return fig, axs
 end
 
-function maxvariance(data, fldname)
+function maxvariance(data, fldname, targets=1:length(data.t))
 
     maximum_variance = 0.0
 
-    for target in data.targets
+    for target in targets
         fld = getproperty(data, fldname)[target]
         fldmean = mean(fld.data)
         variance = 0
