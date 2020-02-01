@@ -69,7 +69,9 @@ function ColumnData(datapath)
     grid = UniformGrid(N, L)
 
     background_ν = get_parameter(datapath, "closure", "ν")
-    background_κ = get_parameter(datapath, "closure", "κ")
+
+    background_κ = (T=get_parameter(datapath, "closure/κ", "T"),
+                    S=get_parameter(datapath, "closure/κ", "T"))
 
     iters = get_iterations(datapath)
 
@@ -85,7 +87,7 @@ function ColumnData(datapath)
     t = get_times(datapath)
 
     return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), (dTdz=dTdz, dSdz=dSdz),
-                      grid, constants, (ν=background_ν, κ=(T=background_κ, S=background_κ)),
+                      grid, constants, (ν=background_ν, κ=background_κ),
                       U, V, T, S, t)
 end
 
