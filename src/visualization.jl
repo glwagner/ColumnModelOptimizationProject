@@ -1,6 +1,9 @@
 styles = ("--", ":", "-.", "o-", "^--")
 defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
+removespine(side) = gca().spines[side].set_visible(false)
+removespines(sides...) = [removespine(side) for side in sides]
+
 """
     visualize_realizations(data, model, params...)
 

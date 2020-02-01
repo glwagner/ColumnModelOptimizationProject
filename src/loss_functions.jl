@@ -1,14 +1,24 @@
 nan2inf(err) = isnan(err) ? Inf : err
 
-function initialize_forward_run(model, data, params, index)
+function trapz(f, t)
+    @inbounds begin
+        integral = zero(eltype(t))
+        for i = 2:length(t)
+            integral += (f[i] + f[i-1]) * (t[i] - t[i-1])
+        end
+    end
+    return integral
+end
+
+function initialize_forward_run!(model, data, params, index)
     set!(model, params)
     set!(model, data, index)
     model.clock.iter = 0
     return nothing
 end
 
-get_weight(weights, j) = weights[j]
-get_weight(::Nothing, j) = 1
+@inline get_weight(weights, k) = weights[k]
+@inline get_weight(::Nothing, k) = 1
 
 "Returns a weighted sum of the absolute error over `fields` of `model` and `data`."
 function weighted_error(fields::Tuple, weights, model, data, iᵈᵃᵗᵃ)
@@ -27,51 +37,49 @@ weighted_error(field::Symbol, ::Nothing, model, data, iᵈᵃᵗᵃ) =
     absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
 
 """
-    struct TimeAveragedLossFunction{T, F, W}
+    struct LossFunction{A, T, F, W, S, M}
 
-A time-averaged loss function.
+A loss function that computes an `analysis` of type `A` on an error time series
+generated from multiple fields.
 """
-struct TimeAveragedLossFunction{T, F, W}
+struct LossFunction{A, T, F, W, S, M}
+   analysis :: A
     targets :: T
      fields :: F
     weights :: W
+      error :: S
+       time :: M
 end
 
-TimeAveragedLossFunction(; targets, fields, weights=nothing) =
-    TimeAveragedLossFunction(targets, fields, weights)
+LossFunction(analysis, data; fields, targets=1:length(data.t), weights=nothing) =
+    LossFunction(analysis, targets, fields, weights, zeros(length(targets)), [data.t[i] for i in targets])
 
-function (loss::TimeAveragedLossFunction)(parameters, whole_model, data)
+function evaluate_error_time_series!(loss, parameters, whole_model, data)
 
     # Initialize
-    j¹ = loss.targets[1]
-    initialize_forward_run(whole_model, data, parameters, j¹)
-    time_averaged_error = zero(eltype(whole_model.grid))
+    initialize_forward_run!(whole_model, data, parameters, loss.targets[1])
+    loss.error[1] = 0.0
 
-    # Integrate error using trapezoidal rule
-    ntargets = length(loss.targets)
-    for i in 2:length(loss.targets)-1
-        jⁱ = loss.targets[i]
-        j⁻ = loss.targets[i-1]
-
-        run_until!(whole_model.model, whole_model.Δt, data.t[jⁱ])
-
-        interval = data.t[jⁱ] - data.t[j⁻]
-        time_averaged_error += interval * weighted_error(loss.fields, loss.weights, whole_model, data, i)
+    # Calculate a time-seris of the error
+    for i in 2:length(loss.targets)
+        j = loss.targets[i]
+        run_until!(whole_model.model, whole_model.Δt, data.t[j])
+        @inbounds loss.error[i] = weighted_error(loss.fields, loss.weights, whole_model, data, i)
     end
 
-    # Sum error from final target
-    jᵉⁿᵈ = loss.targets[end]
-    j⁻ = loss.targets[end-1]
+    return nothing
+end
 
-    run_until!(whole_model.model, whole_model.Δt, data.t[jᵉⁿᵈ])
+#
+# Analysis types
+#
 
-    interval = data.t[jᵉⁿᵈ] - data.t[j⁻]
+struct TimeAverage end
 
-    time_averaged_error += interval/2 * weighted_error(loss.fields, loss.weights, whole_model, 
-                                                       data, length(loss.targets))
+const TimeAveragedLossFunction = LossFunction{<:TimeAverage}
+TimeAveragedLossFunction(args...; kwargs...) = LossFunction(TimeAverage(), args...; kwargs...)
 
-    # Divide by total length of time-interval
-    time_averaged_error /= (data.t[jᵉⁿᵈ] - data.t[j¹])
-
-    return nan2inf(time_averaged_error)
+function (loss::TimeAveragedLossFunction)(parameters, whole_model, data)
+    evaluate_error_time_series!(loss, parameters, whole_model, data)
+    return trapz(loss.error, loss.time) / (loss.time[end] - loss.time[1])
 end
