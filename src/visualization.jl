@@ -40,7 +40,7 @@ function visualize_realizations(column_model, column_data, targets, params::Free
             run_until!(column_model.model, column_model.Δt, column_data.t[i])
 
             if iplot == 1
-                lbl =  @sprintf("%s KPP, \$ t = %0.1f \$ hours",
+                lbl =  @sprintf("%s KPP, \$ t = %0.2f \$ hours",
                                 paramlabels[iparam], column_data.t[i]/hour)
             else
                 lbl = ""

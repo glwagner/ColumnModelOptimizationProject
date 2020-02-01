@@ -56,8 +56,7 @@ function (loss::TimeAveragedLossFunction)(parameters, whole_model, data)
         run_until!(whole_model.model, whole_model.Δt, data.t[jⁱ])
 
         interval = data.t[jⁱ] - data.t[j⁻]
-        time_averaged_error += interval * weighted_error(loss.fields, loss.weights, whole_model,
-                                                         data, i)
+        time_averaged_error += interval * weighted_error(loss.fields, loss.weights, whole_model, data, i)
     end
 
     # Sum error from final target
