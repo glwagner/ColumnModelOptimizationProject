@@ -47,29 +47,6 @@ include("modular_kpp_utils.jl")
 # Basic functionality
 #
 
-function set!(cm::ColumnModel{<:ModularKPP.Model}, freeparams::FreeParameters{N, T}) where {N, T}
-
-    paramnames, paramtypes = get_free_parameters(cm)
-    paramdicts = Dict( ( ptypename, Dict{Symbol, T}() ) for ptypename in keys(paramtypes))
-
-    # Filter freeparams into their appropriate category
-    for pname in propertynames(freeparams)
-        for ptypename in keys(paramtypes)
-            pname ∈ paramnames[ptypename] && push!(paramdicts[ptypename],
-                                                   Pair(pname, getproperty(freeparams, pname))
-                                                  )
-        end
-    end
-
-    # Set new parameters
-    for (ptypename, PType) in paramtypes
-        params = PType(; paramdicts[ptypename]...)
-        setproperty!(cm.model, ptypename, params)
-    end
-
-    return nothing
-end
-
 function set!(cm::ColumnModel{<:ModularKPP.Model}, cd::ColumnData, i)
     set!(cm.model.solution.U, cd.U[i])
     set!(cm.model.solution.V, cd.V[i])
@@ -149,22 +126,6 @@ end
 
 Base.similar(p::WindMixingAndExponentialShapeParameters{T}) where T =
     WindMixingAndExponentialShapeParameters{T}(0, 0, 0, 0, 0, 0)
-
-
-function DefaultFreeParameters(cm, freeparamtype)
-    paramnames, paramtypes = get_free_parameters(cm)
-
-    alldefaults = (ptype() for ptype in values(paramtypes))
-
-    freeparams = []
-    for pname in fieldnames(freeparamtype)
-        for ptype in alldefaults
-            pname ∈ propertynames(ptype) && push!(freeparams, getproperty(ptype, pname))
-        end
-    end
-
-    eval(Expr(:call, freeparamtype, freeparams...))
-end
 
 function DefaultStdFreeParameters(relative_std, freeparamtype)
     allparams = KPP.Parameters()

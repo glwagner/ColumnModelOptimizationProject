@@ -4,6 +4,7 @@ export
     dictify,
     FreeParameters,
     get_free_parameters,
+    DefaultFreeParameters,
 
     # file_wrangling.jl
     get_iterations,
@@ -74,13 +75,28 @@ function get_free_parameters(cm)
     return paramnames, paramtypes
 end
 
+function DefaultFreeParameters(cm, freeparamtype)
+    paramnames, paramtypes = get_free_parameters(cm)
+
+    alldefaults = (ptype() for ptype in values(paramtypes))
+
+    freeparams = []
+    for pname in fieldnames(freeparamtype)
+        for ptype in alldefaults
+            pname ∈ propertynames(ptype) && push!(freeparams, getproperty(ptype, pname))
+        end
+    end
+
+    eval(Expr(:call, freeparamtype, freeparams...))
+end
+
 include("file_wrangling.jl")
 include("data_analysis.jl")
 include("models_and_data.jl")
-include("uq_problem.jl")
 include("loss_functions.jl")
 include("visualization.jl")
 
 include("ModularKPPOptimization/ModularKPPOptimization.jl")
+include("TKEMassFluxOptimization/TKEMassFluxOptimization.jl")
 
 end # module
