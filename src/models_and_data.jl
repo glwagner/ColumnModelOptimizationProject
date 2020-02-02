@@ -12,6 +12,30 @@ Base.getproperty(m::ColumnModel, ::Val{p}) where p = getproperty(m.model, p)
 Base.getproperty(m::ColumnModel, ::Val{:Δt}) = getfield(m, :Δt)
 Base.getproperty(m::ColumnModel, ::Val{:model}) = getfield(m, :model)
 
+function set!(cm::ColumnModel, freeparams::FreeParameters{N, T}) where {N, T}
+
+    paramnames, paramtypes = get_free_parameters(cm)
+    paramdicts = Dict( ( ptypename, Dict{Symbol, T}() ) for ptypename in keys(paramtypes))
+
+    # Filter freeparams into their appropriate category
+    for pname in propertynames(freeparams)
+        for ptypename in keys(paramtypes)
+            pname ∈ paramnames[ptypename] && push!(paramdicts[ptypename],
+                                                   Pair(pname, getproperty(freeparams, pname))
+                                                  )
+        end
+    end
+
+    # Set new parameters
+    for (ptypename, PType) in paramtypes
+        params = PType(; paramdicts[ptypename]...)
+        setproperty!(cm.model, ptypename, params)
+    end
+
+    return nothing
+end
+
+
 #####
 ##### ColumnData
 #####
@@ -22,7 +46,7 @@ Base.getproperty(m::ColumnModel, ::Val{:model}) = getfield(m, :model)
 A time series of horizontally-averaged observational or LES data
 gridded as OceanTurb fields.
 """
-struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, TT}
+struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT}
     surface_fluxes :: F
     initial_conditions :: ICS
     grid :: G
@@ -32,6 +56,7 @@ struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, TT}
     V :: VV
     T :: TΘ
     S :: SS
+    e :: EE
     t :: TT
 end
 
@@ -77,16 +102,18 @@ function ColumnData(datapath)
     V = [ CellField(get_data("V", datapath, iter), grid) for iter in iters ]
     T = [ CellField(get_data("T", datapath, iter), grid) for iter in iters ]
     S = nothing
+    e = nothing
 
     try
         S = [ CellField(get_data("S", datapath, i), grid) for i in iters ]
+        e = [ CellField(get_data("E", datapath, i), grid) for i in iters ]
     catch end
 
     t = get_times(datapath)
 
-    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ), (dTdz=dTdz, dSdz=dSdz),
+    return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ, Qᵉ=0.0), (dTdz=dTdz, dSdz=dSdz),
                       grid, constants, (ν=background_ν, κ=(T=background_κ, S=background_κ)),
-                      U, V, T, S, t)
+                      U, V, T, S, e, t)
 end
 
 length(cd::ColumnData) = length(cd.t)
