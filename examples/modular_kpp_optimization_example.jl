@@ -32,7 +32,9 @@ initial_link = MarkovLink(nll, default_parameters)
 covariance, chain = estimate_covariance(nll, default_parameters, standard_deviation, 
                                         BoundedNormalPerturbation, bounds, samples=100, niterations=10)
 
-@show optimal(chain)
+optimal_parameters = optimal(chain)
+
+@show optimal_parameters
 @show covariance
 
 visualize_realizations(model, data, loss_function.targets[[1, length(loss_function.targets)]], 
