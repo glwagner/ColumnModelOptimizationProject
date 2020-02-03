@@ -3,8 +3,8 @@ module ColumnModelOptimizationProject
 export
     dictify,
     FreeParameters,
-    get_free_parameters,
     DefaultFreeParameters,
+    get_free_parameters,
 
     # file_wrangling.jl
     get_iterations,
@@ -16,13 +16,10 @@ export
     # data_analysis.jl
     removespines,
     summarize_data,
-    maxvariance,
+    max_variance,
 
     # column_models.jl
     ColumnData,
-    target_times,
-    initial_time,
-    ColumnModel,
 
     # visualization.jl
     visualize_targets,
@@ -32,9 +29,9 @@ export
     # loss_functions.jl
     TimeAveragedLossFunction,
 
-    # models/kpp_optimization.jl
-    #KPPOptimization,
-    ModularKPPOptimization
+    # models/
+    ModularKPPOptimization,
+    TKEMassFluxOptimization
 
 using
     Statistics,
@@ -44,7 +41,7 @@ using
     OffsetArrays,
     Printf
 
-include( joinpath(pathof(OceanTurb), "..", "..", "plotting", "pyplot_utils.jl") )
+include(joinpath(pathof(OceanTurb), "..", "..", "plotting", "OceanTurbPyPlotUtils.jl") )
 
 using PyPlot, PyCall, .OceanTurbPyPlotUtils
 
@@ -91,10 +88,10 @@ function DefaultFreeParameters(cm, freeparamtype)
 end
 
 include("file_wrangling.jl")
-include("data_analysis.jl")
 include("models_and_data.jl")
 include("loss_functions.jl")
 include("visualization.jl")
+include("data_analysis.jl")
 
 include("ModularKPPOptimization/ModularKPPOptimization.jl")
 include("TKEMassFluxOptimization/TKEMassFluxOptimization.jl")

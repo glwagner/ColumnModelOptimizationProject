@@ -1,31 +1,38 @@
 using 
     OceanTurb,
     Dao,
-    ColumnModelOptimizationProject, 
-    ColumnModelOptimizationProject.TKEMassFluxOptimization
+    ColumnModelOptimizationProject
+
+using ColumnModelOptimizationProject.TKEMassFluxOptimization: ColumnModel, WindMixingParameters
+
+struct TestParameters{T} <: FreeParameters{1, T}
+    CDe :: T
+end
+
+Base.similar(p::TestParameters{T}) where T = TestParameters{T}(0)
 
 datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
-
 data = ColumnData(datapath)
+model = ColumnModel(data, 5minute, N=64)
 
-model = TKEMassFluxOptimization.ColumnModel(data, 5minute, N=64)
+@show default_parameters = DefaultFreeParameters(model, WindMixingParameters)
+standard_deviation = [1e-1 for i = 1:length(default_parameters)]
+bounds = [(0.0, 3.0) for i = 1:length(default_parameters)]
 
-default_parameters = DefaultFreeParameters(model, WindMixingParameters)
-standard_deviation = Array(1e-1 * default_parameters)
-bounds = [(0.0, 2.0), (0.0, 1.0), (0.0, 10.0), (0.0, 1.0), (0.0, 1.0)]
-
-loss_function = TimeAveragedLossFunction(targets=11:10:201, fields=:T)
+loss_function = TimeAveragedLossFunction(data, targets=21:20:length(data), fields=(:U, :V, :T))
 
 nll = NegativeLogLikelihood(model, data, loss_function)
 
-# Initialize sampler and NLL
-nll.scale = 1.0
-default_link = MarkovLink(nll, default_parameters)
+@show variances = max_variance(data, loss_function)
 
-iterations = 10
-initial_steps = 25
-sampler = MetropolisSampler(BoundedNormalPerturbation(standard_deviation, bounds))
-initial_link = MarkovLink(nll, default_parameters)
-@time chain = MarkovChain(100, initial_link, nll, sampler)
+#=
+# Estimate the covariance matrix
+covariance, chain = estimate_covariance(nll, default_parameters, standard_deviation, 
+                                        BoundedNormalPerturbation, bounds, 
+                                        samples=iter->1000, niterations=2)
+
+@show optimal_link = optimal(chain)
+
 visualize_realizations(model, data, loss_function.targets[[1, length(loss_function.targets)]], 
-                       chain[1].param, optimal(chain).param)
+                       default_parameters, optimal_link.param)
+                       =#

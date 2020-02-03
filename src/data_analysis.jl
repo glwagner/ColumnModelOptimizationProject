@@ -1,3 +1,44 @@
+function variance(data, field_name, i)
+    field = getproperty(data, field_name)[i]
+    field_mean = mean(field.data)
+
+    variance = zero(eltype(field))
+    for j in eachindex(field)
+        @inbounds variance += (field[j] - field_mean)^2 * Δf(field, j)
+    end
+
+    return variance
+end
+
+function max_variance(data, field_name, targets=1:length(data.t))
+    maximum_variance = 0.0
+
+    for target in targets
+        field = getproperty(data, field_name)[target]
+        fieldmean = mean(field.data)
+        maximum_variance = max(maximum_variance, variance(data, field_name, target))
+    end
+
+    return maximum_variance
+end
+
+#=
+function time_averaged_variance(data, field_name, targets)
+    variance_time_series = zeros(length(targets))
+
+    for (i, target) in enumerate(targets)
+end
+=#
+
+function max_variance(data, loss::LossFunction)
+    max_variances = zeros(length(loss.fields))
+    for (ifield, field) in enumerate(loss.fields)
+        max_variances[ifield] = get_weight(weight, ifield) * max_variance(data, field, loss.targets)
+    end
+    return max_variances
+end
+
+
 function summarize_data(filepath; figaxs=subplots(ncols=2, sharey=true, figsize=(8, 4)),
                         idata=nothing, title=nothing)
                         
@@ -65,21 +106,4 @@ function summarize_data(filepath; figaxs=subplots(ncols=2, sharey=true, figsize=
     end
 
     return fig, axs
-end
-
-function maxvariance(data, fldname, targets=1:length(data.t))
-
-    maximum_variance = 0.0
-
-    for target in targets
-        fld = getproperty(data, fldname)[target]
-        fldmean = mean(fld.data)
-        variance = 0
-        for j in eachindex(fld)
-            variance += (fld[j] - fldmean)^2 * Δf(fld, j)
-        end
-        maximum_variance = max(maximum_variance, variance)
-    end
-
-    return maximum_variance
 end

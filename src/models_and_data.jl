@@ -103,12 +103,12 @@ function ColumnData(datapath)
     U = [ CellField(get_data("U", datapath, iter), grid) for iter in iters ]
     V = [ CellField(get_data("V", datapath, iter), grid) for iter in iters ]
     T = [ CellField(get_data("T", datapath, iter), grid) for iter in iters ]
+    e = [ CellField(get_data("E", datapath, iter), grid) for iter in iters ]
+
     S = nothing
-    e = nothing
 
     try
-        S = [ CellField(get_data("S", datapath, i), grid) for i in iters ]
-        e = [ CellField(get_data("E", datapath, i), grid) for i in iters ]
+        S = [ CellField(get_data("S", datapath, iter), grid) for iter in iters ]
     catch end
 
     t = get_times(datapath)
