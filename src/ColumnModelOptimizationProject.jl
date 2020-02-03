@@ -27,6 +27,7 @@ export
     visualize_realizations,
 
     # loss_functions.jl
+    evaluate!,
     TimeAveragedLossFunction,
 
     # models/

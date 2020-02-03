@@ -43,7 +43,7 @@ function visualize_realizations(column_model, column_data, targets, params::Free
             run_until!(column_model.model, column_model.Δt, column_data.t[i])
 
             if iplot == 1
-                lbl =  @sprintf("%s KPP, \$ t = %0.2f \$ hours",
+                lbl =  @sprintf("%s Model, \$ t = %0.2f \$ hours",
                                 paramlabels[iparam], column_data.t[i]/hour)
             else
                 lbl = ""
@@ -143,7 +143,7 @@ function visualize_realization(column_model, column_data, targets, param;
 
             if iplot == 1
                 leslbl = "LES, "
-                kpplbl = "KPP, "
+                kpplbl = "Model, "
                 leslbl *= @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
                 kpplbl *= @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
             else

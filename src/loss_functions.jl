@@ -70,6 +70,8 @@ function evaluate_error_time_series!(loss, parameters, whole_model, data)
     return nothing
 end
 
+const evaluate! = evaluate_error_time_series!
+
 #
 # Analysis types
 #
