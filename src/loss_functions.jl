@@ -17,16 +17,42 @@ function initialize_forward_run!(model, data, params, index)
     return nothing
 end
 
-@inline get_weight(weights, k) = weights[k]
-@inline get_weight(::Nothing, k) = 1
+struct VarianceWeights{F, D, T, V}
+       fields :: F
+         data :: D
+      targets :: T
+    variances :: V
+end
+
+@inbounds normalize_variance(::Nothing, field, σ) = σ
+
+function VarianceWeights(data; fields, targets=1:length(data), normalizer=nothing)
+    variances = (; zip(fields, (zeros(length(targets)) for field in fields))...)
+
+    for (k, field) in enumerate(fields)
+        for i in 1:length(targets)
+            @inbounds variances[k][i] = normalize_variance(normalizer, field, variance(data, field, i))
+        end
+    end
+
+    return VarianceWeights(fields, data, targets, variances)
+end
+
+
+@inline get_weight(weights, kfield, idata) = @inbounds weights[kfield]
+@inline get_weight(::Nothing, kfield, idata) = 1
+@inline get_weight(weights::VarianceWeights, kfield, idata) = 
+    @inbounds weights.variances[kfield][idata]
+
+@inline squared_absolute_error(model_field, data_field) = absolute_error(model_field, data_field)^2
 
 "Returns a weighted sum of the absolute error over `fields` of `model` and `data`."
 function weighted_error(fields::Tuple, weights, model, data, iᵈᵃᵗᵃ)
     total_err = zero(eltype(model.grid))
 
     for (kᶠⁱᵉˡᵈ, field) in enumerate(fields)
-        field_err = absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
-        total_err += get_weight(weights, kᶠⁱᵉˡᵈ) * field_err # accumulate error
+        field_err = squared_absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
+        total_err += get_weight(weights, kᶠⁱᵉˡᵈ, iᵈᵃᵗᵃ) * field_err # accumulate error
     end
 
     return total_err
@@ -34,7 +60,7 @@ end
 
 "Returns the absolute error between `model.solution.field` and `data.field`."
 weighted_error(field::Symbol, ::Nothing, model, data, iᵈᵃᵗᵃ) =
-    absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
+    squared_absolute_error(getproperty(model.solution, field), getproperty(data, field)[iᵈᵃᵗᵃ])
 
 """
     struct LossFunction{A, T, F, W, S, M}
@@ -54,13 +80,21 @@ end
 LossFunction(analysis, data; fields, targets=1:length(data.t), weights=nothing) =
     LossFunction(analysis, targets, fields, weights, zeros(length(targets)), [data.t[i] for i in targets])
 
+function max_variance(data, loss::LossFunction)
+    max_variances = zeros(length(loss.fields))
+    for (ifield, field) in enumerate(loss.fields)
+        max_variances[ifield] = get_weight(weight, ifield) * max_variance(data, field, loss.targets)
+    end
+    return max_variances
+end
+
 function evaluate_error_time_series!(loss, parameters, whole_model, data)
 
     # Initialize
     initialize_forward_run!(whole_model, data, parameters, loss.targets[1])
     loss.error[1] = 0.0
 
-    # Calculate a time-seris of the error
+    # Calculate a time-series of the error
     for i in 2:length(loss.targets)
         j = loss.targets[i]
         run_until!(whole_model.model, whole_model.Δt, data.t[j])

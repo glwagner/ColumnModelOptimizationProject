@@ -6,17 +6,17 @@ export
     DefaultFreeParameters,
     get_free_parameters,
 
+    # utils
+    variance,
+    max_variance,
+    initialize_and_run_until!,
+
     # file_wrangling.jl
     get_iterations,
     get_times,
     get_data,
     get_parameter,
     get_grid_params,
-
-    # data_analysis.jl
-    removespines,
-    summarize_data,
-    max_variance,
 
     # column_models.jl
     ColumnData,
@@ -28,7 +28,13 @@ export
 
     # loss_functions.jl
     evaluate!,
+    weighted_error,
+    VarianceWeights,
     TimeAveragedLossFunction,
+
+    # data_analysis.jl
+    removespines,
+    summarize_data,
 
     # models/
     ModularKPPOptimization,
@@ -88,6 +94,7 @@ function DefaultFreeParameters(cm, freeparamtype)
     eval(Expr(:call, freeparamtype, freeparams...))
 end
 
+include("utils.jl")
 include("file_wrangling.jl")
 include("models_and_data.jl")
 include("loss_functions.jl")

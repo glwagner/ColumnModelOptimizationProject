@@ -1,47 +1,43 @@
 using 
     OceanTurb,
+    PyPlot,
     Dao,
     ColumnModelOptimizationProject, 
     ColumnModelOptimizationProject.ModularKPPOptimization
 
+function plot_two_errors(loss, model, data, param1, param2; labels=["Default", "Optimal"])
+    fig, axs = subplots()
+
+    evaluate!(loss, param1, model, data)
+    plot(loss.time, loss.error, label=labels[1])
+
+    evaluate!(loss, param2, model, data)
+    plot(loss.time, loss.error, label=labels[2])
+
+    return fig, axs
+end
+
 datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
 
 data = ColumnData(datapath)
+model = ModularKPPOptimization.ColumnModel(data, 5minute, N=32)
 
-model = ModularKPPOptimization.ColumnModel(data, 2minute, N=48)
-default_parameters = DefaultFreeParameters(model, WindMixingParameters)
-standard_deviation = [1e-1 for i = 1:length(default_parameters)]
-bounds = [(0.0, 3.0), (0.0, 1.0), (0.0, 3.0)]
-
-loss_function = TimeAveragedLossFunction(data, targets=11:10:length(data), 
-                                         fields=(:U, :V, :T), weights=(1, 0.1, 1.0))
-
+fields = (:U, :V, :T)
+targets = 11:401
+loss_function = TimeAveragedLossFunction(data, targets=targets, fields=fields, weights=nothing)
 nll = NegativeLogLikelihood(model, data, loss_function)
 
-# Initialize sampler and NLL
-niterations = 3
-schedule(nll, iteration, initial_link) = 1 / iteration^2 * initial_link.error
-samples(iteration) = round(Int, 10000 / iteration^2)
-
-covariance, chains = optimize(nll, default_parameters, standard_deviation, 
-                             BoundedNormalPerturbation, bounds, samples=samples, 
-                             schedule=schedule, niterations=niterations)
-
-
-for chain in chains
-    @show chain
-end
+default_parameters = DefaultFreeParameters(model, WindMixingParameters)
+standard_deviation = [1e-3 for i = 1:length(default_parameters)]
+bounds = [(0.0, 3.0), (0.0, 1.0), (0.0, 3.0)]
+covariance, chains = optimize(nll, default_parameters, standard_deviation,
+                              BoundedNormalPerturbation, bounds, 
+                               samples = iter -> round(Int, 500/sqrt(iter)), 
+                              schedule = (nll, iter, link) -> exp(-iter+1) * link.error,
+                              niterations=4)
 
 @show optimal_link = optimal(chains[end])
+optimal_parameters = optimal_link.param
+visualize_realizations(model, data, [11, 201, 401], default_parameters, optimal_parameters)
 
-visualize_realizations(model, data, [1, 201, 401],
-                       default_parameters, optimal_link.param)
-
-evaluate!(loss_function, default_parameters, model, data)
-
-fig, axs = subplots()
-plot(loss_function.error)
-
-evaluate!(loss_function, optimal_link.param, model, data)
-
-plot(loss_function.error)
+fig, axs = plot_two_errors(loss_function, model, data, default_parameters, optimal_parameters)
