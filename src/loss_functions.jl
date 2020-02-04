@@ -98,7 +98,7 @@ function evaluate_error_time_series!(loss, parameters, whole_model, data)
 
     # Calculate a time-series of the error
     for target_index in 2:length(loss.targets)
-        target = loss.targets[i]
+        target = loss.targets[target_index]
         run_until!(whole_model.model, whole_model.Δt, data.t[target])
 
         @inbounds loss.error[target_index] = 

@@ -22,7 +22,7 @@ function visualize_realizations(column_model, column_data, targets, params::Free
     # Default kwargs for plot routines
     default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8)
     default_datakwargs = Dict(:linewidth=>3, :alpha=>0.6)
-    default_legendkwargs = Dict(:fontsize=>10, :loc=>"best", :frameon=>true, :framealpha=>0.5)
+    default_legendkwargs = Dict(:fontsize=>10, :loc=>"lower right", :frameon=>true, :framealpha=>0.5)
 
     # Merge defaults with user-specified options
      modelkwargs = merge(default_modelkwargs, modelkwargs)
@@ -134,6 +134,7 @@ function plot_loss_function(loss, model, data, params...;
     time_units = string(time_norm, "s")
     xlabel("Time ($time_units)")
     ylabel("Time-resolved loss function")
+    legend()
 
     return fig, axs
 end
