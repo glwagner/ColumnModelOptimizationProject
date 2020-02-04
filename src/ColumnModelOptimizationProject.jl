@@ -22,9 +22,8 @@ export
     ColumnData,
 
     # visualization.jl
-    visualize_targets,
-    visualize_realization,
     visualize_realizations,
+    plot_loss_function,
 
     # loss_functions.jl
     evaluate!,

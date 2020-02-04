@@ -69,126 +69,77 @@ function visualize_realizations(column_model, column_data, targets, params::Free
         end
     end
 
-    axs[2].tick_params(left=false, labelleft=false)
-    axs[3].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    axs[3].yaxis.set_label_position("right")
 
     sca(axs[1])
     removespines("top", "right")
     legend(; legendkwargs...)
 
-    sca(axs[2])
-    removespines("top", "right", "left")
+    for iax in 2:length(axs)-1
+        sca(axs[iax])
+        removespines("top", "right", "left")
+        axs[iax].tick_params(left=false, labelleft=false)
+    end
 
-    sca(axs[3])
+    sca(axs[end])
+    axs[end].yaxis.set_label_position("right")
+    axs[end].tick_params(left=false, labelleft=false, right=true, labelright=true)
     removespines("top", "left")
+    ylabel(L"z \, \mathrm{(meters)}")
 
-    if fields == (:U, :V, :T)
-        sca(axs[1])
-        xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-        ylabel(L"z \, \mathrm{(meters)}")
+    for (i, ax) in enumerate(axs)
+        if fields[i] === :U
+            sca(ax)
+            xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+        end
 
-        sca(axs[2])
-        xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+        if fields[i] === :V
+            sca(ax)
+            xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+        end
 
-        sca(axs[3])
-        xlabel("Temperature (Celsius)")
-        ylabel(L"z \, \mathrm{(meters)}")
-    end
+        if fields[i] === :T
+            sca(ax)
+            xlabel("Temperature (Celsius)")
+        end
 
-    return fig, axs
-end
+        if fields[i] === :S
+            sca(ax)
+            xlabel("Salinity (psu)")
+        end
 
-"""
-    visualize_realizations([params, column_model], column_data)
-
-Visualize the data alongside a realization of `column_model`
-for the given `params`. If `column_model` and `params` are not provided,
-only the data is visualized.
-"""
-function visualize_realization(column_model, column_data, targets, param;
-                                    figsize = (10, 4),
-                                 modelstyle = "--",
-                                  datastyle = "-",
-                                modelkwargs = Dict(),
-                                 datakwargs = Dict(),
-                               legendkwargs = Dict(),
-                                     fields = (:U, :V, :T),
-                                  showerror = false
-                                  )
-
-    # Default kwargs for plot routines
-    default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8)
-    default_datakwargs = Dict(:linewidth=>3, :alpha=>0.6)
-    default_legendkwargs = Dict(:fontsize=>10, :loc=>"best", :frameon=>true, :framealpha=>0.5)
-
-    # Merge defaults with user-specified options
-     modelkwargs = merge(default_modelkwargs, modelkwargs)
-      datakwargs = merge(default_datakwargs, datakwargs)
-    legendkwargs = merge(default_legendkwargs, legendkwargs)
-
-    fig, axs = subplots(ncols=length(fields), figsize=figsize)
-
-    if column_model != nothing # initialize the model
-        set!(column_model, params)
-        set!(column_model, column_data, targets[1])
-    end
-
-    for (iplot, i) in enumerate(targets)
-        column_model != nothing && run_until!(column_model.model, column_model.Δt, column_data.t[i])
-
-        for (ipanel, field) in enumerate(fields)
-            sca(axs[ipanel])
-            dfld = getproperty(column_data, field)[i]
-
-            if iplot == 1
-                leslbl = "LES, "
-                kpplbl = "Model, "
-                leslbl *= @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
-                kpplbl *= @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
-            else
-                leslbl = @sprintf("\$ t = %0.2f \$ hours", column_data.t[i]/hour)
-                kpplbl = ""
-            end
-
-            if column_model != nothing
-                mfld = getproperty(column_model.model.solution, field)
-                err = absolute_error(mfld, dfld)
-                plot(mfld, modelstyle; color=defaultcolors[iplot], label=kpplbl, modelkwargs...)
-            end
-
-            plot(dfld, datastyle; color=defaultcolors[iplot], label=leslbl, datakwargs...)
+        if fields[i] === :e
+            sca(ax)
+            xlabel("\$ e \$ \$ \\mathrm{(m^2 \\, s^{-2})} \$")
         end
     end
 
-    axs[2].tick_params(left=false, labelleft=false)
-    axs[3].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    axs[3].yaxis.set_label_position("right")
+    return fig, axs
+end
 
-    sca(axs[1])
-    removespines("top", "right")
-    legend(; legendkwargs...)
+function plot_loss_function(loss, model, data, params...; 
+                            labels=["Parameter set $i" for i = 1:length(params)],
+                            time_norm=:second)
 
-    sca(axs[2])
-    removespines("top", "right", "left")
+    numerical_time_norm = eval(time_norm)
 
-    sca(axs[3])
-    removespines("top", "left")
+    fig, axs = subplots()
 
-    if fields == (:U, :V, :T)
-        sca(axs[1])
-        xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-        ylabel(L"z \, \mathrm{(meters)}")
-
-        sca(axs[2])
-        xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-
-        sca(axs[3])
-        xlabel("Temperature (Celsius)")
-        ylabel(L"z \, \mathrm{(meters)}")
+    for (i, param) in enumerate(params)
+        evaluate!(loss, param, model, data)
+        plot(loss.time / numerical_time_norm, loss.error, label=labels[i])
     end
+
+    removespines("top", "right")
+
+    time_units = string(time_norm, "s")
+    xlabel("Time ($time_units)")
+    ylabel("Time-resolved loss function")
 
     return fig, axs
 end
 
-visualize_targets(column_data; kwargs...) = visualize_realization(nothing, nothing, column_data; kwargs...)
+function visualize_loss_function(loss, model, data, params...;
+                                 labels=["Parameter set $i" for i = 1:length(params)])
+
+
+end

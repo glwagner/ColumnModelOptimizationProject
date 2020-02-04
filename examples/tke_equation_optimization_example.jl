@@ -1,38 +1,42 @@
 using 
     OceanTurb,
+    PyPlot,
     Dao,
+    Distributions,
     ColumnModelOptimizationProject
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization: ColumnModel, WindMixingParameters
 
-struct TestParameters{T} <: FreeParameters{1, T}
-    CDe :: T
-end
-
-Base.similar(p::TestParameters{T}) where T = TestParameters{T}(0)
-
 datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
+
+# Model and data
 data = ColumnData(datapath)
-model = ColumnModel(data, 5minute, N=64)
+model = ColumnModel(data, 10second, N=32)
 
-@show default_parameters = DefaultFreeParameters(model, WindMixingParameters)
-standard_deviation = [1e-1 for i = 1:length(default_parameters)]
-bounds = [(0.0, 3.0) for i = 1:length(default_parameters)]
+# Create loss function and negative-log-likelihood object
+fields = (:U, :V, :T, :e)
+#step = 50; targets = (step+1):step:401
+targets = 21:401
+loss = TimeAveragedLossFunction(data, targets=targets, fields=fields, weights=nothing)
+nll = NegativeLogLikelihood(model, data, loss)
 
-loss_function = TimeAveragedLossFunction(data, targets=21:20:length(data), fields=(:U, :V, :T))
+# Initial state for optimization step
+default_parameters = DefaultFreeParameters(model, WindMixingParameters)
+initial_covariance = Array([1e-2 for p in default_parameters])
+bounds = [(0.0, 3.0) for p in default_parameters]
 
-nll = NegativeLogLikelihood(model, data, loss_function)
+println("Optimizing...")
+initial_iterations = 1000
+covariance, chains = optimize(nll, default_parameters, initial_covariance,
+                              BoundedNormalPerturbation, bounds,
+                              samples = iter -> round(Int, initial_iterations/sqrt(iter)),
+                              schedule = (nll, iter, link) -> exp(-iter+1) * link.error,
+                              niterations=4)
 
-@show variances = max_variance(data, loss_function)
+@show optimal_link = optimal(chains[end])
+optimal_parameters = optimal_link.param
 
-#=
-# Estimate the covariance matrix
-covariance, chain = estimate_covariance(nll, default_parameters, standard_deviation, 
-                                        BoundedNormalPerturbation, bounds, 
-                                        samples=iter->1000, niterations=2)
+visualize_realizations(model, data, [step+1, 401], default_parameters, optimal_parameters, 
+                       fields=(:U, :V, :T, :e))
 
-@show optimal_link = optimal(chain)
-
-visualize_realizations(model, data, loss_function.targets[[1, length(loss_function.targets)]], 
-                       default_parameters, optimal_link.param)
-                       =#
+plot_loss_function(loss, model, data, default_parameters, optimal_parameters)

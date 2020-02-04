@@ -2,7 +2,7 @@
 ##### ColumnModel
 #####
 
-struct ColumnModel{M<:AbstractModel, T}
+mutable struct ColumnModel{M<:AbstractModel, T}
     model :: M
        Δt :: T
 end
