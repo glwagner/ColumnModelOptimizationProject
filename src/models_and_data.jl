@@ -12,10 +12,23 @@ Base.getproperty(m::ColumnModel, ::Val{p}) where p = getproperty(m.model, p)
 Base.getproperty(m::ColumnModel, ::Val{:Δt}) = getfield(m, :Δt)
 Base.getproperty(m::ColumnModel, ::Val{:model}) = getfield(m, :model)
 
+function get_free_parameters(cm::ColumnModel)
+    paramnames = Dict()
+    paramtypes = Dict()
+    for pname in propertynames(cm.model)
+        p = getproperty(cm.model, pname)
+        if typeof(p) <: OceanTurb.AbstractParameters
+            paramnames[pname] = propertynames(p)
+            paramtypes[pname] = typeof(p)
+        end
+    end
+    return paramnames, paramtypes
+end
+
 function set!(cm::ColumnModel, freeparams::FreeParameters{N, T}) where {N, T}
 
     paramnames, paramtypes = get_free_parameters(cm)
-    paramdicts = Dict( ( ptypename, Dict{Symbol, T}() ) for ptypename in keys(paramtypes))
+    paramdicts = Dict(( ptypename, Dict{Symbol, T}() ) for ptypename in keys(paramtypes))
 
     # Filter freeparams into their appropriate category
     for pname in propertynames(freeparams)
@@ -34,7 +47,6 @@ function set!(cm::ColumnModel, freeparams::FreeParameters{N, T}) where {N, T}
 
     return nothing
 end
-
 
 #####
 ##### ColumnData

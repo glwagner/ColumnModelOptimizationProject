@@ -66,19 +66,6 @@ dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
 
 set!(::Nothing, args...) = nothing # placeholder
 
-function get_free_parameters(cm)
-    paramnames = Dict()
-    paramtypes = Dict()
-    for pname in propertynames(cm.model)
-        p = getproperty(cm.model, pname)
-        if typeof(p) <: OceanTurb.AbstractParameters
-            paramnames[pname] = propertynames(p)
-            paramtypes[pname] = typeof(p)
-        end
-    end
-    return paramnames, paramtypes
-end
-
 function DefaultFreeParameters(cm, freeparamtype)
     paramnames, paramtypes = get_free_parameters(cm)
 
