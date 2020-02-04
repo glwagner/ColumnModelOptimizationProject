@@ -23,6 +23,7 @@ export
 
     # visualization.jl
     visualize_realizations,
+    visualize_loss_function,
     plot_loss_function,
 
     # loss_functions.jl
