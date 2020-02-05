@@ -44,7 +44,7 @@ end
 @inline get_weight(weights::VarianceWeights, field_index, target_index) = 
     @inbounds weights.variances[field_index][target_index]
 
-@inline squared_absolute_error(model_field, data_field) = absolute_error(model_field, data_field)^2
+@inline squared_absolute_error(model_field, data_field) = absolute_error(data_field, model_field)^2
 
 "Returns a weighted sum of the absolute error over `fields` of `model` and `data`."
 function weighted_error(fields::Tuple, weights, model, data, target_index)
