@@ -5,7 +5,7 @@ using
     Distributions,
     ColumnModelOptimizationProject
 
-using ColumnModelOptimizationProject.TKEMassFluxOptimization: WindMixingParameters
+using ColumnModelOptimizationProject.TKEMassFluxOptimization: WindMixingFixedPrandtlParameters
 
 #datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
 datapath = "stress_driven_Nsq1.6e-05_f0.0e+00_Qu1.0e-04_Nh128_Nz128_averages.jld2"
@@ -19,17 +19,17 @@ targets = 801:21:1601
 fields = (:T, :e)
 max_variances = [max_variance(data, field, targets) for field in fields]
 @show max_variances ./= maximum(max_variances)
-weights = (1, 10 * max_variances[2])
+weights = (1, 100 * max_variances[2])
 loss = TimeAveragedLossFunction(data, targets=targets, fields=fields, weights=weights)
 nll = NegativeLogLikelihood(model, data, loss)
 
 # Initial state for optimization step
-default_parameters = DefaultFreeParameters(model, WindMixingParameters)
+default_parameters = DefaultFreeParameters(model, WindMixingFixedPrandtlParameters)
 initial_covariance = Array([1e-3 for p in default_parameters])
 bounds = [(0.0, 3.0) for p in default_parameters]
 
 println("Optimizing...")
-initial_iterations = 100
+initial_iterations = 2000
 covariance, chains = optimize(nll, default_parameters, initial_covariance,
                               BoundedNormalPerturbation, bounds,
                               samples = iter -> round(Int, initial_iterations/sqrt(iter)),
