@@ -150,7 +150,7 @@ end
 
 function calculate_error!(error, model, data)
     set!(error, data)
-    for i in eachindex(errorfield)
+    for i in eachindex(error)
         @inbounds error[i] = (model[i] - data[i])^2
     end
     return nothing
@@ -158,13 +158,14 @@ end
 
 function visualize_loss_function(loss, model, data, target_index, params...;
                                  labels=["Parameter set $i" for i = 1:length(params)],
-                                 figsize = (10, 4),
-                                 legendkwargs = Dict())
+                                 figsize=(10, 4),
+                                 legendkwargs=Dict())
 
     legendkwargs = merge(default_legendkwargs, legendkwargs)
 
     ϕerror = CellField(model.grid)
 
+    fields = loss.fields isa Symbol ? (loss.fields,) : loss.fields
     fig, axs = subplots(ncols=length(fields), figsize=figsize, sharey=true)
 
     for (iparam, param) in enumerate(params)
@@ -174,11 +175,11 @@ function visualize_loss_function(loss, model, data, target_index, params...;
 
         for (i, field) in enumerate(fields)
             ϕmodel = getproperty(model.solution, field)
-            ϕdata = getproperty(data, field)
+            ϕdata = getproperty(data, field)[target_index]
 
-            calculate_error(ϕerror, ϕmodel, ϕdata)
+            calculate_error!(ϕerror, ϕmodel, ϕdata)
 
-            sca(axs[ipanel])
+            sca(axs[i])
             plot(ϕerror; color=defaultcolors[iparam], label=labels[iparam])
         end
     end
