@@ -7,34 +7,36 @@ using
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization: WindMixingFixedPrandtlParameters
 
-#datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
-datapath = "stress_driven_Nsq1.6e-05_f0.0e+00_Qu1.0e-04_Nh128_Nz128_averages.jld2"
+datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
+#datapath = "stress_driven_Nsq1.6e-05_f0.0e+00_Qu1.0e-04_Nh128_Nz128_averages.jld2"
 
 # Model and data
 data = ColumnData(datapath)
 model = TKEMassFluxOptimization.ColumnModel(data, 1minute, N=32)
 
 # Create loss function and negative-log-likelihood object
-targets = 801:21:1601
-fields = (:T, :e)
+targets = 21:21:401
+#fields = (:U, :V, :T)
+fields = (:T,)
 max_variances = [max_variance(data, field, targets) for field in fields]
 @show max_variances ./= maximum(max_variances)
-weights = (1, 100 * max_variances[2])
+
+weights = 1 ./ max_variances
 loss = TimeAveragedLossFunction(data, targets=targets, fields=fields, weights=weights)
 nll = NegativeLogLikelihood(model, data, loss)
 
 # Initial state for optimization step
 default_parameters = DefaultFreeParameters(model, WindMixingFixedPrandtlParameters)
-initial_covariance = Array([1e-3 for p in default_parameters])
-bounds = [(0.0, 3.0) for p in default_parameters]
+initial_covariance = Array([1e-1 for p in default_parameters])
+bounds = [(0.0, 10.0) for p in default_parameters]
 
 println("Optimizing...")
-initial_iterations = 2000
+initial_iterations = 1000
 covariance, chains = optimize(nll, default_parameters, initial_covariance,
                               BoundedNormalPerturbation, bounds,
-                              samples = iter -> round(Int, initial_iterations/sqrt(iter)),
+                              samples = iter -> round(Int, initial_iterations/iter),
                               schedule = (nll, iter, link) -> link.error / iter^4,
-                              niterations=4)
+                              niterations=2)
 
 @show optimal_link = optimal(chains[end])
 optimal_parameters = optimal_link.param

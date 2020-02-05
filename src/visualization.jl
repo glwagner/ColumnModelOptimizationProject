@@ -165,8 +165,12 @@ function visualize_loss_function(loss, model, data, target_index, params...;
 
     ϕerror = CellField(model.grid)
 
+    # Some shenanigans so things like 'enumerate' work good.
     fields = loss.fields isa Symbol ? (loss.fields,) : loss.fields
+
     fig, axs = subplots(ncols=length(fields), figsize=figsize, sharey=true)
+
+    axs = loss.fields isa Symbol ? [axs] : axs
 
     for (iparam, param) in enumerate(params)
         set!(model, param)
