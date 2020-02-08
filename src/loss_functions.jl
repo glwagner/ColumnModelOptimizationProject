@@ -1,86 +1,135 @@
-nan2inf(err) = isnan(err) ? Inf : err
-
-function trapz(f, t)
-    @inbounds begin
-        integral = zero(eltype(t))
-        for i = 2:length(t)
-            integral += (f[i] + f[i-1]) * (t[i] - t[i-1])
-        end
-    end
-    return integral
-end
-
-function initialize_forward_run!(model, data, params, index)
-    set!(model, params)
-    set!(model, data, index)
-    model.clock.iter = 0
-    return nothing
-end
-
-struct VarianceWeights{F, D, T, V}
-       fields :: F
-         data :: D
-      targets :: T
-    variances :: V
-end
-
-@inbounds normalize_variance(::Nothing, field, σ) = σ
-
-function VarianceWeights(data; fields, targets=1:length(data), normalizer=nothing)
-    variances = (; zip(fields, (zeros(length(targets)) for field in fields))...)
-
-    for (k, field) in enumerate(fields)
-        for i in 1:length(targets)
-            @inbounds variances[k][i] = normalize_variance(normalizer, field, variance(data, field, i))
-        end
-    end
-
-    return VarianceWeights(fields, data, targets, variances)
-end
-
-
-@inline get_weight(weights, field_index, target_index) = @inbounds weights[field_index]
-@inline get_weight(::Nothing, field_index, target_index) = 1
-@inline get_weight(weights::VarianceWeights, field_index, target_index) = 
-    @inbounds weights.variances[field_index][target_index]
-
-@inline squared_absolute_error(model_field, data_field) = absolute_error(data_field, model_field)^2
-
-"Returns a weighted sum of the absolute error over `fields` of `model` and `data`."
-function weighted_error(fields::Tuple, weights, model, data, target_index)
-    total_err = zero(eltype(model.grid))
-
-    for (field_index, field) in enumerate(fields)
-        field_err = squared_absolute_error(getproperty(model.solution, field), 
-                                           getproperty(data, field)[target_index])
-
-        total_err += get_weight(weights, field_index, target_index) * field_err # accumulate error
-    end
-
-    return nan2inf(total_err)
-end
-
-"Returns the absolute error between `model.solution.field` and `data.field`."
-weighted_error(field::Symbol, ::Nothing, model, data, target_index) =
-    nan2inf(squared_absolute_error(getproperty(model.solution, field), getproperty(data, field)[target_index]))
+#
+# A "master" loss function type
+#
 
 """
     struct LossFunction{A, T, F, W, S, M}
 
-A loss function that computes an `analysis` of type `A` on an error time series
-generated from multiple fields.
+A loss function for the analysis of single column models.
 """
-struct LossFunction{A, T, F, W, S, M}
-   analysis :: A
-    targets :: T
-     fields :: F
-    weights :: W
-      error :: S
-       time :: M
+struct LossFunction{R, F, W, T, P}
+        targets :: R
+         fields :: F
+        weights :: W
+    time_series :: T
+        profile :: P
 end
 
-LossFunction(analysis, data; fields, targets=1:length(data.t), weights=nothing) =
-    LossFunction(analysis, targets, fields, weights, zeros(length(targets)), [data.t[i] for i in targets])
+function LossFunction(model, data; fields,
+                          targets = 1:length(data.t), 
+                          weights = nothing,
+                      time_series = TimeSeriesAnalysis(data.t[targets], TimeAverage()),
+                          profile = SimpleProfileAnalysis(model.grid)
+)
+
+    return LossFunction(targets, fields, weights, time_series, profile)
+end
+
+function (loss::LossFunction)(parameters, model_plus_Δt, data)
+    evaluate!(loss, parameters, model_plus_Δt, data)
+    return loss.time_series.analysis(loss.time_series.data, loss.time_series.time)
+end
+
+#
+# Time analysis
+#
+
+struct TimeSeriesAnalysis{T, D, A}
+        time :: T
+        data :: D
+    analysis :: A
+end
+
+TimeSeriesAnalysis(time, analysis) = TimeSeriesAnalysis(time, zeros(length(time)), analysis)
+
+struct TimeAverage end
+
+@inline (::TimeAverage)(data, time) = trapz(data, time) / (time[end] - time[1])
+
+#
+# Profile analysis
+#
+
+"""
+    struct SimpleProfileAnalysis{D, A}
+
+A type for doing simple analyses on a discrepency profile located
+at cell centers. Defaults to taking the mean square difference between
+the model and data coarse-grained to the model grid.
+"""
+struct SimpleProfileAnalysis{D, A}
+    discrepency :: D
+       analysis :: A
+end
+
+SimpleProfileAnalysis(grid; analysis=mean) = SimpleProfileAnalysis(CellField(grid), analysis)
+
+function calculate_discrepency!(simple, model_field, data_field)
+    coarse_grained = discrepency = simple.discrepency
+    set!(coarse_grained, data_field)
+
+    for i in eachindex(discrepency)
+        @inbounds discrepency[i] = (coarse_grained[i] - model_field[i])^2
+    end
+    return nothing
+end
+
+"""
+    analyze_profile_discrepency(simple, model_field, data_field)
+
+Store a profile of the discrepency between the `model_field` and `data_field`,
+store in `simple.discrepency`, and return `simple.analysis(discrepency)`.
+"""
+function analyze_profile_discrepency(simple, model_field, data_field)
+    calculate_discrepency!(simple, model_field, data_field)
+    return simple.analysis(simple.discrepency)
+end
+
+#
+# Loss function utils
+#
+
+@inline get_weight(::Nothing, field_index) = 1
+@inline get_weight(weights, field_index) = @inbounds weights[field_index]
+
+function analyze_weighted_profile_discrepency(loss, model, data, target)
+    total_discrepency = zero(eltype(model.grid))
+    field_names = Tuple(loss.fields)
+
+    for (field_index, field_name) in enumerate(field_names)
+        model_field = getproperty(model.solution, field_name)
+        data_field = getproperty(data, field_name)[target]
+
+        # Calculate the per-field profile-based disrepency
+        field_discrepency = analyze_profile_discrepency(loss.profile, model_field, data_field)
+
+        # Accumulate weighted profile-based disrepencies in the total discrepencyor
+        total_discrepency += get_weight(loss.weights, field_index) * field_discrepency # accumulate discrepencyor
+    end
+
+    return nan2inf(total_discrepency)
+end
+
+function evaluate!(loss, parameters, model_plus_Δt, data)
+
+    # Initialize
+    initialize_forward_run!(model_plus_Δt, data, parameters, loss.targets[1])
+    @inbounds loss.time_series.data[1] = analyze_weighted_profile_discrepency(loss, model_plus_Δt, data, 1)
+
+    # Calculate a loss function time-series
+    for (i, target) in enumerate(loss.targets)
+        run_until!(model_plus_Δt.model, model_plus_Δt.Δt, data.t[target])
+
+        @inbounds loss.time_series.data[i] = 
+            analyze_weighted_profile_discrepency(loss, model_plus_Δt, data, target) 
+    end
+
+    return nothing
+end
+
+#
+# Miscellanea
+#
 
 function max_variance(data, loss::LossFunction)
     max_variances = zeros(length(loss.fields))
@@ -88,38 +137,4 @@ function max_variance(data, loss::LossFunction)
         max_variances[ifield] = get_weight(weight, ifield) * max_variance(data, field, loss.targets)
     end
     return max_variances
-end
-
-function evaluate_error_time_series!(loss, parameters, whole_model, data)
-
-    # Initialize
-    initialize_forward_run!(whole_model, data, parameters, loss.targets[1])
-    @inbounds loss.error[1] = weighted_error(loss.fields, loss.weights, whole_model, data, 1)
-
-    # Calculate a time-series of the error
-    for target_index in 2:length(loss.targets)
-        target = loss.targets[target_index]
-        run_until!(whole_model.model, whole_model.Δt, data.t[target])
-
-        @inbounds loss.error[target_index] = 
-            weighted_error(loss.fields, loss.weights, whole_model, data, target_index)
-    end
-
-    return nothing
-end
-
-const evaluate! = evaluate_error_time_series!
-
-#
-# Analysis types
-#
-
-struct TimeAverage end
-
-const TimeAveragedLossFunction = LossFunction{<:TimeAverage}
-TimeAveragedLossFunction(args...; kwargs...) = LossFunction(TimeAverage(), args...; kwargs...)
-
-function (loss::TimeAveragedLossFunction)(parameters, whole_model, data)
-    evaluate_error_time_series!(loss, parameters, whole_model, data)
-    return trapz(loss.error, loss.time) / (loss.time[end] - loss.time[1])
 end

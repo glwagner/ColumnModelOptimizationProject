@@ -36,7 +36,7 @@ their respective components of the `OceanTurb.TKEMassFlux.Model`.
 function simple_tke_model(constants=Constants(); N=128, L, dTdz, dSdz,
                            Qᶿ=0.0, Qˢ=0.0, Qᵘ=0.0, Qᵛ=0.0, T₀=20.0, S₀=35.0,
                              tke_equation = TKEMassFlux.TKEParameters(),
-                           tke_wall_model = TKEMassFlux.SurfaceFluxScaling(),
+                           tke_wall_model = TKEMassFlux.SurfaceTKEProductionModel(),
                             mixing_length = TKEMassFlux.EquilibriumMixingLength(),
                             nonlocal_flux = nothing,
                            kwargs...)

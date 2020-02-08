@@ -23,9 +23,40 @@ function plot_data!(axs, data, targets, fields; datastyle="-", datakwargs...)
     return nothing
 end
 
+function label_ax!(ax, field)
+    if field === :U
+        sca(ax)
+        xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+    end
+
+    if field === :V
+        sca(ax)
+        xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
+    end
+
+    if field === :T
+        sca(ax)
+        xlabel("Temperature (Celsius)")
+    end
+
+    if field === :S
+        sca(ax)
+        xlabel("Salinity (psu)")
+    end
+
+    if field === :e
+        sca(ax)
+        xlabel("\$ e \$ \$ \\mathrm{(m^2 \\, s^{-2})} \$")
+    end
+
+    return nothing
+end
+
+
 function format_axs!(axs, fields; legendkwargs...)
     sca(axs[1])
     removespines("top", "right")
+    ylabel(L"z \, \mathrm{(meters)}")
     legend(; legendkwargs...)
 
     for iax in 2:length(axs)-1
@@ -34,38 +65,15 @@ function format_axs!(axs, fields; legendkwargs...)
         axs[iax].tick_params(left=false, labelleft=false)
     end
 
-    sca(axs[end])
-    axs[end].yaxis.set_label_position("right")
-    axs[end].tick_params(left=false, labelleft=false, right=true, labelright=true)
-    removespines("top", "left")
-    ylabel(L"z \, \mathrm{(meters)}")
-
-    for (i, ax) in enumerate(axs)
-        if fields[i] === :U
-            sca(ax)
-            xlabel("\$ U \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-        end
-
-        if fields[i] === :V
-            sca(ax)
-            xlabel("\$ V \$ velocity \$ \\mathrm{(m \\, s^{-1})} \$")
-        end
-
-        if fields[i] === :T
-            sca(ax)
-            xlabel("Temperature (Celsius)")
-        end
-
-        if fields[i] === :S
-            sca(ax)
-            xlabel("Salinity (psu)")
-        end
-
-        if fields[i] === :e
-            sca(ax)
-            xlabel("\$ e \$ \$ \\mathrm{(m^2 \\, s^{-2})} \$")
-        end
+    if length(fields) > 1
+        sca(axs[end])
+        axs[end].yaxis.set_label_position("right")
+        axs[end].tick_params(left=false, labelleft=false, right=true, labelright=true)
+        removespines("top", "left")
+        ylabel(L"z \, \mathrm{(meters)}")
     end
+
+    [label_ax!(ax, fields[i]) for (i, ax) in enumerate(axs)]
 
     return nothing
 end
@@ -135,7 +143,7 @@ function plot_loss_function(loss, model, data, params...;
 
     for (i, param) in enumerate(params)
         evaluate!(loss, param, model, data)
-        plot(loss.time / numerical_time_norm, loss.error, label=labels[i])
+        plot(loss.time_series.time / numerical_time_norm, loss.time_series.data, label=labels[i])
     end
 
     removespines("top", "right")
@@ -161,34 +169,74 @@ function visualize_loss_function(loss, model, data, target_index, params...;
                                  figsize=(10, 4),
                                  legendkwargs=Dict())
 
+    target = loss.targets[target_index]
+    ϕerror = loss.profile.discrepency
     legendkwargs = merge(default_legendkwargs, legendkwargs)
-
-    ϕerror = CellField(model.grid)
 
     # Some shenanigans so things like 'enumerate' work good.
     fields = loss.fields isa Symbol ? (loss.fields,) : loss.fields
 
-    fig, axs = subplots(ncols=length(fields), figsize=figsize, sharey=true)
-
-    axs = loss.fields isa Symbol ? [axs] : axs
+    fig, axs = subplots(nrows=2, ncols=length(fields), figsize=figsize, sharey=true)
 
     for (iparam, param) in enumerate(params)
-        set!(model, param)
-        set!(model, data, loss.targets[1])
-        run_until!(model.model, model.Δt, data.t[target_index])
+        initialize_forward_run!(model, data, param, loss.targets[1])
+        run_until!(model.model, model.Δt, data.t[target])
+        evaluate!(loss, param, model, data)
 
         for (i, field) in enumerate(fields)
             ϕmodel = getproperty(model.solution, field)
-            ϕdata = getproperty(data, field)[target_index]
+            ϕdata = getproperty(data, field)[target]
+            calculate_discrepency!(loss.profile, ϕmodel, ϕdata)
 
-            calculate_error!(ϕerror, ϕmodel, ϕdata)
+            if iparam == 1
+                sca(axs[1, i])
+                plot(ϕdata; linestyle="-", color=defaultcolors[iparam])
+            end
 
-            sca(axs[i])
-            plot(ϕerror; color=defaultcolors[iparam], label=labels[iparam])
+            sca(axs[1, i])
+            plot(ϕmodel; linestyle="--", color=defaultcolors[iparam], 
+                    label="Model, " * labels[iparam])
+
+            sca(axs[2, i])
+            error_label = @sprintf("Loss = %.2e, %s", loss.profile.analysis(loss.profile.discrepency), 
+                                   labels[iparam])
+
+            plot(ϕerror; linestyle="-", color=defaultcolors[iparam], label=error_label)
         end
     end
 
-    format_axs!(axs, loss.fields; legendkwargs...)
+    pause(0.1)
+    format_axs!(axs[1, :], loss.fields; legendkwargs...)
+
+    pause(0.1)
+    format_axs!(axs[2, :], loss.fields; legendkwargs...)
 
     return nothing
+end
+
+function visualize_markov_chain!(ax, chain, parameter; after=1, bins=100, alpha=0.6, density=true,
+                                 facecolor="b")
+
+    parameters = propertynames(chain[1].param)
+    samples = Dao.params(chain, after=after)
+
+    C = map(x->getproperty(x, parameter), samples)
+
+    sca(ax)
+    cla()
+    ρ, _, _ = plt.hist(C, bins=bins, alpha=alpha, density=true, facecolor=facecolor)
+
+    ρmax = maximum(ρ)
+
+    C_optimal = getproperty(optimal(chain).param, parameter)
+    C_median = median(C)
+    C_mean = mean(C)
+
+    plot(C_optimal, 1.2ρmax, "*"; color=facecolor, linestyle="None", markersize=8)
+    plot(C_median , 1.2ρmax, "o"; color=facecolor, linestyle="None", markersize=8)
+    plot(C_mean   , 1.2ρmax, "^"; color=facecolor, linestyle="None", markersize=8)
+
+    pause(0.1)
+
+    return ρ
 end

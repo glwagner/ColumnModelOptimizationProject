@@ -24,13 +24,15 @@ export
     # visualization.jl
     visualize_realizations,
     visualize_loss_function,
+    visualize_markov_chain!,
     plot_loss_function,
 
     # loss_functions.jl
     evaluate!,
-    weighted_error,
+    analyze_weighted_profile_discrepency,
     VarianceWeights,
-    TimeAveragedLossFunction,
+    LossFunction,
+    TimeAverage,
 
     # data_analysis.jl
     removespines,
@@ -46,7 +48,8 @@ using
     OceanTurb,
     JLD2,
     OffsetArrays,
-    Printf
+    Printf,
+    Dao
 
 include(joinpath(pathof(OceanTurb), "..", "..", "plotting", "OceanTurbPyPlotUtils.jl") )
 

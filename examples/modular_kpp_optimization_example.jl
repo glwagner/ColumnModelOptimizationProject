@@ -5,6 +5,8 @@ using
     ColumnModelOptimizationProject, 
     ColumnModelOptimizationProject.ModularKPPOptimization
 
+using Statistics: mean
+
 function plot_two_errors(loss, model, data, param1, param2; labels=["Default", "Optimal"])
     fig, axs = subplots()
 
@@ -25,7 +27,7 @@ model = ModularKPPOptimization.ColumnModel(data, 5minute, N=32)
 
 fields = (:U, :T)
 targets = 101:100:1601
-loss_function = TimeAveragedLossFunction(data, targets=targets, fields=fields, weights=nothing)
+loss_function = LossFunction(TimeAverage(mean), model, data, targets=targets, fields=fields, weights=nothing)
 nll = NegativeLogLikelihood(model, data, loss_function)
 
 default_parameters = DefaultFreeParameters(model, WindMixingParameters)

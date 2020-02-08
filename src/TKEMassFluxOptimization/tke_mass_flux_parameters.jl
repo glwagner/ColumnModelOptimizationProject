@@ -8,10 +8,9 @@
     return eval(expr)
 end
 
-Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{8, T}
+Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{7, T}
      Cᴸᵏ :: T
      Cᴸᵇ :: T
-     Cᴸᵟ :: T
       Cᴰ :: T
       Cᴷ :: T
     Cᴾʳᵩ :: T
@@ -19,10 +18,9 @@ Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{8, T}
     Cʷu★ :: T
 end
 
-Base.@kwdef mutable struct WindMixingFixedPrandtlParameters{T} <: FreeParameters{7, T}
+Base.@kwdef mutable struct WindMixingFixedPrandtlParameters{T} <: FreeParameters{6, T}
      Cᴸᵏ :: T
      Cᴸᵇ :: T
-     Cᴸᵟ :: T
       Cᴰ :: T
       Cᴷ :: T
     Cᴾʳₑ :: T

@@ -117,6 +117,15 @@ function ColumnData(datapath)
     T = [ CellField(get_data("T", datapath, iter), grid) for iter in iters ]
     e = [ CellField(get_data("E", datapath, iter), grid) for iter in iters ]
 
+    for (i, iter) in enumerate(iters)
+        u² = get_data("U²", datapath, iter) 
+        v² = get_data("V²", datapath, iter) 
+        w² = get_data("W²", datapath, iter) 
+
+        @. e[i].data[1:N] = ( u²[1:N] - U[i][1:N]^2 + v²[1:N] - V[i][1:N]^2 
+                                + 1/2 * (w²[1:N] + w²[2:N+1]) ) / 2
+    end
+
     S = nothing
 
     try
