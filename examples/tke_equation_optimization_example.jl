@@ -14,26 +14,29 @@ datapath = "stress_driven_Nsq1.6e-05_f0.0e+00_Qu1.0e-04_Nh128_Nz128_averages.jld
 
 # Model and data
 data = ColumnData(datapath)
-model = TKEMassFluxOptimization.ColumnModel(data, 1minute, N=32, 
+model = TKEMassFluxOptimization.ColumnModel(data, 1minute, N=64,
                                             mixing_length=TKEMassFlux.SimpleMixingLength())
 
 # Create loss function and negative-log-likelihood object
 targets = 51:10:401
-fields = (:T, :U, :e)
+fields = (:T, :U)
 
 max_variances = [max_variance(data, field) for field in fields]
 weights = [1/σ for σ in max_variances]
-weights[1] *= 10
-weights[3] /= 2
+weights[1] *= 100
 
 loss = LossFunction(model, data, fields=fields, targets=targets, weights=weights)
 nll = NegativeLogLikelihood(model, data, loss)
 
-mutable struct TestParameters{T} <: FreeParameters{3, T}
+@free_parameters TestParameters Cᴷᵤ Cᴷₑ Cᴾʳ
+
+#=
+Base.@kwdef mutable struct TestParameters{T} <: FreeParameters{3, T}
      Cᴷᵤ :: T
      Cᴷₑ :: T
      Cᴾʳ :: T
 end
+=#
 
 # Initial state for optimization step
 ParameterSet = TestParameters
@@ -71,7 +74,7 @@ visualize_loss_function(loss, model, data, length(loss.targets), default_paramet
 
 chain = chains[end]
 
-parameters_to_plot = (:Cᴰ, :Cᴷᵤ, :Cᴷₑ, :Cᴾʳ, :Cʷu★)
+parameters_to_plot = propertynames(default_parameters) #(:Cᴰ, :Cᴷᵤ, :Cᴷₑ, :Cᴾʳ, :Cʷu★)
 fig, axs = subplots(nrows=length(parameters_to_plot), figsize=(5, 8))
 
 for i = 1:3

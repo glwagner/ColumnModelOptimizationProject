@@ -14,7 +14,11 @@ parameter_latex_guide = Dict(
       :Cᴷₑ => L"C^K_e",
       :Cᴾʳ => L"C^\mathrm{Pr}",
       :Cʷu★ => L"C^w_{u_\star}",
+      :Cᴸʷ => L"C^\ell_w",
+      :Cᴸᵇ => L"C^\ell_b",
 )
+
+@free_parameters WindMixingParameters Cᴸʷ Cᴸᵇ Cᴰ Cᴷᵤ Cᴾʳ Cᴷₑ Cʷu★
 
 #
 # Basic functionality
@@ -36,6 +40,5 @@ function set!(cm::ColumnModelOptimizationProject.ColumnModel{<:TKEMassFlux.Model
 end
 
 include("tke_mass_flux_models.jl")
-include("tke_mass_flux_parameters.jl")
 
 end # module

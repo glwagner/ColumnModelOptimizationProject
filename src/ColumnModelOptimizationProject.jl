@@ -5,6 +5,7 @@ export
     FreeParameters,
     DefaultFreeParameters,
     get_free_parameters,
+    @free_parameters,
 
     # utils
     variance,
@@ -62,7 +63,8 @@ import Base: length
 abstract type FreeParameters{N, T} <: FieldVector{N, T} end
 
 function Base.similar(p::FreeParameters{N, T}) where {N, T}
-    return eval(Expr(:call, typeof(p).name, (zero(T) for i = 1:N)...))
+    P = typeof(p).name.wrapper
+    return P((zero(T) for i=1:N)...)
 end
 
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
@@ -82,6 +84,16 @@ function DefaultFreeParameters(cm, freeparamtype)
     end
 
     eval(Expr(:call, freeparamtype, freeparams...))
+end
+
+macro free_parameters(GroupName, parameter_names...)
+    N = length(parameter_names)
+    parameter_exprs = [:($name :: T; ) for name in parameter_names]
+    return esc(quote
+        Base.@kwdef mutable struct $GroupName{T} <: FreeParameters{$N, T}
+            $(parameter_exprs...)
+        end
+    end)
 end
 
 include("utils.jl")
