@@ -12,9 +12,9 @@ Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{7, T}
      Cᴸᵏ :: T
      Cᴸᵇ :: T
       Cᴰ :: T
-      Cᴷ :: T
-    Cᴾʳᵩ :: T
-    Cᴾʳₑ :: T
+     Cᴷᵤ :: T
+     Cᴾʳ :: T
+     Cᴷₑ :: T
     Cʷu★ :: T
 end
 
@@ -22,8 +22,8 @@ Base.@kwdef mutable struct WindMixingFixedPrandtlParameters{T} <: FreeParameters
      Cᴸᵏ :: T
      Cᴸᵇ :: T
       Cᴰ :: T
-      Cᴷ :: T
-    Cᴾʳₑ :: T
+     Cᴷᵤ :: T
+     Cᴷₑ :: T
     Cʷu★ :: T
 end
 
