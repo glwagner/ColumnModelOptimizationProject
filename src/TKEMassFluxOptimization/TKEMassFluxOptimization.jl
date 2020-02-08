@@ -1,13 +1,20 @@
 module TKEMassFluxOptimization
 
-export
-    WindMixingParameters
+export WindMixingParameters, WindMixingFixedPrandtlParameters, parameter_latex_guide
 
 using OceanTurb, PyPlot
 
 using ..ColumnModelOptimizationProject
 
 import ColumnModelOptimizationProject: set!
+
+parameter_latex_guide = Dict(
+      :Cᴰ => L"C^D",
+      :Cᴷᵤ => L"C^K_u",
+      :Cᴷₑ => L"C^K_e",
+      :Cᴾʳ => L"C^\mathrm{Pr}",
+      :Cʷu★ => L"C^w_{u_\star}",
+)
 
 #
 # Basic functionality

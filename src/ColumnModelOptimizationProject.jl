@@ -61,8 +61,8 @@ import Base: length
 
 abstract type FreeParameters{N, T} <: FieldVector{N, T} end
 
-function similar(p::FreeParameters{N, T}) where {N, T}
-    return eval(Expr(:call, typeof(p), (zero(T) for i = 1:N)...))
+function Base.similar(p::FreeParameters{N, T}) where {N, T}
+    return eval(Expr(:call, typeof(p).name, (zero(T) for i = 1:N)...))
 end
 
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))

@@ -9,7 +9,7 @@
 end
 
 Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{7, T}
-     Cᴸᵏ :: T
+     Cᴸʷ :: T
      Cᴸᵇ :: T
       Cᴰ :: T
      Cᴷᵤ :: T
@@ -19,7 +19,7 @@ Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{7, T}
 end
 
 Base.@kwdef mutable struct WindMixingFixedPrandtlParameters{T} <: FreeParameters{6, T}
-     Cᴸᵏ :: T
+     Cᴸʷ :: T
      Cᴸᵇ :: T
       Cᴰ :: T
      Cᴷᵤ :: T
@@ -38,4 +38,3 @@ for parameter_set in tke_parameter_sets
             $parameter_set{T}(zeros(length(p))...)
     end
 end
-        
