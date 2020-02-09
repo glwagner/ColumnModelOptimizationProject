@@ -85,6 +85,7 @@ Visualize the data alongside several realizations of `column_model`
 for each set of parameters in `params`.
 """
 function visualize_realizations(column_model, column_data, targets, params::FreeParameters...;
+                                         fig = nothing,
                                      figsize = (10, 4),
                                  paramlabels = ["" for p in params], datastyle="-",
                                  modelkwargs = Dict(),
@@ -102,7 +103,15 @@ function visualize_realizations(column_model, column_data, targets, params::Free
     # Make plot
     #
 
-    fig, axs = subplots(ncols=length(fields), figsize=figsize, sharey=true)
+    if fig === nothing
+        fig, axs = subplots(ncols=length(fields), figsize=figsize, sharey=true)
+    else
+        axs = fig._get_axes()
+        for ax in axs
+            sca(ax)
+            cla()
+        end
+    end
 
     for (iparam, param) in enumerate(params)
         set!(column_model, param)
@@ -232,9 +241,9 @@ function visualize_markov_chain!(ax, chain, parameter; after=1, bins=100, alpha=
     C_median = median(C)
     C_mean = mean(C)
 
-    plot(C_optimal, 1.2ρmax, "*"; color=facecolor, linestyle="None", markersize=8)
-    plot(C_median , 1.2ρmax, "o"; color=facecolor, linestyle="None", markersize=8)
-    plot(C_mean   , 1.2ρmax, "^"; color=facecolor, linestyle="None", markersize=8)
+    plot(C_optimal, 1.2ρmax, "*"; mfc="None", mec=facecolor, linestyle="-", markersize=8)
+    plot(C_median , 1.2ρmax, "o"; mfc="None", mec=facecolor, linestyle="-", markersize=8)
+    plot(C_mean   , 1.2ρmax, "^"; mfc="None", mec=facecolor, linestyle="-", markersize=8)
 
     pause(0.1)
 

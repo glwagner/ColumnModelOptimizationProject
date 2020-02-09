@@ -10,9 +10,9 @@ import ColumnModelOptimizationProject: set!
 
 parameter_latex_guide = Dict(
       :Cᴰ => L"C^D",
-      :Cᴷᵤ => L"C^K_u",
-      :Cᴷₑ => L"C^K_e",
-      :Cᴾʳ => L"C^\mathrm{Pr}",
+      :Cᴷu => L"C^K_u",
+      :Cᴷe => L"C^K_e",
+      :CᴷPr => L"C^\mathrm{Pr}",
       :Cʷu★ => L"C^w_{u_\star}",
       :Cᴸʷ => L"C^\ell_w",
       :Cᴸᵇ => L"C^\ell_b",

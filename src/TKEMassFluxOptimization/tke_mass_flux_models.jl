@@ -5,11 +5,11 @@ function ColumnModel(cd::ColumnData, Δt; Δ=nothing, N=nothing, kwargs...)
     end
 
     model = simple_tke_model(cd.constants; N=N, L=cd.grid.L, 
-                              Qᶿ=cd.surface_fluxes.Qᶿ, Qˢ=cd.surface_fluxes.Qˢ,
-                              Qᵘ=cd.surface_fluxes.Qᵘ, Qᵛ=cd.surface_fluxes.Qᵛ,
-                              dTdz=cd.initial_conditions.dTdz, 
-                              dSdz=cd.initial_conditions.dSdz, 
-                              kwargs...)
+                             Qᶿ=cd.surface_fluxes.Qᶿ, Qˢ=cd.surface_fluxes.Qˢ,
+                             Qᵘ=cd.surface_fluxes.Qᵘ, Qᵛ=cd.surface_fluxes.Qᵛ,
+                             dTdz=cd.initial_conditions.dTdz, 
+                             dSdz=cd.initial_conditions.dSdz, 
+                             kwargs...)
 
     return ColumnModelOptimizationProject.ColumnModel(model, Δt)
 end

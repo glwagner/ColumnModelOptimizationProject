@@ -59,23 +59,23 @@ A time series of horizontally-averaged observational or LES data
 gridded as OceanTurb fields.
 """
 struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT}
-    surface_fluxes :: F
+        surface_fluxes :: F
     initial_conditions :: ICS
-    grid :: G
-    constants :: C
-    diffusivities :: D
-    U :: UU
-    V :: VV
-    T :: TΘ
-    S :: SS
-    e :: EE
-    t :: TT
+                  grid :: G
+             constants :: C
+         diffusivities :: D
+                     U :: UU
+                     V :: VV
+                     T :: TΘ
+                     S :: SS
+                     e :: EE
+                     t :: TT
 end
 
 """
     ColumnData(datapath)
 
-Construct ColumnData from a time-series of Oceananigans LES data.
+Construct ColumnData from a time-series of Oceananigans LES data saved at `datapath`.
 """
 function ColumnData(datapath)
 
@@ -86,7 +86,13 @@ function ColumnData(datapath)
     constants_dict[:α] = file["buoyancy/equation_of_state/α"]
     constants_dict[:β] = file["buoyancy/equation_of_state/β"]
     constants_dict[:g] = file["buoyancy/gravitational_acceleration"]
-    constants_dict[:f] = file["coriolis/f"]
+
+    try
+        constants_dict[:f] = file["coriolis/f"]
+    catch
+        constants_dict[:f] = 0.0
+    end
+
     close(file)
 
     constants = Constants(; constants_dict...)
@@ -137,6 +143,39 @@ function ColumnData(datapath)
     return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ, Qᵉ=0.0), (dTdz=dTdz, dSdz=dSdz),
                       grid, constants, (ν=background_ν, κ=background_κ),
                       U, V, T, S, e, t)
+end
+
+"""
+    ColumnData(data::ColumnData, coarse_grid)
+
+Returns `data::ColumnData` interpolated to `grid`.
+"""
+function ColumnData(data::ColumnData, grid)
+
+    U = [ CellField(grid) for t in data.t ]
+    V = [ CellField(grid) for t in data.t ]
+    T = [ CellField(grid) for t in data.t ]
+    e = [ CellField(grid) for t in data.t ]
+    S = nothing
+
+    for i = 1:length(iters)
+        set!(U[i], data.U[i])
+        set!(V[i], data.V[i])
+        set!(T[i], data.T[i])
+        set!(e[i], data.e[i])
+    end
+
+    return ColumnData(data.surface_fluxes,
+                      data.initial_conditions,
+                      grid,
+                      data.constants,
+                      data.diffusivities,
+                      U,
+                      V,
+                      T,
+                      S,
+                      e,
+                      data.t)
 end
 
 length(cd::ColumnData) = length(cd.t)
