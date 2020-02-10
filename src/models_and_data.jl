@@ -79,19 +79,20 @@ Construct ColumnData from a time-series of Oceananigans LES data saved at `datap
 """
 function ColumnData(datapath)
 
+    # For now, we assume salinity-less LES data.
+
     # For OceanTurb.Constants
     constants_dict = Dict()
 
     file = jldopen(datapath, "r")
     constants_dict[:α] = file["buoyancy/equation_of_state/α"]
-    constants_dict[:β] = file["buoyancy/equation_of_state/β"]
+    constants_dict[:β] = 0.0 #file["buoyancy/equation_of_state/β"]
     constants_dict[:g] = file["buoyancy/gravitational_acceleration"]
+    constants_dict[:f] = 0.0
 
     try
         constants_dict[:f] = file["coriolis/f"]
-    catch
-        constants_dict[:f] = 0.0
-    end
+    catch end
 
     close(file)
 

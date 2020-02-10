@@ -32,7 +32,11 @@ function set!(cm::ColumnModelOptimizationProject.ColumnModel{<:TKEMassFlux.Model
     set!(cm.model.solution.T, cd.T[i])
     set!(cm.model.solution.e, cd.e[i])
 
-    cd.S != nothing && set!(cm.model.solution.S, cd.S[i])
+    if cd.S === nothing 
+        set!(cm.model.solution.S, 0)
+    else
+        set!(cm.model.solution.S, cd.S[i])
+    end
 
     cm.model.clock.time = cd.t[i]
 
