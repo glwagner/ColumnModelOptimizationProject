@@ -117,7 +117,7 @@ version = "1.6.0"
 
 [[Dao]]
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "714defa307b8f2c25512829a214a8c11b1ac4b11"
+git-tree-sha1 = "1d2bab16fd37f7cd4e1e09ebac5d5f2f3623c830"
 repo-rev = "master"
 repo-url = "https://github.com/glwagner/Dao.jl.git"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
@@ -301,7 +301,7 @@ version = "0.8.0"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Printf", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "ba0b655768400c99c51c74bc043b43497faa2dce"
+git-tree-sha1 = "12402e14c7d4e375115ad5ca67cbbe991cde7b59"
 repo-rev = "master"
 repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
@@ -309,11 +309,11 @@ version = "0.2.3"
 
 [[Oceananigans]]
 deps = ["Adapt", "CUDAapi", "CUDAdrv", "CUDAnative", "CuArrays", "Dates", "FFTW", "GPUifyLoops", "JLD2", "LinearAlgebra", "Logging", "NCDatasets", "OffsetArrays", "OrderedCollections", "Printf", "Random", "Statistics", "Test"]
-git-tree-sha1 = "cac9d86736e63180be39b313c2764cc77bd9680f"
+git-tree-sha1 = "a9e9e490b9f8d9541597608b30a9d0a89b6b6b19"
 repo-rev = "master"
 repo-url = "https://github.com/climate-machine/Oceananigans.jl.git"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
-version = "0.20.0"
+version = "0.21.0"
 
 [[OffsetArrays]]
 git-tree-sha1 = "707e34562700b81e8aa13548eb6b23b18112e49b"

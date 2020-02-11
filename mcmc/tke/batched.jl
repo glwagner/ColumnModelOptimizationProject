@@ -8,4 +8,3 @@ include("utils.jl")
 LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
 
 LES_data = (LESbrary["kato, N²: 1e-5"], LESbrary["ekman, N²: 1e-5"])
-

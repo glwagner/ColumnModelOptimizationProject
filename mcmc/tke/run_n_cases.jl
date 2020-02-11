@@ -1,6 +1,6 @@
 using ColumnModelOptimizationProject, JLD2, Printf
 
-@free_parameters ParametersToOptimize Cᴷu Cᴷe CᴷPr Cᴰ Cᴸʷ Cᴸᵇ
+@free_parameters ParametersToOptimize Cᴷu Cᴷe CᴷPr Cᴰ Cᴸʷ Cᴸᵇ Cʷu★
 
 include("setup.jl")
 include("utils.jl")
@@ -10,12 +10,12 @@ LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulation
 prefix = "kato"
 
 LES_data = (
-            LESbrary["kato, N²: 1e-7"],
-            LESbrary["kato, N²: 2e-7"],
-            LESbrary["kato, N²: 5e-7"],
+            #LESbrary["kato, N²: 1e-7"],
+            #LESbrary["kato, N²: 2e-7"],
+            #LESbrary["kato, N²: 5e-7"],
             LESbrary["kato, N²: 1e-6"],
-            #LESbrary["kato, N²: 1e-5"],
-            #LESbrary["kato, N²: 1e-4"],
+            LESbrary["kato, N²: 1e-5"],
+            LESbrary["kato, N²: 1e-4"],
            )
 
    cases = []
@@ -24,18 +24,30 @@ optimals = []
   datums = []
   losses = []
 
-  for i = 1:length(LES_data)
+for i = 1:length(LES_data)
+
+    println("""
+
+    Calibrating a TKE, mass-flux model from LES data at 
+    
+    $(LES_data[i].filename)
+
+    Please stand by.
+    """)
+
     case = calibrate(joinpath(LESbrary_path, LES_data[i].filename),
-                             samples = 50000,
+                             samples = 2000,
                           iterations = 5,
                         first_target = LES_data[i].first,
                          last_target = LES_data[i].last,
-                                   Δ = 1.0,
+                                   Δ = 4.0,
                                   Δt = 1minute,
-                       #mixing_length = TKEMassFlux.EquilibriumMixingLength(),
-                       mixing_length = TKEMassFlux.SimpleMixingLength(),
-                      tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEValue(),
+                       mixing_length = TKEMassFlux.EquilibriumMixingLength(),
+                       #mixing_length = TKEMassFlux.SimpleMixingLength(),
+                      tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
                       )
+
+    println("Calibration to $LESbrary_path complete.")
 
     # Global optimal parameters
     C★ = optimal(case.markov_chains[end]).param
@@ -63,5 +75,7 @@ tick_labels = [ parameter_latex_guide[p] for p in propertynames(optimals[1]) ]
 xticks(0:length(tick_labels)-1, tick_labels)
 
 legend()
+
+axs.set_yscale("log")
 
 

@@ -1,4 +1,4 @@
-using Statistics, Distributions, PyPlot, OrderedCollections
+using Statistics, Distributions, PyPlot, OrderedCollections, Optim, JLD2, Printf
 using OceanTurb, Dao, ColumnModelOptimizationProject
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization
@@ -73,8 +73,6 @@ LESbrary = OrderedDict(
                            last = nothing),
                    )
 
-#@free_parameters ParametersToOptimize Cᴷu Cᴷe CᴷPr Cᴰ Cᴸʷ Cʷu★ Cᴸᵇ
-
 function initialize_calibration(dataname; Δ=4, Δt=10second, first_target=5, last_target=nothing, fields=(:T, :U, :e),
                                  mixing_length = TKEMassFlux.SimpleMixingLength(),
                                 tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux())
@@ -91,7 +89,7 @@ function initialize_calibration(dataname; Δ=4, Δt=10second, first_target=5, la
     # Estimate weights based on maximum variance in the data
     max_variances = [max_variance(data, field, targets) for field in fields]
     weights = [1/σ for σ in max_variances]
-    weights[1] *= 1e2
+    weights[1] *= 1e4
     weights[2] *= 1e2
 
     # Create loss function and NegativeLogLikelihood
@@ -101,7 +99,7 @@ function initialize_calibration(dataname; Δ=4, Δt=10second, first_target=5, la
     # Initial state for optimization step
     default_parameters = DefaultFreeParameters(model, ParametersToOptimize)
 
-    return nll, model, default_parameters
+    return nll, default_parameters
 end
 
 set_bound!(bounds, name, bound) =
@@ -114,7 +112,7 @@ function get_bounds_and_variance(default_parameters)
     # Some special bounds, in the cases they are included.
     set_bound!(bounds, :Cᴷu,  (0.01, 0.5))
     set_bound!(bounds, :Cᴷe,  (0.01, 1.0))
-    set_bound!(bounds, :Cʷu★, (0.01, 10.0))
+    set_bound!(bounds, :Cʷu★, (0.5, 6.0))
 
     variance = ParametersToOptimize((0.1 * bound[2] for bound in bounds)...)
     variance = Array(variance)
@@ -122,66 +120,76 @@ function get_bounds_and_variance(default_parameters)
     return bounds, variance
 end
 
-function calibrate(datapath; samples=100, iterations=10,
+function calibrate(nll, initial_parameters; samples=100, iterations=10,
 
-                    annealing_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0, 
-                                                                        final_scale = 1e-2,
-                                                                   convergence_rate = 10.0, 
-                                                                    rate_adaptivity = 1.1),
- 
-                   covariance_schedule = AdaptiveAlgebraicSchedule(     final_scale = 1e-1,
-                                                                   convergence_rate = 5e-1,
-                                                                    rate_adaptivity = 1.1),
+                        annealing_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0,
+                                                                            final_scale = 1e-2,
+                                                                       convergence_rate = 1.0, 
+                                                                        rate_adaptivity = 1.5),
 
-                   calibration_kwargs...)
+                       covariance_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0,
+                                                                            final_scale = 1e+0,
+                                                                       convergence_rate = 1e+0,
+                                                                        rate_adaptivity = 1.0), unused_kwargs...)
 
-    nll, model, default_parameters = initialize_calibration(datapath; calibration_kwargs...)
-
-    bounds, variance = get_bounds_and_variance(default_parameters)
+    bounds, variance = get_bounds_and_variance(initial_parameters)
 
     # Iterative simulated annealing...
-    prob = anneal(nll, default_parameters, variance, BoundedNormalPerturbation, bounds;
-                 iterations = iterations,
-                    samples = samples,
-         annealing_schedule = annealing_schedule,
-        covariance_schedule = covariance_schedule
-    )
+    prob = anneal(nll, initial_parameters, variance, BoundedNormalPerturbation, bounds;
+                           iterations = iterations,
+                              samples = samples,
+                   annealing_schedule = annealing_schedule,
+                  covariance_schedule = covariance_schedule
+                 )
     
     return prob
 end
 
+function calibrate(datapath; initial_parameters=nothing, calibration_and_initialization_kwargs...)
 
-function calibrate_batch(datapaths...; samples=100, iterations=10,
+    nll, default_parameters = initialize_calibration(datapath; calibration_and_initialization_kwargs...)
 
-                    annealing_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0, 
-                                                                        final_scale = 1e-2,
-                                                                   convergence_rate = 10.0, 
-                                                                    rate_adaptivity = 1.1),
- 
-                   covariance_schedule = AdaptiveAlgebraicSchedule(     final_scale = 1e-1,
-                                                                   convergence_rate = 5e-1,
-                                                                    rate_adaptivity = 1.1),
+    initial_parameters = initial_parameters === nothing ? default_parameters : initial_parameters
 
-                   calibration_kwargs...)
+    return calibrate(nll, initial_parameters; calibration_and_initialization_kwargs...)
+end
+
+function calibrate_batch(datapaths...; initial_parameters=nothing, calibration_and_initialization_kwargs...)
 
     nll_list = []
     for datapath in datapaths
-        nll, model, default_parameters = initialize_calibration(datapath; calibration_kwargs...)
+        nll, default_parameters = initialize_calibration(datapath; calibration_kwargs...)
         push!(nll_list, nll)
     end
 
     batched_nll = BatchedNegativeLogLikelihood([nll for nll in nll_list])
-    bounds, variance = get_bounds_and_variance(default_parameters)
 
-    # Iterative simulated annealing...
-    prob = anneal(batched_nll, default_parameters, variance, BoundedNormalPerturbation, bounds;
-                 iterations = iterations,
-                    samples = samples,
-         annealing_schedule = annealing_schedule,
-        covariance_schedule = covariance_schedule
-    )
-    
-    return prob
+    initial_parameters = initial_parameters === nothing ? default_parameters : initial_parameters
+
+    return calibrate(nll, initial_parameters; calibration_and_initialization_kwargs...)
+end
+  
+buoyancy_frequency(data) = data.constants.g * data.constants.α * data.initial_conditions.dTdz 
+
+struct OptimSafeNegativeLogLikelihood{P, N} 
+    parameters :: P
+    negative_log_likelihood :: N
+    function OptimSafeNegativeLogLikelihood(θ, ℒ)
+        θ′ = deepcopy(θ)
+        return new{typeof(θ′), typeof(ℒ)}(θ′, ℒ)
+    end
 end
 
-buoyancy_frequency(data) = data.constants.g * data.constants.α * data.initial_conditions.dTdz 
+function (nll::OptimSafeNegativeLogLikelihood)(θ) 
+    for i in eachindex(nll.parameters)
+        @inbounds nll.parameters[i] = θ[i]
+    end
+    return nll.negative_log_likelihood(nll.parameters)
+end
+
+"Use Optim to obtain a guess for optimal parameters."
+function optim_optimized_parameters(nll, initial_parameters)
+    optim_nll = OptimSafeNegativeLogLikelihood(initial_parameters, nll)
+    residual = optimize(optim_nll, Array(initial_parameters))
+    return typeof(initial_parameters)(residual.minimizer)
+end
