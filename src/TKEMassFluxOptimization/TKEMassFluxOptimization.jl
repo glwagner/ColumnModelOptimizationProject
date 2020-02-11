@@ -1,6 +1,6 @@
 module TKEMassFluxOptimization
 
-export WindMixingParameters, WindMixingFixedPrandtlParameters, parameter_latex_guide
+export parameter_latex_guide
 
 using OceanTurb, PyPlot
 

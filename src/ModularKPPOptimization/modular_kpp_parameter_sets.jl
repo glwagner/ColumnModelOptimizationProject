@@ -2,19 +2,9 @@
 # Parameter sets
 #
 
-Base.@kwdef mutable struct BasicParameters{T} <: FreeParameters{9, T}
-      CRi :: T
-      CSL :: T
-      CKE :: T
-      CNL :: T
-      Cτ  :: T
-    Cstab :: T
-    Cunst :: T
-     Cb_U :: T
-     Cb_T :: T
-end
+@free_parameters BasicParameters CRi CSL CKE CNL Cτ Cstab Cunst Cb_U Cb_T
 
-Base.similar(p::BasicParameters{T}) where T = BasicParameters{T}(0, 0, 0, 0, 0, 0, 0, 0, 0)
+@free_parameters WindMixingParameters CRi CSL Cτ
 
 Base.@kwdef mutable struct WindyConvectionParameters{T} <: FreeParameters{15, T}
       CRi :: T
@@ -36,12 +26,6 @@ end
 
 Base.similar(p::WindyConvectionParameters{T}) where T =
     WindyConvectionParameters{T}((0 for i = 1:length(fieldnames(WindyConvectionParameters)))...)
-
-Base.@kwdef mutable struct WindMixingParameters{T} <: FreeParameters{3, T}
-      CRi :: T
-      CSL :: T
-      Cτ  :: T
-end
 
 Base.similar(p::WindMixingParameters{T}) where T = WindMixingParameters{T}(0, 0, 0)
 

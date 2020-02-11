@@ -2,7 +2,6 @@ using Statistics, Distributions, PyPlot, OrderedCollections, Optim, JLD2, Printf
 using OceanTurb, Dao, ColumnModelOptimizationProject
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization
-using ColumnModelOptimizationProject.TKEMassFluxOptimization: ColumnModel
 
 datadir = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
 
@@ -40,7 +39,7 @@ LESbrary = OrderedDict(
                        filename = "kato_phillips_Nsq1.0e-05_Qu1.0e-04_Nx256_Nz256_averages.jld2", 
                        rotating = false, 
                              N² = 1e-5, 
-                          first = 21, 
+                          first = 11, 
                            last = 121),
 
                     "kato, N²: 1e-4" => (
@@ -73,14 +72,22 @@ LESbrary = OrderedDict(
                            last = nothing),
                    )
 
-function initialize_calibration(dataname; Δ=4, Δt=10second, first_target=5, last_target=nothing, fields=(:T, :U, :e),
-                                 mixing_length = TKEMassFlux.SimpleMixingLength(),
-                                tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux())
+#####
+##### KPP functionality
+#####
+
+@free_parameters KPPWindMixingParameters CRi CSL Cτ
+
+function initialize_KPP_calibration(dataname; Δ=4, Δt=10second, 
+                                    first_target=5, last_target=nothing, 
+                                    fields=(:T, :U), relative_weights=[1, 1],
+                                    mixingdepth = ModularKPP.LMDMixingDepth(),
+                                    kprofile = ModularKPP.StandardCubicPolynomial())
 
     # Model and data
     datapath = joinpath(datadir, dataname)
     data = ColumnData(datapath)
-    model = ColumnModel(data, Δt, Δ=Δ, mixing_length=mixing_length, tke_wall_model=tke_wall_model)
+    model = ModularKPPOptimization.ColumnModel(data, Δt, Δ=Δ, mixingdepth=mixingdepth, kprofile=kprofile)
 
     # Create loss function and negative-log-likelihood object
     last_target = last_target === nothing ? length(data) : last_target
@@ -89,8 +96,69 @@ function initialize_calibration(dataname; Δ=4, Δt=10second, first_target=5, la
     # Estimate weights based on maximum variance in the data
     max_variances = [max_variance(data, field, targets) for field in fields]
     weights = [1/σ for σ in max_variances]
-    weights[1] *= 1e4
-    weights[2] *= 1e2
+
+    if relative_weights != nothing
+        weights .*= relative_weights
+    end
+
+    # Create loss function and NegativeLogLikelihood
+    loss = LossFunction(model, data, fields=fields, targets=targets, weights=weights)
+    nll = NegativeLogLikelihood(model, data, loss)
+
+    # Initial state for optimization step
+    default_parameters = DefaultFreeParameters(model, KPPWindMixingParameters)
+
+    return nll, default_parameters
+end
+
+function get_bounds_and_variance(kpp_parameters::KPPWindMixingParameters)
+
+    SomeFreeParameters = typeof(kpp_parameters).name.wrapper
+
+    # Set bounds on free parameters
+    bounds = SomeFreeParameters(((0.01, 2.0) for p in kpp_parameters)...)
+
+    # Some special bounds, in the cases they are included.
+    set_bound!(bounds, :CSL,  (0.01, 0.99))
+
+    variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
+    variance = Array(variance)
+
+    return bounds, variance
+end
+
+#####
+##### TKEMassFlux functionality
+#####
+
+function initialize_TKEMassFlux_calibration(dataname; 
+                                               Δ = 4, 
+                                              Δt = 10second, 
+                                    first_target = 5, 
+                                     last_target = nothing, 
+                                          fields = (:T, :U, :e), 
+                                relative_weights = [1e4, 1e2, 1],
+                                   mixing_length = TKEMassFlux.SimpleMixingLength(),
+                                  tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux())
+
+    # Model and data
+    datapath = joinpath(datadir, dataname)
+    data = ColumnData(datapath)
+    model = TKEMassFluxOptimization.ColumnModel(data, Δt, Δ=Δ, 
+                                                mixing_length=mixing_length, 
+                                                tke_wall_model=tke_wall_model)
+
+    # Create loss function and negative-log-likelihood object
+    last_target = last_target === nothing ? length(data) : last_target
+    targets = first_target:last_target
+
+    # Estimate weights based on maximum variance in the data
+    max_variances = [max_variance(data, field, targets) for field in fields]
+    weights = [1/σ for σ in max_variances]
+
+    if relative_weights != nothing
+        weights .*= relative_weights
+    end
 
     # Create loss function and NegativeLogLikelihood
     loss = LossFunction(model, data, fields=fields, targets=targets, weights=weights)
@@ -106,15 +174,18 @@ set_bound!(bounds, name, bound) =
     name ∈ propertynames(bounds) && setproperty!(bounds, name, bound)
 
 function get_bounds_and_variance(default_parameters)
+
+    SomeFreeParameters = typeof(default_parameters).name.wrapper
+
     # Set bounds on free parameters
-    bounds = ParametersToOptimize(((0.01, 2.0) for p in default_parameters)...)
+    bounds = SomeFreeParameters(((0.01, 2.0) for p in default_parameters)...)
 
     # Some special bounds, in the cases they are included.
     set_bound!(bounds, :Cᴷu,  (0.01, 0.5))
     set_bound!(bounds, :Cᴷe,  (0.01, 1.0))
     set_bound!(bounds, :Cʷu★, (0.5, 6.0))
 
-    variance = ParametersToOptimize((0.1 * bound[2] for bound in bounds)...)
+    variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
     variance = Array(variance)
 
     return bounds, variance
@@ -146,9 +217,7 @@ function calibrate(nll, initial_parameters; samples=100, iterations=10,
 end
 
 function calibrate(datapath; initial_parameters=nothing, calibration_and_initialization_kwargs...)
-
-    nll, default_parameters = initialize_calibration(datapath; calibration_and_initialization_kwargs...)
-
+    nll, default_parameters = initialize_TKEMassFlux_calibration(datapath; calibration_and_initialization_kwargs...)
     initial_parameters = initial_parameters === nothing ? default_parameters : initial_parameters
 
     return calibrate(nll, initial_parameters; calibration_and_initialization_kwargs...)
@@ -158,7 +227,7 @@ function calibrate_batch(datapaths...; initial_parameters=nothing, calibration_a
 
     nll_list = []
     for datapath in datapaths
-        nll, default_parameters = initialize_calibration(datapath; calibration_kwargs...)
+        nll, default_parameters = initialize_TKEMassFlux_calibration(datapath; calibration_kwargs...)
         push!(nll_list, nll)
     end
 

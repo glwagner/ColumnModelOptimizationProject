@@ -13,8 +13,9 @@ nll, default_parameters = initialize_calibration(joinpath(LESbrary_path, LESdatu
                                     first_target = LESdatum.first,
                                      last_target = LESdatum.last,
                                                Δ = 0.5,
-                                              Δt = 1minute,
+                                              Δt = 10second,
                                    mixing_length = TKEMassFlux.EquilibriumMixingLength(),
+                                   #mixing_length = TKEMassFlux.SimpleMixingLength(),
                                   tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux())
 
 C_nelder_mead = optim_optimized_parameters(nll, default_parameters)
