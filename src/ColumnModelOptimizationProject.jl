@@ -33,7 +33,9 @@ export
     analyze_weighted_profile_discrepency,
     VarianceWeights,
     LossFunction,
-    TimeAverage,
+    TimeSeriesAnalysis,
+    ValueProfileAnalysis,
+    GradientProfileAnalysis,
 
     # data_analysis.jl
     removespines,

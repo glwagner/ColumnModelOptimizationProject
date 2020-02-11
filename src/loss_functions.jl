@@ -19,8 +19,8 @@ function LossFunction(model, data; fields,
                           targets = 1:length(data.t), 
                           weights = nothing,
                       time_series = TimeSeriesAnalysis(data.t[targets], TimeAverage()),
-                          profile = SimpleProfileAnalysis(model.grid)
-)
+                          profile = ValueProfileAnalysis(model.grid)
+                      )
 
     return LossFunction(targets, fields, weights, time_series, profile)
 end
@@ -51,18 +51,18 @@ struct TimeAverage end
 #
 
 """
-    struct SimpleProfileAnalysis{D, A}
+    struct ValueProfileAnalysis{D, A}
 
 A type for doing simple analyses on a discrepency profile located
 at cell centers. Defaults to taking the mean square difference between
 the model and data coarse-grained to the model grid.
 """
-struct SimpleProfileAnalysis{D, A}
+struct ValueProfileAnalysis{D, A}
     discrepency :: D
        analysis :: A
 end
 
-SimpleProfileAnalysis(grid; analysis=mean) = SimpleProfileAnalysis(CellField(grid), analysis)
+ValueProfileAnalysis(grid; analysis=mean) = ValueProfileAnalysis(CellField(grid), analysis)
 
 function calculate_simple_discrepency!(simple, model_field, data_field)
     coarse_grained = discrepency = simple.discrepency
