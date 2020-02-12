@@ -9,13 +9,15 @@ using ..ColumnModelOptimizationProject
 import ColumnModelOptimizationProject: set!
 
 parameter_latex_guide = Dict(
-      :Cᴰ => L"C^D",
-      :Cᴷu => L"C^K_u",
-      :Cᴷe => L"C^K_e",
-      :CᴷPr => L"C^\mathrm{Pr}",
-      :Cʷu★ => L"C^w_{u_\star}",
-      :Cᴸʷ => L"C^\ell_w",
-      :Cᴸᵇ => L"C^\ell_b",
+      :Cᴰ   => L"C^D",
+      :Cᴷu  => L"C^K_u",
+      :Cᴷc  => L"C^K_c",
+      :Cᴷe  => L"C^K_e",
+      :CᴷPr => L"C^K_\mathrm{Pr}",
+      :Cᴸᵟ  => L"C^\ell_\delta",
+      :Cᴸʷ  => L"C^\ell_w",
+      :Cᴸᵇ  => L"C^\ell_b",
+      :Cʷu★ => L"C^w_{e}",
 )
 
 @free_parameters WindMixingParameters Cᴸʷ Cᴸᵇ Cᴰ Cᴷᵤ Cᴾʳ Cᴷₑ Cʷu★

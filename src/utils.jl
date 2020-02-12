@@ -7,16 +7,37 @@ function variance(data, field_name, i)
         @inbounds variance += (field[j] - field_mean)^2 * Δf(field, j)
     end
 
-    return variance
+    return variance / height(field)
+end
+
+function gradient_variance(data, field_name, i)
+    field = getproperty(data, field_name)[i]
+    ∇field = ∂z(field)
+    ∇field_mean = mean(∇field.data)
+
+    variance = zero(eltype(field))
+    for j = 2:field.grid.N # don't include end points
+        @inbounds variance += (∇field[j] - ∇field_mean)^2 * Δc(field, j)
+    end
+
+    return variance / (height(field) - Δc(field, field.grid.N+1))
 end
 
 function max_variance(data, field_name, targets=1:length(data.t))
     maximum_variance = 0.0
 
     for target in targets
-        field = getproperty(data, field_name)[target]
-        fieldmean = mean(field.data)
         maximum_variance = max(maximum_variance, variance(data, field_name, target))
+    end
+
+    return maximum_variance
+end
+
+function max_gradient_variance(data, field_name, targets=1:length(data.t))
+    maximum_variance = 0.0
+
+    for target in targets
+        maximum_variance = max(maximum_variance, gradient_variance(data, field_name, target))
     end
 
     return maximum_variance

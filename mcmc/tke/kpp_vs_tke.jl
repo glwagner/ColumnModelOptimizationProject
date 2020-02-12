@@ -6,8 +6,8 @@ include("setup.jl")
 include("utils.jl")
 
 LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
-#LESdatum = LESbrary["kato, N²: 1e-5"]
-LESdatum = LESbrary["ekman, N²: 1e-5"]
+LESdatum = LESbrary["kato, N²: 1e-7"]
+#LESdatum = LESbrary["ekman, N²: 1e-5"]
 
 Δ = 2.0
 Δt = 1minute

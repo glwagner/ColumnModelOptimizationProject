@@ -1,6 +1,6 @@
-using ColumnModelOptimizationProject, JLD2
+using ColumnModelOptimizationProject
 
-@free_parameters ParametersToOptimize Cᴷu CᴷPr Cᴰ Cᴸʷ Cʷu★ Cᴸᵇ
+@free_parameters TKEParametersToOptimize Cᴷu Cᴷc Cᴷe Cᴰ Cᴸʷ Cʷu★ Cᴸᵇ
 
 include("setup.jl")
 include("utils.jl")
@@ -8,15 +8,13 @@ include("utils.jl")
 LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
 
 LESdata = (
-            LESbrary["kato, N²: 1e-7"], 
-            LESbrary["kato, N²: 2e-7"], 
-            LESbrary["kato, N²: 5e-7"], 
-            LESbrary["kato, N²: 1e-6"], 
-            LESbrary["kato, N²: 1e-5"], 
-            LESbrary["ekman, N²: 1e-6"],
-            LESbrary["ekman, N²: 1e-5"],
-            LESbrary["ekman, N²: 1e-4"]
-           )
+           LESbrary["kato, N²: 5e-7"],
+           LESbrary["kato, N²: 1e-6"],
+           LESbrary["kato, N²: 1e-5"],
+           LESbrary["kato, N²: 1e-4"],
+           LESbrary["ekman, N²: 1e-5"],
+           LESbrary["ekman, N²: 1e-4"],
+          )
 
 # Generating function for kwargs
 function calibration_kwargs(datum)
@@ -34,16 +32,22 @@ end
 
 # Create batch
 batch = []
+models = []
+data = []
 
-for datum in LESdata
-    nll, default_parametetrs = initialize_TKEMassFlux_calibration(datum.filename; Δ=1.0, Δt=30second, 
-                                                          calibration_kwargs(datum)...)
+for datum in LESbrary.vals
+    nll, default_parametetrs = init_tke_calibration(datum.filename; 
+                                                     Δ = 2.0, 
+                                                    Δt = 1minute, 
+                                                    calibration_kwargs(datum)...)
     push!(batch, nll)
+    push!(models, nll.model)
+    push!(data, nll.data)
 end
 
 batched_nll = BatchedNegativeLogLikelihood([nll for nll in batch])
-default_parameters = DefaultFreeParameters(batch[1].model, ParametersToOptimize)
+default_parameters = DefaultFreeParameters(batch[1].model, TKEParametersToOptimize)
 
-anneling = calibrate(batched_nll, default_parameters, samples=10000, iterations=3);
+annealing = calibrate(batched_nll, default_parameters, samples=1000, iterations=3);
 
-
+println("done")

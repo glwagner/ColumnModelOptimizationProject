@@ -85,13 +85,14 @@ Visualize the data alongside several realizations of `column_model`
 for each set of parameters in `params`.
 """
 function visualize_realizations(column_model, column_data, targets, params::FreeParameters...;
-                                         fig = nothing,
-                                     figsize = (10, 4),
-                                 paramlabels = ["" for p in params], datastyle="-",
-                                 modelkwargs = Dict(),
-                                  datakwargs = Dict(),
-                                legendkwargs = Dict(),
-                                      fields = (:U, :V, :T)
+                                                    fig = nothing,
+                                                figsize = (10, 4),
+                                plot_first_model_target = false,
+                                            paramlabels = ["" for p in params], datastyle="-",
+                                            modelkwargs = Dict(),
+                                             datakwargs = Dict(),
+                                           legendkwargs = Dict(),
+                                                 fields = (:U, :V, :T)
                                 )
 
     # Merge defaults with user-specified options
@@ -120,18 +121,19 @@ function visualize_realizations(column_model, column_data, targets, params::Free
         for (iplot, i) in enumerate(targets)
             run_until!(column_model.model, column_model.Δt, column_data.t[i])
 
-            if iplot == 1
+            if iplot == length(targets)
                 lbl =  @sprintf("%s Model, \$ t = %0.2f \$ hours",
                                 paramlabels[iparam], column_data.t[i]/hour)
             else
                 lbl = ""
             end
 
-            for (ipanel, field) in enumerate(fields)
-                sca(axs[ipanel])
-                mfld = getproperty(column_model.model.solution, field)
-                plot(mfld, styles[iparam]; color=defaultcolors[iplot],
-                     label=lbl, modelkwargs...)
+            if iplot > 1 || plot_first_model_target
+                for (ipanel, field) in enumerate(fields)
+                    sca(axs[ipanel])
+                    model_field = getproperty(column_model.model.solution, field)
+                    plot(model_field, styles[iparam]; color=defaultcolors[iplot], label=lbl, modelkwargs...)
+                end
             end
         end
     end
@@ -247,4 +249,18 @@ function visualize_markov_chain!(ax, chain, parameter; after=1, bins=100, alpha=
     pause(0.1)
 
     return ρ
+end
+
+function visualize_markov_chain!(chain; kwargs...)
+    nparameters = length(chain[1].param)
+    ρ = []
+    fig, axs = subplots(nrows=nparameters, figsize=(8, 12))
+    for (i, p) in enumerate(propertynames(chain[1].param))
+        ax = axs[i]
+        ρᵢ = visualize_markov_chain!(ax, chain, p; kwargs...)
+        push!(ρ, ρᵢ)
+        xlabel(parameter_latex_guide[p])
+    end
+
+    return fig, axs, ρ
 end

@@ -10,6 +10,7 @@ export
     # utils
     variance,
     max_variance,
+    max_gradient_variance,
     initialize_and_run_until!,
 
     # file_wrangling.jl
@@ -23,6 +24,8 @@ export
     ColumnData,
 
     # visualization.jl
+    plot_data!,
+    format_axs!,
     visualize_realizations,
     visualize_loss_function,
     visualize_markov_chain!,
@@ -36,6 +39,7 @@ export
     TimeSeriesAnalysis,
     ValueProfileAnalysis,
     GradientProfileAnalysis,
+    on_grid,
 
     # data_analysis.jl
     removespines,
@@ -69,6 +73,12 @@ function Base.similar(p::FreeParameters{N, T}) where {N, T}
     return P((zero(T) for i=1:N)...)
 end
 
+Base.show(io::IO, p::FreeParameters) = print(io, "$(typeof(p)):", '\n',
+                                             @sprintf("% 24s: ", "parameter names"), 
+                                             (@sprintf("%-8s", n) for n in propertynames(p))..., '\n',
+                                             @sprintf("% 24s: ", "values"), 
+                                             (@sprintf("%-8.4f", pᵢ) for pᵢ in p)...)
+
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
 
 set!(::Nothing, args...) = nothing # placeholder
@@ -85,7 +95,7 @@ function DefaultFreeParameters(cm, freeparamtype)
         end
     end
 
-    eval(Expr(:call, freeparamtype, freeparams...))
+    return eval(Expr(:call, freeparamtype, freeparams...))
 end
 
 macro free_parameters(GroupName, parameter_names...)

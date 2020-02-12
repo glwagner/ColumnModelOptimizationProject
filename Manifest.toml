@@ -93,9 +93,9 @@ version = "2.2.0"
 
 [[Conda]]
 deps = ["JSON", "VersionParsing"]
-git-tree-sha1 = "457ed99182beb33124aa5e602596b67fc6e1c96f"
+git-tree-sha1 = "7a58bb32ce5d85f8bf7559aa7c2842f9aecf52fc"
 uuid = "8f4d0f93-b110-5947-807f-2305c1781a2d"
-version = "1.4.0"
+version = "1.4.1"
 
 [[CondaBinDeps]]
 deps = ["BinDeps", "Conda"]
@@ -301,11 +301,9 @@ version = "0.8.0"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Printf", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "12402e14c7d4e375115ad5ca67cbbe991cde7b59"
-repo-rev = "master"
-repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
+path = "/Users/gregorywagner/Projects/OceanTurb.jl/"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"
-version = "0.2.3"
+version = "0.2.4"
 
 [[Oceananigans]]
 deps = ["Adapt", "CUDAapi", "CUDAdrv", "CUDAnative", "CuArrays", "Dates", "FFTW", "GPUifyLoops", "JLD2", "LinearAlgebra", "Logging", "NCDatasets", "OffsetArrays", "OrderedCollections", "Printf", "Random", "Statistics", "Test"]

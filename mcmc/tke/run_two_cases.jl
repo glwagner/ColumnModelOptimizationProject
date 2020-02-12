@@ -1,6 +1,6 @@
-using ColumnModelOptimizationProject, JLD2
+using ColumnModelOptimizationProject
 
-@free_parameters ParametersToOptimize Cᴷu Cᴷe CᴷPr Cᴰ Cᴸʷ Cʷu★ Cᴸᵇ
+@free_parameters TKEParametersToOptimize Cᴷu Cᴷe Cᴰ Cᴸʷ Cʷu★ Cᴸᵇ
 
 include("setup.jl")
 include("utils.jl")
@@ -18,15 +18,15 @@ les_data = []
   losses = []
 
 for i = 1:2
-    case = calibrate(joinpath(LESbrary_path, LES_data[i].filename),
-                             samples = 1000,
-                          iterations = 5,
-                        first_target = LES_data[i].first,
-                         last_target = LES_data[i].last,
-                                   Δ = 2.0,
-                                  Δt = 1minute,
-                       mixing_length = TKEMassFlux.EquilibriumMixingLength(),
-                      )
+    case = calibrate_tke(joinpath(LESbrary_path, LES_data[i].filename),
+                               samples = 100,
+                            iterations = 3,
+                          first_target = LES_data[i].first,
+                           last_target = LES_data[i].last,
+                                     Δ = 2.0,
+                                    Δt = 1minute,
+                         mixing_length = TKEMassFlux.EquilibriumMixingLength(),
+                        )
 
     # Global optimal parameters
     C★ = optimal(case.markov_chains[end]).param

@@ -1,24 +1,40 @@
+using ColumnModelOptimizationProject
+
+@free_parameters TKEParametersToOptimize Cᴷu Cᴷc Cᴷe Cᴰ Cᴸʷ Cᴸᵇ Cʷu★
+
 include("setup.jl")
 include("utils.jl")
 
-using JLD2
+# Optimization parameters
+        casename = "kato, N²: 1e-4"
+         samples = 1000
+              Δz = 2.0
+              Δt = 1minute
+relative_weights = [1e+0, 1e-4, 1e-4, 1e-6]
+         LEScase = LESbrary[casename]
 
-results = OrderedDict()
+# Place to store results
+results = @sprintf("%s_dz%d_dt%d.jld2", 
+                   replace(replace(casename, ", " => "_"), ": " => ""),
+                   Δz, Δt/minute) 
 
-LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+# Run the case
+annealing = calibrate_tke(joinpath(LESbrary_path, LEScase.filename), 
+                                   samples = samples,
+                                iterations = 3,
+                                        Δz = Δz,
+                                        Δt = Δt,
+                              first_target = LEScase.first, 
+                               last_target = LEScase.last,
+                                    fields = LEScase.rotating ? (:T, :U, :V, :e) : (:T, :U, :e),
+                          relative_weights = LEScase.rotating ? relative_weights : relative_weights[[1, 2, 4]],
+                             mixing_length = TKEMassFlux.SimpleMixingLength(), 
+                          profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
 
-LES_data = LESbrary["kato, N²: 1e-5"]
+# Save results
+@save results annealing
 
-samples = 1000
-prefix = "test"
-
-annealing = calibrate(joinpath(LESbrary_path, LES_data.filename), 
-                         samples = samples, 
-                      iterations = 100,
-                    first_target = LES_data.first, 
-                     last_target = LES_data.last,
-                   mixing_length = TKEMassFlux.EquilibriumMixingLength(), Δ=1.0)
-
+# Do some simple analysis
 model = annealing.negative_log_likelihood.model
  data = annealing.negative_log_likelihood.data
  loss = annealing.negative_log_likelihood.loss
@@ -28,8 +44,9 @@ chain = annealing.markov_chains[end]
 close("all")
 viz_fig, viz_axs = visualize_realizations(model, data, loss.targets[[1, end]], C★,
                                            fields = (:U, :T, :e), 
-                                          figsize = (24, 36)) 
+                                          figsize = (16, 6)) 
 
+#=
 fig, axs = subplots(ncols=2, figsize=(16, 6))
 
 optimums = optimum_series(annealing)
@@ -48,4 +65,4 @@ legend()
 
 sca(axs[2])
 plot(errors / errors[1], linestyle="-", marker="o", markersize=5, linewidth=1)
-
+=#

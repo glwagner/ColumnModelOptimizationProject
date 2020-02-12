@@ -53,7 +53,7 @@ struct TimeAverage end
 """
     struct ValueProfileAnalysis{D, A}
 
-A type for doing simple analyses on a discrepency profile located
+A type for doing analyses on a discrepency profile located
 at cell centers. Defaults to taking the mean square difference between
 the model and data coarse-grained to the model grid.
 """
@@ -63,9 +63,11 @@ struct ValueProfileAnalysis{D, A}
 end
 
 ValueProfileAnalysis(grid; analysis=mean) = ValueProfileAnalysis(CellField(grid), analysis)
+ValueProfileAnalysis(; analysis=mean) = ValueProfileAnalysis(nothing, analysis)
+on_grid(profile::ValueProfileAnalysis, grid) = ValueProfileAnalysis(grid; analysis=profile.analysis)
 
-function calculate_simple_discrepency!(simple, model_field, data_field)
-    coarse_grained = discrepency = simple.discrepency
+function calculate_value_discrepency!(value, model_field, data_field)
+    coarse_grained = discrepency = value.discrepency
     set!(coarse_grained, data_field)
 
     for i in eachindex(discrepency)
@@ -75,14 +77,14 @@ function calculate_simple_discrepency!(simple, model_field, data_field)
 end
 
 """
-    analyze_profile_discrepency(simple, model_field, data_field)
+    analyze_profile_discrepency(value, model_field, data_field)
 
-Store a profile of the discrepency between the `model_field` and `data_field`,
-store in `simple.discrepency`, and return `simple.analysis(discrepency)`.
+Calculates the discrepency between model and data field values, and returns an
+analysis of the discrepency profile.
 """
-function analyze_profile_discrepency(simple, model_field, data_field)
-    calculate_simple_discrepency!(simple, model_field, data_field)
-    return simple.analysis(simple.discrepency)
+function analyze_profile_discrepency(value, model_field, data_field)
+    calculate_value_discrepency!(value, model_field, data_field)
+    return value.analysis(value.discrepency)
 end
 
 """
@@ -92,30 +94,42 @@ A type for combining discprency between the fields and field gradients.
 Defaults to taking the mean square difference between
 the model and data coarse-grained to the model grid.
 """
-struct GradientProfileAnalysis{D, G, F, W, A}
+mutable struct GradientProfileAnalysis{D, G, F, W, A}
      ϵ :: D
     ∇ϵ :: G
     ∇ϕ :: F
     gradient_weight :: W
+    value_weight :: W
     analysis :: A
 end
 
-GradientProfileAnalysis(grid; analysis=mean, gradient_weight=grid.Δc) = 
-    GradientProfileAnalysis(CellField(grid), FaceField(grid), FaceField(grid), gradient_weight, analysis)
+GradientProfileAnalysis(grid; analysis=mean, gradient_weight=1.0, value_weight=1.0) =
+    GradientProfileAnalysis(CellField(grid), FaceField(grid), FaceField(grid),
+                            gradient_weight, value_weight, analysis)
 
-function calculate_gradient_discrepency!(simple, model_field, data_field)
+GradientProfileAnalysis(; analysis=mean, gradient_weight=1.0, value_weight=1.0) = 
+    GradientProfileAnalysis(nothing, nothing, nothing, gradient_weight, value_weight, analysis)
+
+function on_grid(profile::GradientProfileAnalysis, grid)
+    return GradientProfileAnalysis(grid;        
+                                          analysis = profile.analysis, 
+                                   gradient_weight = profile.gradient_weight,
+                                      value_weight = profile.value_weight)
+end
+                            
+function calculate_gradient_discrepency!(prof, model_field, data_field)
     # Coarse grain the data
-    ϵ = simple.ϵ
-    set!(d, data_field)
+    ϵ = prof.ϵ
+    set!(ϵ, data_field)
 
-    # Calculate gradients of both data and discrepency
-    ∇ϕ = simple.∇ϕ
-    ∇ϵ = simple.∇ϵ
+    # Calculate profients of both data and discrepency
+    ∇ϕ = prof.∇ϕ
+    ∇ϵ = prof.∇ϵ
     ∂z!(∇ϵ, ϵ)
     ∂z!(∇ϕ, model_field)
 
     for i in eachindex(ϵ)
-        @inbounds ϵ[i] = (ϵ[i] - moϵel_field[i])^2
+        @inbounds ϵ[i] = (ϵ[i] - model_field[i])^2
         @inbounds ∇ϵ[i] = (∇ϵ[i] - ∇ϕ[i])^2 # incluϵes bottom boundary value, which will later be ignored.
     end
 
@@ -127,10 +141,10 @@ function calculate_gradient_discrepency!(simple, model_field, data_field)
 end
 
 """
-    analyze_profile_discrepency(gradient, model_field, data_field)
+    analyze_profile_discrepency(prof::GradientProfileAnalysis, model_field, data_field)
 
-Store a profile of the discrepency between the `model_field` and `data_field`,
-store in `simple.discrepency`, and return `simple.analysis(discrepency)`.
+Calculates the discrepencies between both values and gradients of model and data fields,
+and returns an analysis of the two discrepency profiles.
 """
 function analyze_profile_discrepency(prof::GradientProfileAnalysis, model_field, data_field)
     calculate_gradient_discrepency!(prof, model_field, data_field)
