@@ -7,6 +7,8 @@ mutable struct ColumnModel{M<:AbstractModel, T}
        Δt :: T
 end
 
+run_until!(model::ColumnModel, time) = run_until!(model.model, model.Δt, time)
+
 Base.getproperty(m::ColumnModel, p::Symbol) = getproperty(m, Val(p))
 Base.getproperty(m::ColumnModel, ::Val{p}) where p = getproperty(m.model, p)
 Base.getproperty(m::ColumnModel, ::Val{:Δt}) = getfield(m, :Δt)

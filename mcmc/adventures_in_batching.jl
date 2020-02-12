@@ -41,3 +41,5 @@ default_parameters = DefaultFreeParameters(nlls[1].model, TKEParametersToOptimiz
 annealing = calibrate(batched_nll, default_parameters, samples=1000, iterations=3);
 
 println("Done.")
+
+@save "non-rotating-mini-batch.jld2" annealing

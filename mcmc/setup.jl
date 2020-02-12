@@ -3,6 +3,12 @@ using OceanTurb, Dao, ColumnModelOptimizationProject
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization
 
+@free_parameters TKEParametersToOptimize Cᴷu Cᴷc Cᴷe Cᴰ Cᴸʷ Cᴸᵇ Cʷu★
+
+#####
+##### The LESbrary (so to speak)
+#####
+
 LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
 
 LESbrary = OrderedDict(
@@ -14,19 +20,22 @@ LESbrary = OrderedDict(
                           first = 5, 
                            last = 81),
 
-                    #"kato, N²: 2e-7" => (
-                    #   filename = "kato_phillips_Nsq2.0e-07_Qu1.0e-04_Nx512_Nz256_averages.jld2", 
-                    #   rotating = false, 
-                    #         N² = 2e-7, 
-                    #      first = 5, 
-                    #       last = nothing),
+                    # These LES runs were not long enough (boundary layer is very shallow):
+                    #=
+                    "kato, N²: 2e-7" => (
+                       filename = "kato_phillips_Nsq2.0e-07_Qu1.0e-04_Nx512_Nz256_averages.jld2", 
+                       rotating = false, 
+                             N² = 2e-7, 
+                          first = 5, 
+                           last = nothing),
 
-                    #"kato, N²: 5e-7" => (
-                    #   filename = "kato_phillips_Nsq5.0e-07_Qu1.0e-04_Nx512_Nz256_averages.jld2", 
-                    #   rotating = false, 
-                    #         N² = 5e-7, 
-                    #      first = 5, 
-                    #       last = nothing),
+                    "kato, N²: 5e-7" => (
+                       filename = "kato_phillips_Nsq5.0e-07_Qu1.0e-04_Nx512_Nz256_averages.jld2", 
+                       rotating = false, 
+                             N² = 5e-7, 
+                          first = 5, 
+                           last = nothing),
+                   =#
 
                    "kato, N²: 1e-6" => (
                        filename = "kato_phillips_Nsq1.0e-06_Qu1.0e-04_Nx512_Nz256_averages.jld2", 
@@ -85,6 +94,7 @@ LESbrary = OrderedDict(
 
 @free_parameters KPPWindMixingParameters CRi CSL Cτ
 
+"Initialize a calibration run for KPP."
 function init_kpp_calibration(dataname; 
                                             Δz = 4, 
                                             Δt = 10second, 
@@ -92,37 +102,106 @@ function init_kpp_calibration(dataname;
                                    last_target = nothing, 
                                         fields = (:T, :U), 
                               relative_weights = [1.0 for f in fields],
+                              profile_analysis = ValueProfileAnalysis(),
+                              # KPP-specific kwargs:
                                    mixingdepth = ModularKPP.LMDMixingDepth(),
                                       kprofile = ModularKPP.StandardCubicPolynomial(),
-                              profile_analysis = ValueProfileAnalysis
+                                 unused_kwargs...
                               )
 
-    # Model and data
-    datapath = joinpath(LESbrary_path, dataname)
-    data = ColumnData(datapath)
+    data = init_LESbrary_data(dataname)
     model = ModularKPPOptimization.ColumnModel(data, Δt, Δ=Δz, mixingdepth=mixingdepth, kprofile=kprofile)
+
+    return init_negative_log_likelihood(model, data, first_target, last_target,
+                                        fields, relative_weights, profile_analysis,
+                                        KPPWindMixingParameters)
+end
+
+
+#####
+##### TKEMassFlux functionality
+#####
+
+"Initialize a calibration run for the TKEMassFlux parameterization."
+function init_tke_calibration(dataname; 
+                                              Δz = 4, 
+                                              Δt = 10second, 
+                                    first_target = 5, 
+                                     last_target = nothing, 
+                                          fields = (:T, :U, :e), 
+                                relative_weights = [1.0 for f in fields],
+                                profile_analysis = ValueProfileAnalysis(),
+                                # TKE-specific kwargs:
+                                   mixing_length = TKEMassFlux.SimpleMixingLength(),
+                                  tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
+                              eddy_diffusivities = TKEMassFlux.IndependentDiffusivities(),
+                                   unused_kwargs...
+                              )
+
+    data = init_LESbrary_data(dataname)
+    model = TKEMassFluxOptimization.ColumnModel(data, Δt,
+                                                                Δz = Δz,
+                                                     mixing_length = mixing_length,
+                                                    tke_wall_model = tke_wall_model,
+                                                eddy_diffusivities = eddy_diffusivities
+                                               )
+
+    return init_negative_log_likelihood(model, data, first_target, last_target,
+                                        fields, relative_weights, profile_analysis,
+                                        TKEParametersToOptimize)
+end
+
+#####
+##### Some utils common to KPP and TKEMassFlux
+#####
+
+function init_negative_log_likelihood(model, data, first_target, last_target,
+                                      fields, relative_weights, profile_analysis,
+                                      ParameterType)
 
     # Create loss function and negative-log-likelihood object
     last_target = last_target === nothing ? length(data) : last_target
     targets = first_target:last_target
-
-    # Estimate weights based on maximum variance in the data
-    max_variances = [max_variance(data, field, targets) for field in fields]
-    weights = [1/σ for σ in max_variances]
-
-    if relative_weights != nothing
-        weights .*= relative_weights
-    end
-
+    profile_analysis = on_grid(profile_analysis, model.grid)
+    weights = estimate_weights(profile_analysis, data, fields, targets, relative_weights)
+        
     # Create loss function and NegativeLogLikelihood
-    loss = LossFunction(model, data, fields=fields, targets=targets, weights=weights,
-                        profile = profile_analysis(model.grid))
+    loss = LossFunction(model, data, fields=fields, targets=targets, 
+                        weights=weights, profile=profile_analysis)
+
     nll = NegativeLogLikelihood(model, data, loss)
 
     # Initial state for optimization step
-    default_parameters = DefaultFreeParameters(model, KPPWindMixingParameters)
+    default_parameters = DefaultFreeParameters(model, ParameterType)
 
     return nll, default_parameters
+end
+
+function init_LESbrary_data(dataname)
+    # Model and data
+    datapath = joinpath(LESbrary_path, dataname)
+    return ColumnData(datapath)
+end
+
+set_bound!(bounds, name, bound) = name ∈ propertynames(bounds) && setproperty!(bounds, name, bound)
+
+function get_bounds_and_variance(default_parameters)
+
+    SomeFreeParameters = typeof(default_parameters).name.wrapper
+
+    # Set bounds on free parameters
+    bounds = SomeFreeParameters(((0.01, 2.0) for p in default_parameters)...)
+
+    # Some special bounds, in the cases they are included.
+    set_bound!(bounds, :Cᴷu,  (0.01, 0.2))
+    set_bound!(bounds, :Cᴷe,  (0.01, 1.0))
+    set_bound!(bounds, :Cᴷc,  (0.01, 1.0))
+    set_bound!(bounds, :Cʷu★, (0.5, 6.0))
+
+    variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
+    variance = Array(variance)
+
+    return bounds, variance
 end
 
 function get_bounds_and_variance(kpp_parameters::KPPWindMixingParameters)
@@ -184,73 +263,8 @@ function estimate_weights(profile::GradientProfileAnalysis, data, fields, target
 end
 
 #####
-##### TKEMassFlux functionality
+##### Calibration
 #####
-
-function init_tke_calibration(dataname; 
-                                              Δz = 4, 
-                                              Δt = 10second, 
-                                    first_target = 5, 
-                                     last_target = nothing, 
-                                          fields = (:T, :U, :e), 
-                                relative_weights = [1.0 for f in fields],
-                                   mixing_length = TKEMassFlux.SimpleMixingLength(),
-                                  tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
-                              eddy_diffusivities = TKEMassFlux.IndependentDiffusivities(),
-                                profile_analysis = ValueProfileAnalysis(),
-                                   unused_kwargs...
-                              )
-
-
-    # Model and data
-    datapath = joinpath(LESbrary_path, dataname)
-    data = ColumnData(datapath)
-    model = TKEMassFluxOptimization.ColumnModel(data, Δt,
-                                                                Δz = Δz,
-                                                     mixing_length = mixing_length,
-                                                    tke_wall_model = tke_wall_model,
-                                                eddy_diffusivities = eddy_diffusivities
-                                               )
-
-    # Create loss function and negative-log-likelihood object
-    last_target = last_target === nothing ? length(data) : last_target
-    targets = first_target:last_target
-    profile_analysis = on_grid(profile_analysis, model.grid)
-    weights = estimate_weights(profile_analysis, data, fields, targets, relative_weights)
-        
-    # Create loss function and NegativeLogLikelihood
-    loss = LossFunction(model, data, fields=fields, targets=targets, weights=weights,
-                        profile=profile_analysis)
-
-    nll = NegativeLogLikelihood(model, data, loss)
-
-    # Initial state for optimization step
-    default_parameters = DefaultFreeParameters(model, TKEParametersToOptimize)
-
-    return nll, default_parameters
-end
-
-set_bound!(bounds, name, bound) =
-    name ∈ propertynames(bounds) && setproperty!(bounds, name, bound)
-
-function get_bounds_and_variance(default_parameters)
-
-    SomeFreeParameters = typeof(default_parameters).name.wrapper
-
-    # Set bounds on free parameters
-    bounds = SomeFreeParameters(((0.01, 2.0) for p in default_parameters)...)
-
-    # Some special bounds, in the cases they are included.
-    set_bound!(bounds, :Cᴷu,  (0.01, 0.2))
-    set_bound!(bounds, :Cᴷe,  (0.01, 1.0))
-    set_bound!(bounds, :Cᴷc,  (0.01, 1.0))
-    set_bound!(bounds, :Cʷu★, (0.5, 6.0))
-
-    variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
-    variance = Array(variance)
-
-    return bounds, variance
-end
 
 function calibrate(nll, initial_parameters; samples=100, iterations=10,
 
@@ -281,6 +295,13 @@ end
 
 function calibrate_tke(datapath; initial_parameters=nothing, calibration_and_initialization_kwargs...)
     nll, default_parameters = init_tke_calibration(datapath; calibration_and_initialization_kwargs...)
+    initial_parameters = initial_parameters === nothing ? default_parameters : initial_parameters
+
+    return calibrate(nll, initial_parameters; calibration_and_initialization_kwargs...)
+end
+
+function calibrate_kpp(datapath; initial_parameters=nothing, calibration_and_initialization_kwargs...)
+    nll, default_parameters = init_kpp_calibration(datapath; calibration_and_initialization_kwargs...)
     initial_parameters = initial_parameters === nothing ? default_parameters : initial_parameters
 
     return calibrate(nll, initial_parameters; calibration_and_initialization_kwargs...)
@@ -325,59 +346,3 @@ function optim_optimized_parameters(nll, initial_parameters)
     residual = optimize(optim_nll, Array(initial_parameters))
     return typeof(initial_parameters)(residual.minimizer)
 end
-
-styles = ("--", ":", "-.", "o-", "^--")
-defaultcolors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-
-# Default kwargs for plot routines
-default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8)
-default_datakwargs = Dict(:linewidth=>3, :alpha=>0.6)
-default_legendkwargs = Dict(:fontsize=>10, :loc=>"lower right", :frameon=>true, :framealpha=>0.5)
-
-removespine(side) = gca().spines[side].set_visible(false)
-removespines(sides...) = [removespine(side) for side in sides]
-
-"""
-    visualize_results(data, model, params...)
-
-Visualize the data alongside several realizations of `column_model`
-for each set of parameters in `params`.
-"""
-function visualize_results(column_model, column_data, loss, param,
-                                figsize = (16, 6),
-                            paramlabels = ["" for p in params], datastyle="-",
-                            modelkwargs = Dict(),
-                             datakwargs = Dict(),
-                           legendkwargs = Dict(),
-                                 fields = (:U, :V, :T)
-                          )
-
-    # Merge defaults with user-specified options
-     modelkwargs = merge(default_modelkwargs, modelkwargs)
-      datakwargs = merge(default_datakwargs, datakwargs)
-    legendkwargs = merge(default_legendkwargs, legendkwargs)
-
-    #
-    # Make plot
-    #
-
-    fig, axs = subplots(ncols=length(fields), figsize=figsize, sharey=true)
-        
-    set!(column_model, param)
-    set!(column_model, column_data, loss.targets[1])
-    run_until!(column_model.model, column_model.Δt, column_data.t[loss.targets[end]])
-
-    lbl = @sprintf("Model, \$ t = %0.2f \$ hours", column_data.t[i]/hour)
-
-    for (ipanel, field) in enumerate(fields)
-        sca(axs[ipanel])
-        model_field = getproperty(column_model.model.solution, field)
-        plot(model_field, styles[1]; color=defaultcolors[iplot], label=lbl, modelkwargs...)
-    end
-
-    plot_data!(axs, column_data, loss.targets[[1, end]], fields; datastyle=datastyle, datakwargs...)
-    format_axs!(axs, fields; legendkwargs...)
-
-    return fig, axs
-end
-

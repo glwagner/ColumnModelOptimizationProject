@@ -11,6 +11,7 @@ export
     variance,
     max_variance,
     max_gradient_variance,
+    initialize_forward_run!,
     initialize_and_run_until!,
 
     # file_wrangling.jl
@@ -24,6 +25,9 @@ export
     ColumnData,
 
     # visualization.jl
+    defaultcolors,
+    removespine,
+    removespines,
     plot_data!,
     format_axs!,
     visualize_realizations,
@@ -62,7 +66,7 @@ include(joinpath(pathof(OceanTurb), "..", "..", "plotting", "OceanTurbPyPlotUtil
 
 using PyPlot, PyCall, .OceanTurbPyPlotUtils
 
-import OceanTurb: set!, absolute_error
+import OceanTurb: set!, absolute_error, run_until!
 
 import Base: length
 
