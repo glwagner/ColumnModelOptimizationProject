@@ -117,7 +117,7 @@ version = "1.6.0"
 
 [[Dao]]
 deps = ["Distributions", "JLD2", "NetCDF", "OceanTurb", "Plots", "Printf", "Random", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "1d2bab16fd37f7cd4e1e09ebac5d5f2f3623c830"
+git-tree-sha1 = "4b16b49980b1b8304e059a4ad24712640be3db57"
 repo-rev = "master"
 repo-url = "https://github.com/glwagner/Dao.jl.git"
 uuid = "923aee56-57d8-11e9-2f0d-e3e88a113be6"
@@ -141,6 +141,11 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 [[DelimitedFiles]]
 deps = ["Mmap"]
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+
+[[DiskArrays]]
+git-tree-sha1 = "ebfa91fad4e51598db2b8c434c7ae58df7f14f86"
+uuid = "3c3547ce-8d99-4f5e-a174-61eb10b00ae3"
+version = "0.1.0"
 
 [[Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -294,10 +299,10 @@ uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "0.3.3"
 
 [[NetCDF]]
-deps = ["BinDeps", "CondaBinDeps", "Formatting", "Libdl"]
-git-tree-sha1 = "fce0c7962fb14b8cf2f33ea77885f3b7c7e1485e"
+deps = ["BinDeps", "CondaBinDeps", "DiskArrays", "Formatting", "Libdl"]
+git-tree-sha1 = "6c4448ce7b78e9b7bbbe15c4b3562b7558e74b43"
 uuid = "30363a11-5582-574a-97bb-aa9a979735b9"
-version = "0.8.0"
+version = "0.9.0"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Printf", "StaticArrays", "Statistics", "Test"]
@@ -307,7 +312,7 @@ version = "0.2.4"
 
 [[Oceananigans]]
 deps = ["Adapt", "CUDAapi", "CUDAdrv", "CUDAnative", "CuArrays", "Dates", "FFTW", "GPUifyLoops", "JLD2", "LinearAlgebra", "Logging", "NCDatasets", "OffsetArrays", "OrderedCollections", "Printf", "Random", "Statistics", "Test"]
-git-tree-sha1 = "a9e9e490b9f8d9541597608b30a9d0a89b6b6b19"
+git-tree-sha1 = "d6f38aab6022975ce8e8d6d2956f733c1dfed7ea"
 repo-rev = "master"
 repo-url = "https://github.com/climate-machine/Oceananigans.jl.git"
 uuid = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
@@ -363,10 +368,10 @@ deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[PyCall]]
-deps = ["Conda", "Dates", "Libdl", "LinearAlgebra", "MacroTools", "Pkg", "Serialization", "Statistics", "Test", "VersionParsing"]
-git-tree-sha1 = "6e5bac1b1faf3575731a6a5b76f638f2389561d3"
+deps = ["Conda", "Dates", "Libdl", "LinearAlgebra", "MacroTools", "Serialization", "VersionParsing"]
+git-tree-sha1 = "ce0780857d129208c4e5a6d722486fb40ce11bf8"
 uuid = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
-version = "1.91.2"
+version = "1.91.3"
 
 [[PyPlot]]
 deps = ["Colors", "LaTeXStrings", "PyCall", "Sockets", "Test", "VersionParsing"]
