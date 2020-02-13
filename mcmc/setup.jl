@@ -14,11 +14,11 @@ LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulation
 LESbrary = OrderedDict(
                    # Non-rotating
                     "kato, N²: 1e-7" => (
-                       filename = "kato_phillips_Nsq1.0e-07_Qu1.0e-04_Nx256_Nz256_averages.jld2", 
+                       filename = "kato_phillips_Nsq1.0e-07_Qu1.0e-04_Nx512_Nz256_averages.jld2", 
                        rotating = false, 
                              N² = 1e-7, 
                           first = 5, 
-                           last = 81),
+                           last = 101),
 
                     # These LES runs were not long enough (boundary layer is very shallow):
                     #=
@@ -81,11 +81,11 @@ LESbrary = OrderedDict(
                            last = nothing),
 
                     "ekman, N²: 1e-4" => (
-                       filename = "stress_driven_Nsq1.0e-04_f1.0e-04_Qu4.0e-04_Nh128_Nz128_averages.jld2",
+                       filename = "stress_driven_Nsq1.0e-04_f1.0e-04_Qu4.0e-04_Nh256_Nz256_averages.jld2",
                        rotating = true, 
                              N² = 1e-4, 
                           first = 11, 
-                           last = nothing),
+                           last = 301),
                    )
 
 #####
@@ -97,7 +97,7 @@ LESbrary = OrderedDict(
 "Initialize a calibration run for KPP."
 function init_kpp_calibration(dataname; 
                                             Δz = 4, 
-                                            Δt = 10second, 
+                                            Δt = 1second, 
                                   first_target = 5, 
                                    last_target = nothing, 
                                         fields = (:T, :U), 
@@ -125,7 +125,7 @@ end
 "Initialize a calibration run for the TKEMassFlux parameterization."
 function init_tke_calibration(dataname; 
                                               Δz = 4, 
-                                              Δt = 10second, 
+                                              Δt = 1second, 
                                     first_target = 5, 
                                      last_target = nothing, 
                                           fields = (:T, :U, :e), 
@@ -190,13 +190,10 @@ function get_bounds_and_variance(default_parameters)
     SomeFreeParameters = typeof(default_parameters).name.wrapper
 
     # Set bounds on free parameters
-    bounds = SomeFreeParameters(((0.01, 2.0) for p in default_parameters)...)
+    bounds = SomeFreeParameters(((0.01, 4.0) for p in default_parameters)...)
 
     # Some special bounds, in the cases they are included.
-    set_bound!(bounds, :Cᴷu,  (0.01, 0.2))
-    set_bound!(bounds, :Cᴷe,  (0.01, 1.0))
-    set_bound!(bounds, :Cᴷc,  (0.01, 1.0))
-    set_bound!(bounds, :Cʷu★, (0.5, 6.0))
+    set_bound!(bounds, :Cʷu★, (0.01, 10.0))
 
     variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
     variance = Array(variance)

@@ -5,14 +5,17 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-         samples = 1000
+         samples = 4000
       iterations = 3
-              Δz = 4.0
-              Δt = 4minute
+              Δz = 2.0
+              Δt = 1minute
 relative_weights = [1e+0, 1e-4, 1e-4, 1e-6]
 
 for casename in LESbrary.keys
 
+    LEScase = LESbrary[casename]
+
+    #=
     println(
             """
 
@@ -21,15 +24,13 @@ for casename in LESbrary.keys
             """
            )
 
-    LEScase = LESbrary[casename]
-
     # Place to store results
     kpp_results = @sprintf("kpp_calibration_%s_dz%d_dt%d.jld2", 
                            replace(replace(casename, ", " => "_"), ": " => ""),
                            Δz, Δt/minute) 
 
     # Run the case
-    kpp_annealing = calibrate_kpp(joinpath(LESbrary_path, LEScase.filename), 
+    kpp_calibration = calibrate_kpp(joinpath(LESbrary_path, LEScase.filename), 
                                        samples = samples,
                                     iterations = iterations,
                                             Δz = Δz,
@@ -41,7 +42,8 @@ for casename in LESbrary.keys
                               profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
 
     # Save results
-    @save kpp_results kpp_annealing
+    @save kpp_results kpp_calibration
+    =#
 
     println(
             """
@@ -57,7 +59,7 @@ for casename in LESbrary.keys
                            Δz, Δt/minute)
 
     # Run the case
-    tke_annealing = calibrate_tke(joinpath(LESbrary_path, LEScase.filename), 
+    tke_calibration = calibrate_tke(joinpath(LESbrary_path, LEScase.filename), 
                                        samples = samples,
                                     iterations = iterations,
                                             Δz = Δz,
@@ -70,7 +72,5 @@ for casename in LESbrary.keys
                               profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
 
     # Save results
-    @save tke_results tke_annealing
-
+    @save tke_results tke_calibration
 end
-

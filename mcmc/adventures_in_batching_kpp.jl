@@ -5,7 +5,7 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-Δz = 4
+Δz = 2
 Δt = 1
 
 memberdata = (

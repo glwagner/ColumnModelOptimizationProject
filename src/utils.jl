@@ -89,3 +89,15 @@ function VarianceWeights(data; fields, targets=1:length(data), normalizer=nothin
     return VarianceWeights(fields, data, targets, variances)
 end
 
+function simple_safe_save(savename, variable)
+    temppath = savename[1:end-5] * "_temp.jld2"
+    newpath = savename
+    mv(newpath, temppath, force=true)
+
+    println("Saving to $savename")
+    @save newpath variable
+
+    rm(temppath)
+
+    return nothing
+end

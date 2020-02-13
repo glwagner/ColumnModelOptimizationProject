@@ -251,15 +251,16 @@ function visualize_markov_chain!(ax, chain, parameter; after=1, bins=100, alpha=
     return ρ
 end
 
-function visualize_markov_chain!(chain; kwargs...)
+function visualize_markov_chain!(chain; figsize=(8, 12), parameter_latex_guide=nothing, kwargs...)
     nparameters = length(chain[1].param)
     ρ = []
-    fig, axs = subplots(nrows=nparameters, figsize=(8, 12))
+    fig, axs = subplots(nrows=nparameters, figsize=figsize)
+
     for (i, p) in enumerate(propertynames(chain[1].param))
         ax = axs[i]
         ρᵢ = visualize_markov_chain!(ax, chain, p; kwargs...)
         push!(ρ, ρᵢ)
-        xlabel(parameter_latex_guide[p])
+        parameter_latex_guide != nothing && xlabel(parameter_latex_guide[p])
     end
 
     return fig, axs, ρ
