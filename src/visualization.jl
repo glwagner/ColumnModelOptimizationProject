@@ -235,6 +235,8 @@ function visualize_markov_chain!(ax, chain, parameter; after=1, bins=100, alpha=
 
     sca(ax)
     ρ, _, _ = plt.hist(C, bins=bins, alpha=alpha, density=density, facecolor=facecolor)
+    removespines("left", "right", "top")
+    ax.tick_params(left=false, labelleft=false)
 
     ρmax = maximum(ρ)
 

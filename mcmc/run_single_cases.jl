@@ -11,11 +11,10 @@ include("utils.jl")
               Δt = 1minute
 relative_weights = [1e+0, 1e-4, 1e-4, 1e-6]
 
-for casename in LESbrary.keys
+#for casename in LESbrary.keys
+casename = "kato, N²: 1e-7"
 
     LEScase = LESbrary[casename]
-
-    #=
     println(
             """
 
@@ -43,8 +42,8 @@ for casename in LESbrary.keys
 
     # Save results
     @save kpp_results kpp_calibration
-    =#
 
+    #=
     println(
             """
 
@@ -54,7 +53,7 @@ for casename in LESbrary.keys
            )
 
     # Place to store results
-    tke_results = @sprintf("tke_calibration_simple_%s_dz%d_dt%d.jld2",
+    tke_results = @sprintf("tke_calibration_surface_tke_value_%s_dz%d_dt%d.jld2",
                            replace(replace(casename, ", " => "_"), ": " => ""),
                            Δz, Δt/minute)
 
@@ -69,8 +68,10 @@ for casename in LESbrary.keys
                                         fields = LEScase.rotating ? (:T, :U, :V, :e) : (:T, :U, :e),
                               relative_weights = LEScase.rotating ? relative_weights : relative_weights[[1, 2, 4]],
                                  mixing_length = TKEMassFlux.SimpleMixingLength(), 
+                                tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEValue(), 
                               profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
 
     # Save results
     @save tke_results tke_calibration
+    =#
 end
