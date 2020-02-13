@@ -21,7 +21,7 @@ memberdata = (
 
 datapath = "batching-study/kpp-data"
 
-cases = [load(joinpath(datapath, filename), "kpp_annealing") for filename in memberdata]
+cases = [load(joinpath(datapath, filename), "kpp_calibration") for filename in memberdata]
 
 weights = zeros(length(cases))
 
@@ -41,8 +41,8 @@ nlls = [case.negative_log_likelihood for case in cases]
 batched_nll = BatchedNegativeLogLikelihood(nlls, weights=weights)
 
 default_parameters = DefaultFreeParameters(nlls[1].model, KPPWindMixingParameters)
-annealing = calibrate(batched_nll, default_parameters, samples=1000, iterations=3);
+kpp_calibration = calibrate(batched_nll, default_parameters, samples=1000, iterations=3);
 
 println("Done.")
 
-@save "kpp-mega-batch.jld2" annealing
+@save "kpp-mega-batch.jld2" kpp_calibration

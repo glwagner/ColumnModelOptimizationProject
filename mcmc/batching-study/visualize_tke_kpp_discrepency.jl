@@ -5,14 +5,17 @@ include("../utils.jl")
 
 rc("text.latex", preamble="\\usepackage{cmbright}")
 rc("font", family="sans-serif")
+rc("axes", labelsize=10, titlesize=10)
+rc("xtick", labelsize=10)
+rc("ytick", labelsize=10)
 fontsize = 8
 
 get_position(ax) = [b for b in ax.get_position().bounds]
 
      datakwargs = Dict(:linewidth=>3, :alpha=>0.4, :linestyle=>"-", :color=>"k")
-tke_modelkwargs = Dict(:linewidth=>2, :alpha=>0.8, :linestyle=>"--", :color=>defaultcolors[1])
+tke_modelkwargs = Dict(:linewidth=>2, :alpha=>0.6, :linestyle=>"--", :color=>defaultcolors[1])
         kpp_modelkwargs = Dict(:linewidth=>2, :alpha=>0.6, :linestyle=>"--", :color=>"xkcd:tomato")
-kpp_default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.6, :linestyle=>":", :color=>"xkcd:tomato")
+kpp_default_modelkwargs = Dict(:linewidth=>1, :alpha=>0.8, :linestyle=>"--", :color=>defaultcolors[2])
 
 function thin(kwargs)
     new_kwargs = deepcopy(kwargs)
@@ -54,14 +57,20 @@ kpp_c★ = optimal(kpp_chain).param
 ncases = length(tke_calibration.negative_log_likelihood.batch)
 
 close("all")
-fig, axs = subplots(ncols=3, nrows=2, figsize=(6, 8))
+fig, axs = subplots(ncols=2, nrows=1, figsize=(6.5, 2.8))
 
-for (j, i) = enumerate([5]) #2, 4, 5, 8])
+N²s = []
+fs = []
+
+for (j, i) = enumerate([2, 7])
     tke_nll = tke_calibration.negative_log_likelihood.batch[i]
     kpp_nll = kpp_calibration.negative_log_likelihood.batch[i]
 
     f = tke_nll.model.constants.f
     N² = tke_nll.model.bcs.T.bottom.condition * tke_nll.model.constants.α * tke_nll.model.constants.g
+
+    push!(fs, f)
+    push!(N²s, N²)
 
     data = tke_nll.data # data *should* be the same for tke and kpp
 
@@ -82,24 +91,15 @@ for (j, i) = enumerate([5]) #2, 4, 5, 8])
     initialize_and_run_until!(kpp_model, data, kpp_c★, ji, jf)
     initialize_and_run_until!(kpp_default_model, data, kpp_defaults, ji, jf)
 
-    ax = axs[1, j]
-    if j == 1
-         plot_data_field!(ax, :T, data, ji, jf, merge(datakwargs, Dict(:label=>data_label)))
-        plot_model_field!(ax, :T, tke_model, merge(tke_modelkwargs, Dict(:label=>tke_label)))
-        plot_model_field!(ax, :T, kpp_model, merge(kpp_modelkwargs, Dict(:label=>kpp_label)))
-        plot_model_field!(ax, :T, kpp_default_model, merge(kpp_default_modelkwargs, Dict(:label=>kpp_default_label)))
-    else
-         plot_data_field!(ax, :T, data, ji, jf, datakwargs)
-        plot_model_field!(ax, :T, tke_model, tke_modelkwargs)
-        plot_model_field!(ax, :T, kpp_model, kpp_modelkwargs)
-        plot_model_field!(ax, :T, kpp_default_model, kpp_default_modelkwargs)
-    end
+    ax = axs[j]
+     plot_data_field!(ax, :T, data, ji, jf, merge(datakwargs, Dict(:label=>data_label)))
+    plot_model_field!(ax, :T, tke_model, merge(tke_modelkwargs, Dict(:label=>tke_label)))
+    plot_model_field!(ax, :T, kpp_model, merge(kpp_modelkwargs, Dict(:label=>kpp_label)))
+    plot_model_field!(ax, :T, kpp_default_model, merge(kpp_default_modelkwargs, Dict(:label=>kpp_default_label)))
 
-    ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
     ax.ticklabel_format(useOffset=false)
-    removespines("top", "right", "left", "bottom")
-    title1 = @sprintf("\$ N^2 = 10^{%d} \$", log10(N²))
-
+                
+    #=
     ax = axs[2, j]
      plot_data_field!(ax, :U, data, ji, jf, datakwargs)
     plot_model_field!(ax, :U, tke_model, tke_modelkwargs)
@@ -114,21 +114,42 @@ for (j, i) = enumerate([5]) #2, 4, 5, 8])
     ax.ticklabel_format(useOffset=false)
     ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
     removespines("top", "right", "left", "bottom")
+    =#
 end
 
-axs[1, 1].tick_params(left=true, labelleft=true)
-axs[1, 1].spines["left"].set_visible(true)
-sca(axs[1, 1])
+ax = axs[1]
+sca(ax)
+xlabel(L"T \, \mathrm{({}^\circ \, C)}")
 ylabel(L"z \, \mathrm{(m)}")
+removespines("top", "right") #, "left", "bottom")
 
+text(0.11, 0.84, @sprintf(" \$ N^2 = 10^{%d} \\, \\mathrm{s^{-2}} \$", log10(N²s[1])),
+     transform=ax.transAxes, horizontalalignment="left", verticalalignment="bottom")
+
+text(0.16, 0.80, @sprintf(" \$ f = 10^{%d} \\, \\mathrm{s^{-1}} \$", log10(fs[1])),
+     transform=ax.transAxes, horizontalalignment="left", verticalalignment="top")
+
+ax = axs[2]
+sca(ax)
+xlabel(L"T \, \mathrm{({}^\circ \, C)}")
+axs[2].tick_params(left=false, labelleft=false)
+removespines("top", "right", "left") #, "left", "bottom")
+
+text(0.55, 0.18, @sprintf(" \$ N^2 = 10^{%d} \\, \\mathrm{s^{-2}} \$", log10(N²s[2])),
+     transform=ax.transAxes, horizontalalignment="left", verticalalignment="bottom")
+
+text(0.60, 0.14, L"f=0",
+     transform=ax.transAxes, horizontalalignment="left", verticalalignment="top")
+
+#=
 axs[2, 1].tick_params(left=true, labelleft=true)
 axs[2, 1].spines["left"].set_visible(true)
 sca(axs[2, 1])
 ylabel(L"z \, \mathrm{(m)}")
+=#
 
-
-xshift = 0.05
-yshift = 0.00
+xshift = 0.03
+yshift = 0.05
 for ax in axs
     pos = get_position(ax)
     pos[1] += xshift
@@ -136,6 +157,8 @@ for ax in axs
     ax.set_position(pos)
 end
 
-sca(axs[1, 1])
-leg = legend() #markerfirst=false, loc=6, bbox_to_anchor=(-0.6, 0.7, 1.0, 0.25), 
-         #prop=Dict(:size=>10))
+sca(axs[2])
+leg = legend(markerfirst=true, loc=3, bbox_to_anchor=(-0.1, 0.55, 1.0, 0.5), 
+         prop=Dict(:size=>10))
+
+savefig("kpp_versus_tke.png", dpi=480)

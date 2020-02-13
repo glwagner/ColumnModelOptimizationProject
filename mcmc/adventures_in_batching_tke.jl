@@ -7,48 +7,52 @@ include("utils.jl")
 
 Δz = 2
 Δt = 1
+tag = "scaled-flux"
+alttag = "scaled_flux"
 
 batches = OrderedDict(
-               "tke-surface-value-rotating-strong-stratification-mini-batch" => (
-                    @sprintf("tke_calibration_surface_tke_value_ekman_N²1e-7_dz%d_dt%d.jld2", Δz, Δt),  
-                    @sprintf("tke_calibration_surface_tke_value_ekman_N²1e-6_dz%d_dt%d.jld2", Δz, Δt)
+               "tke-$tag-rotating-strong-stratification-mini-batch" => (
+                    @sprintf("tke_calibration_%s_ekman_N²1e-7_dz%d_dt%d.jld2", alttag, Δz, Δt),  
+                    @sprintf("tke_calibration_%s_ekman_N²1e-6_dz%d_dt%d.jld2", alttag, Δz, Δt)
                ),
 
-               "tke-surface-value-rotating-weak-stratification-mini-batch" => (
-                    @sprintf("tke_calibration_surface_tke_value_ekman_N²1e-5_dz%d_dt%d.jld2", Δz, Δt),  
-                    @sprintf("tke_calibration_surface_tke_value_ekman_N²1e-4_dz%d_dt%d.jld2", Δz, Δt)
+               "tke-$tag-rotating-weak-stratification-mini-batch" => (
+                    @sprintf("tke_calibration_%s_ekman_N²1e-5_dz%d_dt%d.jld2", alttag, Δz, Δt),  
+                    @sprintf("tke_calibration_%s_ekman_N²1e-4_dz%d_dt%d.jld2", alttag, Δz, Δt)
                ),
 
-               "tke-surface-value-non-rotating-weak-stratification-mini-batch" => (
-                    @sprintf("tke_calibration_surface_tke_value_kato_N²1e-7_dz%d_dt%d.jld2", Δz, Δt),  
-                    @sprintf("tke_calibration_surface_tke_value_kato_N²1e-6_dz%d_dt%d.jld2", Δz, Δt)
+               "tke-$tag-non-rotating-weak-stratification-mini-batch" => (
+                    @sprintf("tke_calibration_%s_kato_N²1e-7_dz%d_dt%d.jld2", alttag, Δz, Δt),  
+                    @sprintf("tke_calibration_%s_kato_N²1e-6_dz%d_dt%d.jld2", alttag, Δz, Δt)
                ),
 
-                "tke-surface-value-non-rotating-strong-stratification-mini-batch" => (
-                    @sprintf("tke_calibration_surface_tke_value_kato_N²1e-5_dz%d_dt%d.jld2", Δz, Δt),  
-                    @sprintf("tke_calibration_surface_tke_value_kato_N²1e-4_dz%d_dt%d.jld2", Δz, Δt)
+                "tke-$tag-non-rotating-strong-stratification-mini-batch" => (
+                    @sprintf("tke_calibration_%s_kato_N²1e-5_dz%d_dt%d.jld2", alttag, Δz, Δt),  
+                    @sprintf("tke_calibration_%s_kato_N²1e-4_dz%d_dt%d.jld2", alttag, Δz, Δt)
                 ),
 )
 
 datapath = "batching-study/tke-data"
 
-#batchname = "tke-surface-value-mega-batch.jld2"
-#memberdata = vcat([b for b in batches["tke-surface-value-rotating-strong-stratification-mini-batch"]],
-#                  [b for b in batches["tke-surface-value-rotating-weak-stratification-mini-batch"]],
-#                  [b for b in batches["tke-surface-value-non-rotating-weak-stratification-mini-batch"]],
-#                  [b for b in batches["tke-surface-value-non-rotating-strong-stratification-mini-batch"]])
+#=
+batchname = "tke-$tag-mega-batch.jld2"
+memberdata = vcat([b for b in batches["tke-$tag-rotating-strong-stratification-mini-batch"]],
+                  [b for b in batches["tke-$tag-rotating-weak-stratification-mini-batch"]],
+                  [b for b in batches["tke-$tag-non-rotating-weak-stratification-mini-batch"]],
+                  [b for b in batches["tke-$tag-non-rotating-strong-stratification-mini-batch"]])
 
-#batchname = "tke-surface-value-rotating-mini-batch.jld2"
-#memberdata = vcat([b for b in batches["tke-surface-value-rotating-strong-stratification-mini-batch"]],
-#                  [b for b in batches["tke-surface-value-rotating-weak-stratification-mini-batch"]])
+batchname = "tke-$tag-rotating-mini-batch.jld2"
+memberdata = vcat([b for b in batches["tke-$tag-rotating-strong-stratification-mini-batch"]],
+                  [b for b in batches["tke-$tag-rotating-weak-stratification-mini-batch"]])
 
-batchname = "tke-surface-value-non-rotating-mini-batch.jld2"
-memberdata = vcat([b for b in batches["tke-surface-value-non-rotating-strong-stratification-mini-batch"]],
-                  [b for b in batches["tke-surface-value-non-rotating-weak-stratification-mini-batch"]])
+batchname = "tke-$tag-non-rotating-mini-batch.jld2"
+memberdata = vcat([b for b in batches["tke-$tag-non-rotating-strong-stratification-mini-batch"]],
+                  [b for b in batches["tke-$tag-non-rotating-weak-stratification-mini-batch"]])
+=#
 
-#for batch in keys(batches)
-#    batchname = batch * ".jld2"
-#    memberdata = batches[batch]
+for batch in keys(batches)
+    batchname = batch * ".jld2"
+    memberdata = batches[batch]
 
     @show memberdata
 
@@ -77,4 +81,4 @@ memberdata = vcat([b for b in batches["tke-surface-value-non-rotating-strong-str
     println("Done.")
 
     @save batchname tke_calibration
-#end
+end
