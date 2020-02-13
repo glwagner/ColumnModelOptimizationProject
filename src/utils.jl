@@ -105,7 +105,12 @@ function simple_safe_save(savename, variable, name="calibration")
     end
 
     println("Saving to $savename...")
-    save(newpath, name, variable)
+    try
+        save(newpath, name, variable)
+    catch
+        @warn "Could not save to $savepath, copying $temppath to $newpath."
+        cp(temppath, newpath, force=true)
+    end
 
     rm(temppath)
 
