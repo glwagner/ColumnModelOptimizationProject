@@ -5,23 +5,28 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-Δz = 4
+Δz = 2
 Δt = 1
 
-memberdata = (
-              @sprintf("tke_calibration_ekman_N²1e-7_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf("tke_calibration_ekman_N²1e-6_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf("tke_calibration_ekman_N²1e-5_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf("tke_calibration_ekman_N²1e-4_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf( "tke_calibration_kato_N²1e-7_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf( "tke_calibration_kato_N²1e-6_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf( "tke_calibration_kato_N²1e-5_dz%d_dt%d.jld2", Δz, Δt),  
-              @sprintf( "tke_calibration_kato_N²1e-4_dz%d_dt%d.jld2", Δz, Δt),  
-            )
+#batchname = "tke-rotating-strong-stratification-mini-batch"
+#memberdata = (@sprintf("tke_calibration_simple_ekman_N²1e-7_dz%d_dt%d.jld2", Δz, Δt),  
+#              @sprintf("tke_calibration_simple_ekman_N²1e-6_dz%d_dt%d.jld2", Δz, Δt))
+
+#batchname = "tke-rotating-weak-stratification-mini-batch"
+#memberdata = (@sprintf("tke_calibration_simple_ekman_N²1e-5_dz%d_dt%d.jld2", Δz, Δt),  
+#              @sprintf("tke_calibration_simple_ekman_N²1e-4_dz%d_dt%d.jld2", Δz, Δt))
+
+#batchname = "tke-non-rotating-weak-stratification-mini-batch"
+#memberdata = (@sprintf("tke_calibration_simple_kato_N²1e-7_dz%d_dt%d.jld2", Δz, Δt),  
+#              @sprintf("tke_calibration_simple_kato_N²1e-6_dz%d_dt%d.jld2", Δz, Δt))
+
+batchname = "tke-non-rotating-strong-stratification-mini-batch"
+memberdata = (@sprintf("tke_calibration_simple_kato_N²1e-5_dz%d_dt%d.jld2", Δz, Δt),  
+              @sprintf("tke_calibration_simple_kato_N²1e-4_dz%d_dt%d.jld2", Δz, Δt))
 
 datapath = "batching-study/tke-data"
 
-cases = [load(joinpath(datapath, filename), "tke_annealing") for filename in memberdata]
+cases = [load(joinpath(datapath, filename), "annealing") for filename in memberdata]
 
 weights = zeros(length(cases))
 
@@ -45,4 +50,4 @@ annealing = calibrate(batched_nll, default_parameters, samples=1000, iterations=
 
 println("Done.")
 
-@save "tke-mega-batch.jld2" annealing
+@save batchname annealing 
