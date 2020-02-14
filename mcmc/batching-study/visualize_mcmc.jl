@@ -4,7 +4,6 @@ include("../setup.jl")
 include("../utils.jl")
 
 calibrated = (
-              #=
               # Prescribed surface value runs
               "tke-surface-value-mega-batch.jld2",
 
@@ -24,8 +23,8 @@ calibrated = (
               "tke_calibration_surface_tke_value_kato_N²1e-5_dz2_dt1.jld2",
               "tke_calibration_surface_tke_value_kato_N²1e-6_dz2_dt1.jld2",
               "tke_calibration_surface_tke_value_kato_N²1e-7_dz2_dt1.jld2",
-              =#
 
+              #=
               # Prescribed surface flux runs
               "tke-mega-batch.jld2",
 
@@ -45,11 +44,12 @@ calibrated = (
               "tke_calibration_simple_kato_N²1e-5_dz2_dt1.jld2",
               "tke_calibration_simple_kato_N²1e-6_dz2_dt1.jld2",
               "tke_calibration_simple_kato_N²1e-7_dz2_dt1.jld2",
+              =#
              )
 
 for case in calibrated
     casepath = joinpath("tke-data", case)
-    calibration = load(casepath, "tke_calibration")
+    calibration = load(casepath, "calibration")
 
     chain = calibration.markov_chains[end]
     

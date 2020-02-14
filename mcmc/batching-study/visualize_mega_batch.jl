@@ -3,10 +3,11 @@ using ColumnModelOptimizationProject
 include("../setup.jl")
 include("../utils.jl")
 
-rc("text.latex", preamble="\\usepackage{cmbright}")
-rc("font", family="sans-serif")
 fontsize = 8
 fs = 12
+
+rc("text.latex", preamble="\\usepackage{cmbright}")
+rc("font", family="sans-serif")
 
  default_datakwargs = Dict(:linewidth=>3, :alpha=>0.35, :linestyle=>"-", :color=>"k")
 default_modelkwargs = Dict(:linewidth=>2, :alpha=>0.9, :linestyle=>"--", :color=>defaultcolors[1])
@@ -34,24 +35,20 @@ function plot_model_field!(ax, fieldname, model, default_modelkwargs)
     return nothing
 end
 
-annealing = try 
-        load("tke-data/tke-mega-batch.jld2", "tke_calibration")
-    catch
-        load("tke-data/tke-mega-batch.jld2", "calibration")
-    end
+calibration = load("tke-data/tke-scaled-flux-mega-batch.jld2", "tke_calibration")
 
 # Optimal parameters
-chain = annealing.markov_chains[end]
+chain = calibration.markov_chains[end]
 
 c★ = optimal(chain).param
 
-ncases = length(annealing.negative_log_likelihood.batch)
+ncases = length(calibration.negative_log_likelihood.batch)
 
 close("all")
 fig, axs = subplots(ncols=ncases, nrows=2, figsize=(16, 5))
 
 for i = 1:ncases
-    nll = annealing.negative_log_likelihood.batch[i]
+    nll = calibration.negative_log_likelihood.batch[i]
 
     f = nll.model.constants.f
     N² = nll.model.bcs.T.bottom.condition * nll.model.constants.α * nll.model.constants.g
@@ -128,8 +125,9 @@ for i = 1:ncases
 
     lims = ax.get_ylim()
     ylim(3*lims[1]/4, 0.01*(lims[2]-lims[1]))
-
 end
+
+pause(0.1)
 
 xshift = 0.0
 yshift = 0.01

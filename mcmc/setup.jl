@@ -266,7 +266,7 @@ end
 function calibrate(nll, initial_parameters; samples=100, iterations=10,
 
                     annealing_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0,
-                                                                        final_scale = 1e-2,
+                                                                        final_scale = 1e-3,
                                                                    convergence_rate = 1.0, 
                                                                     rate_adaptivity = 1.5),
 

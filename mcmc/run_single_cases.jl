@@ -6,7 +6,7 @@ include("setup.jl")
 include("utils.jl")
 
          samples = 4000
-      iterations = 3
+      iterations = 4
               Δz = 2.0
               Δt = 1minute
 relative_weights = [1e+0, 1e-4, 1e-4, 1e-6]
@@ -59,7 +59,7 @@ for casename in LESbrary.keys
                            Δz, Δt/minute)
 
     # Run the case
-    tke_calibration = calibrate_tke(joinpath(LESbrary_path, LEScase.filename), 
+    calibration = calibrate_tke(joinpath(LESbrary_path, LEScase.filename), 
                                        samples = samples,
                                     iterations = iterations,
                                             Δz = Δz,
@@ -73,5 +73,5 @@ for casename in LESbrary.keys
                               profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
 
     # Save results
-    @save tke_results tke_calibration
+    @save tke_results calibration
 end

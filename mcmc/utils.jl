@@ -18,13 +18,30 @@ function optimum_series(problem)
     return ParameterType(optimums...)
 end
     
-function extend_and_save!(calibration, chunks, path)
+function restart_extend_and_save!(calibration, chunks, path)
 
-    chain = calibration.markov_chains[end]
+    nll = calibration.negative_log_likelihood
+    previous_chain = calibration.markov_chains[end]
+    covariance_estimate = cov(previous_chain)
+    initial_link = optimal(previous_chain)
+    sampler = MetropolisSampler(calibration.perturbation(covariance_estimate, 
+                                                         calibration.perturbation_args...))
 
-    for chunk in chunks
-        extend!(chain, chunk)
-        status(chain)
+    # L₀ = scale * chain[1]
+    # Lnew = scale * optimal(chain)
+    # => Lnew = L₀ / chain[1] * optimal(chain)
+    nll.scale *= optimal(previous_chain).error / previous_chain[1].error
+    
+    println("Starting the first chain with chunksize $(chunks[1])...")
+    @time new_chain = MarkovChain(chunks[1], initial_link, nll, sampler)
+    push!(calibration.markov_chains, new_chain)
+
+    status(new_chain)
+    simple_safe_save(path, calibration)
+
+    for chunk in chunks[2:end]
+        @time extend!(new_chain, chunk)
+        status(new_chain)
         simple_safe_save(path, calibration)
     end
 
@@ -50,7 +67,7 @@ function continuation(calibration, nearby_calibration, chunks, continuation_path
                                     annealing_schedule = calibration.annealing_schedule,
                                    covariance_schedule = calibration.covariance_schedule)
 
-    extend_and_save!(continued_calibration, chunks, continuation_path)
+    restart_extend_and_save!(continued_calibration, chunks, continuation_path)
 
     return continued_calibration
 end
@@ -69,5 +86,3 @@ function continuation(child, parent_calibration, chunks)
 
     return child_continuation
 end
-
-
