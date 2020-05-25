@@ -38,12 +38,12 @@ function plot_model_field!(ax, fieldname, model, modelkwargs)
     return nothing
 end
 
-tke_calibration = load("tke-data/tke-mega-batch.jld2", "tke_calibration")
-kpp_calibration = load("kpp-data/kpp-mega-batch.jld2", "annealing")
+tke_calibration = load("tke-data/tke-scaled-flux-mega-batch.jld2", "calibration")
+kpp_calibration = load("kpp-data/kpp-mega-batch.jld2", "kpp_calibration")
 
 data_label = "LES"
 tke_label = "TKE-based model"
-kpp_label = "KPP (optimized)"
+kpp_label = "KPP (calibrated)"
 kpp_default_label = "KPP (default)"
 
 # Optimal parameters
@@ -57,12 +57,12 @@ kpp_c★ = optimal(kpp_chain).param
 ncases = length(tke_calibration.negative_log_likelihood.batch)
 
 close("all")
-fig, axs = subplots(ncols=2, nrows=1, figsize=(6.5, 2.8))
+fig, axs = subplots(ncols=3, nrows=1, figsize=(6.5, 2.8))
 
 N²s = []
 fs = []
 
-for (j, i) = enumerate([2, 7])
+for (j, i) = enumerate([2, 3, 4])
     tke_nll = tke_calibration.negative_log_likelihood.batch[i]
     kpp_nll = kpp_calibration.negative_log_likelihood.batch[i]
 
@@ -81,9 +81,6 @@ for (j, i) = enumerate([2, 7])
     kpp_default_model = deepcopy(kpp_nll.model)
     kpp_loss = kpp_nll.loss
 
-    @show kpp_model.grid
-    @show tke_model.grid
-
     ji = tke_loss.targets[1]
     jf = tke_loss.targets[end]
 
@@ -98,23 +95,6 @@ for (j, i) = enumerate([2, 7])
     plot_model_field!(ax, :T, kpp_default_model, merge(kpp_default_modelkwargs, Dict(:label=>kpp_default_label)))
 
     ax.ticklabel_format(useOffset=false)
-                
-    #=
-    ax = axs[2, j]
-     plot_data_field!(ax, :U, data, ji, jf, datakwargs)
-    plot_model_field!(ax, :U, tke_model, tke_modelkwargs)
-    plot_model_field!(ax, :U, kpp_model, kpp_modelkwargs)
-    plot_model_field!(ax, :U, kpp_default_model, kpp_default_modelkwargs)
-
-    f != 0 &&  plot_data_field!(ax, :V, data, ji, jf, thin(datakwargs))
-    f != 0 && plot_model_field!(ax, :V, tke_model, thin(tke_modelkwargs))
-    f != 0 && plot_model_field!(ax, :V, kpp_model, thin(kpp_modelkwargs))
-    f != 0 && plot_model_field!(ax, :V, kpp_default_model, thin(kpp_default_modelkwargs))
-
-    ax.ticklabel_format(useOffset=false)
-    ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
-    removespines("top", "right", "left", "bottom")
-    =#
 end
 
 ax = axs[1]
@@ -135,18 +115,23 @@ xlabel(L"T \, \mathrm{({}^\circ \, C)}")
 axs[2].tick_params(left=false, labelleft=false)
 removespines("top", "right", "left") #, "left", "bottom")
 
-text(0.55, 0.18, @sprintf(" \$ N^2 = 10^{%d} \\, \\mathrm{s^{-2}} \$", log10(N²s[2])),
+text(0.45, 0.18, @sprintf(" \$ N^2 = 10^{%d} \\, \\mathrm{s^{-2}} \$", log10(N²s[2])),
      transform=ax.transAxes, horizontalalignment="left", verticalalignment="bottom")
 
-text(0.60, 0.14, L"f=0",
+text(0.50, 0.14, @sprintf(" \$ f = 10^{%d} \\, \\mathrm{s^{-1}} \$", log10(fs[2])),
      transform=ax.transAxes, horizontalalignment="left", verticalalignment="top")
 
-#=
-axs[2, 1].tick_params(left=true, labelleft=true)
-axs[2, 1].spines["left"].set_visible(true)
-sca(axs[2, 1])
-ylabel(L"z \, \mathrm{(m)}")
-=#
+ax = axs[3]
+sca(ax)
+xlabel(L"T \, \mathrm{({}^\circ \, C)}")
+axs[3].tick_params(left=false, labelleft=false)
+removespines("top", "right", "left") #, "left", "bottom")
+
+text(0.45, 0.18, @sprintf(" \$ N^2 = 10^{%d} \\, \\mathrm{s^{-2}} \$", log10(N²s[3])),
+     transform=ax.transAxes, horizontalalignment="left", verticalalignment="bottom")
+
+text(0.50, 0.14, @sprintf(" \$ f = 10^{%d} \\, \\mathrm{s^{-1}} \$", log10(fs[3])),
+     transform=ax.transAxes, horizontalalignment="left", verticalalignment="top")
 
 xshift = 0.03
 yshift = 0.05
@@ -158,7 +143,7 @@ for ax in axs
 end
 
 sca(axs[2])
-leg = legend(markerfirst=true, loc=3, bbox_to_anchor=(-0.1, 0.55, 1.0, 0.5), 
-         prop=Dict(:size=>10))
+leg = legend(markerfirst=true, loc=3, bbox_to_anchor=(-0.13, 0.6, 1.0, 0.5), 
+         prop=Dict(:size=>8))
 
 savefig("kpp_versus_tke.png", dpi=480)

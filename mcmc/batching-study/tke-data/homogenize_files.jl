@@ -3,7 +3,7 @@ using ColumnModelOptimizationProject, Glob
 include("../../setup.jl")
 include("../../utils.jl")
 
-filenames = glob("*surface*.jld2")
+filenames = glob("*scaled*.jld2")
 @show filenames
 
 for filename in filenames

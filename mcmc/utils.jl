@@ -48,6 +48,23 @@ function restart_extend_and_save!(calibration, chunks, path)
     return nothing
 end
 
+function extend_and_save!(calibration, chunks, path)
+
+    chain = calibration.markov_chains[end]
+
+    println("Extending a Markov chain...")
+
+    status(chain)
+
+    for chunk in chunks
+        @time extend!(chain, chunk)
+        status(chain)
+        simple_safe_save(path, calibration)
+    end
+
+    return nothing
+end
+
 function continuation(calibration, nearby_calibration, chunks, continuation_path)
 
     previous_nearby_chain = nearby_calibration.markov_chains[end]
@@ -62,21 +79,21 @@ function continuation(calibration, nearby_calibration, chunks, continuation_path
     # Re-annealing
     continued_calibration = anneal(nll, Cᵢ, covariance_estimate, calibration.perturbation,
                                    calibration.perturbation_args...; 
-                                               samples = calibration.samples,
-                                            iterations = calibration.iterations, 
+                                               samples = 4000, #calibration.samples,
+                                            iterations = 3, #calibration.iterations, 
                                     annealing_schedule = calibration.annealing_schedule,
                                    covariance_schedule = calibration.covariance_schedule)
 
-    restart_extend_and_save!(continued_calibration, chunks, continuation_path)
+    extend_and_save!(continued_calibration, chunks, continuation_path)
 
     return continued_calibration
 end
 
-function continuation(child, parent_calibration, chunks)
+function continuation(child, parent_calibration, chunks; suffix="continuation")
     child_path = path(child)
     child_calibration = load_calibration(child_path)
 
-    continuation_name = child[1:end-5] * "-continuation.jld2"
+    continuation_name = child[1:end-5] * "-$suffix.jld2"
     continuation_path = path(continuation_name)
 
     @show child_path continuation_path

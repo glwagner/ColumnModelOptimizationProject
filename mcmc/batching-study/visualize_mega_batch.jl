@@ -6,6 +6,10 @@ include("../utils.jl")
 fontsize = 8
 fs = 12
 
+color1 = defaultcolors[1] #(0.44941176470588234, 0.7858823529411765, 0.7403921568627451, 1.0)
+color2 = "k" #xkcd:aquamarine" #defaultcolors[3] #(0.17739331026528254, 0.6340638216070742, 0.7600153787004998, 1.0)
+α = 0.8
+
 rc("text.latex", preamble="\\usepackage{cmbright}")
 rc("font", family="sans-serif")
 
@@ -35,7 +39,7 @@ function plot_model_field!(ax, fieldname, model, default_modelkwargs)
     return nothing
 end
 
-calibration = load("tke-data/tke-scaled-flux-mega-batch.jld2", "tke_calibration")
+calibration = load("tke-data/tke-scaled-flux-mega-batch.jld2", "calibration")
 
 # Optimal parameters
 chain = calibration.markov_chains[end]
@@ -113,13 +117,36 @@ for i = 1:ncases
     ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
     removespines("top", "right", "left", "bottom")
 
-    if i == 1
+    if i == 1 
         text(0.5, -0.2, 
-             @sprintf("\$ N^2 = 10^{%d} \\, \\mathrm{s^{-2}}\$", log10(N²)),
+             @sprintf("\$ N^2 = 10^{%d} \\, \\, \\mathrm{s^{-2}}\$", log10(N²)),
+             color = color1,
+             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+
+        text(0.5, -0.32, 
+             @sprintf("\$ f = 10^{%d} \\, \\, \\mathrm{s^{-1}}\$", log10(f)),
+             color = color1,
+             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+
+    elseif i < 5
+        text(0.5, -0.2,
+             @sprintf("\$ 10^{%d} \$", log10(N²)),
+             color = color1,
+             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+    elseif i == 5
+        text(0.5, -0.2,
+             @sprintf("\$ N^2 = 10^{%d} \\, \\, \\mathrm{s^{-2}}\$", log10(N²)),
+             color = color2, alpha=α,
+             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+
+        text(0.5, -0.32,
+             @sprintf("\$ f = 0 \$"),
+             color = color2, alpha=α,
              transform=ax.transAxes, fontsize=10, horizontalalignment="center")
     else
         text(0.5, -0.2,
              @sprintf("\$ 10^{%d} \$", log10(N²)),
+             color = color2, alpha=α,
              transform=ax.transAxes, fontsize=10, horizontalalignment="center")
     end
 
@@ -130,7 +157,7 @@ end
 pause(0.1)
 
 xshift = 0.0
-yshift = 0.01
+yshift = 0.03
 for ax in axs
     pos = get_position(ax)
     pos[1] += xshift

@@ -9,7 +9,7 @@ include("utils.jl")
 Δt = 1
 tag = "scaled-flux"
 alt_tag = "scaled_flux"
-samples = 4000
+samples = 500
 iterations = 4
 
 batches = OrderedDict(
@@ -36,21 +36,21 @@ batches = OrderedDict(
 
 datapath = "batching-study/tke-data"
 
+#=
 batchname = "tke-$tag-mega-batch.jld2"
 memberdata = vcat([b for b in batches["tke-$tag-rotating-strong-stratification-mini-batch"]],
                   [b for b in batches["tke-$tag-rotating-weak-stratification-mini-batch"]],
                   [b for b in batches["tke-$tag-non-rotating-weak-stratification-mini-batch"]],
                   [b for b in batches["tke-$tag-non-rotating-strong-stratification-mini-batch"]])
+=#
 
-#=
 batchname = "tke-$tag-rotating-mini-batch.jld2"
 memberdata = vcat([b for b in batches["tke-$tag-rotating-strong-stratification-mini-batch"]],
                   [b for b in batches["tke-$tag-rotating-weak-stratification-mini-batch"]])
 
-batchname = "tke-$tag-non-rotating-mini-batch.jld2"
-memberdata = vcat([b for b in batches["tke-$tag-non-rotating-strong-stratification-mini-batch"]],
-                  [b for b in batches["tke-$tag-non-rotating-weak-stratification-mini-batch"]])
-=#
+#batchname = "tke-$tag-non-rotating-mini-batch.jld2"
+#memberdata = vcat([b for b in batches["tke-$tag-non-rotating-strong-stratification-mini-batch"]],
+#                  [b for b in batches["tke-$tag-non-rotating-weak-stratification-mini-batch"]])
 
 #for batch in keys(batches)
 #    batchname = batch * ".jld2"
@@ -78,9 +78,9 @@ memberdata = vcat([b for b in batches["tke-$tag-non-rotating-strong-stratificati
     batched_nll = BatchedNegativeLogLikelihood(nlls, weights=weights)
 
     default_parameters = DefaultFreeParameters(nlls[1].model, TKEParametersToOptimize)
-    tke_calibration = calibrate(batched_nll, default_parameters, samples=samples, iterations=iterations)
+    calibration = calibrate(batched_nll, default_parameters, samples=samples, iterations=iterations)
 
     println("Done.")
 
-    @save batchname tke_calibration
+    @save batchname calibration
 #end

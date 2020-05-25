@@ -94,25 +94,12 @@ function simple_safe_save(savename, variable, name="calibration")
     temppath = savename[1:end-5] * "_temp.jld2"
     newpath = savename
 
-    try
-        mv(newpath, temppath, force=true)
-    catch err
-        if isa(err, IOError)
-            warn("$newpath does not exist.")
-        else
-            throw(err)
-        end
-    end
+    isfile(newpath) && mv(newpath, temppath, force=true)
 
     println("Saving to $savename...")
-    try
-        save(newpath, name, variable)
-    catch
-        @warn "Could not save to $savepath, copying $temppath to $newpath."
-        cp(temppath, newpath, force=true)
-    end
+    save(newpath, name, variable)
 
-    rm(temppath)
+    isfile(temppath) && rm(temppath)
 
     return nothing
 end
