@@ -1,12 +1,12 @@
 function ColumnModel(cd::ColumnData, Δt; Δz=nothing, N=nothing, kwargs...)
 
     if Δz != nothing
-        N = ceil(Int, cd.grid.L / Δz)
+        N = ceil(Int, cd.grid.H / Δz)
     end
 
     model = simple_tke_model(cd.constants; 
                                 N = N, 
-                                L = cd.grid.L, 
+                                H = cd.grid.H,
                                Qᶿ = cd.surface_fluxes.Qᶿ, 
                                Qˢ = cd.surface_fluxes.Qˢ,
                                Qᵘ = cd.surface_fluxes.Qᵘ, 
@@ -20,14 +20,14 @@ function ColumnModel(cd::ColumnData, Δt; Δz=nothing, N=nothing, kwargs...)
 end
 
 """
-    simple_tke_model(constants=Constants(); N=128, L, dTdz, dSdz,
+    simple_tke_model(constants=Constants(); N=128, H, dTdz, dSdz,
                            Qᶿ=0.0, Qˢ=0.0, Qᵘ=0.0, Qᵛ=0.0, Qᵉ=0.0, T₀=20.0, S₀=35.0,
                             tke_equation = TKEMassFlux.TKEParameters(),
                            mixing_length = TKEMassFlux.SimpleMixingLength(),
                            nonlocal_flux = nothing,
                            kwargs...)
 
-Construct a model with `Constants`, resolution `N`, domain size `L`,
+Construct a model with `Constants`, resolution `N`, domain height `H`,
 bottom temperature gradient `dTdz`, and forced by
 
     - temperature flux `Qᶿ`
@@ -40,7 +40,7 @@ their respective components of the `OceanTurb.TKEMassFlux.Model`.
 """
 function simple_tke_model(constants=Constants(); 
                           N = 128, 
-                          L, 
+                          H, 
                           dTdz, 
                           dSdz,
                           Qᶿ = 0.0, 
@@ -52,7 +52,7 @@ function simple_tke_model(constants=Constants();
                           kwargs...
                          )
 
-    model = TKEMassFlux.Model(;     grid = UniformGrid(N=N, L=L),
+    model = TKEMassFlux.Model(;     grid = UniformGrid(N=N, H=H),
                                constants = constants,
                                  stepper = :BackwardEuler,
                                   kwargs...
