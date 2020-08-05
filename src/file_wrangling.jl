@@ -16,8 +16,8 @@ function get_times(datapath)
     return t
 end
 
-function get_parameter(filename, group, parameter_name)
-    parameter = nothing
+function get_parameter(filename, group, parameter_name, default=nothing)
+    parameter = default
 
     jldopen(filename) do file
         if parameter_name ∈ keys(file["$group"])

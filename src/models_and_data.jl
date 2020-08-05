@@ -101,10 +101,10 @@ function ColumnData(datapath)
     constants = Constants(; constants_dict...)
 
     # Surface fluxes
-    Qᵘ = get_parameter(datapath, "boundary_conditions", "Qᵘ")
-    Qᵛ = get_parameter(datapath, "boundary_conditions", "Qᵛ")
-    Qᶿ = get_parameter(datapath, "boundary_conditions", "Qᶿ")
-    Qˢ = get_parameter(datapath, "boundary_conditions", "Qˢ")
+    Qᵘ = get_parameter(datapath, "boundary_conditions", "Qᵘ", 0.0)
+    Qᵛ = get_parameter(datapath, "boundary_conditions", "Qᵛ", 0.0)
+    Qᶿ = get_parameter(datapath, "boundary_conditions", "Qᶿ", 0.0)
+    Qˢ = get_parameter(datapath, "boundary_conditions", "Qˢ", 0.0)
 
     # Bottom temperature and salinity gradient
     dTdz = get_parameter(datapath, "initial_conditions", "dθdz")
