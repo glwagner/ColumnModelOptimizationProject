@@ -1,4 +1,4 @@
-# An ocean column model optimzation project
+# An ocean column model optimization project
 
 We are using Bayesian techniques to evaluate and optimize column models for the turbulent ocean surface boundary layer.
 See this poster for a sample of the kind of work we're trying to do:
