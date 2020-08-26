@@ -3,7 +3,8 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+#LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
 
 LESdata = (
            LESbrary["kato, N²: 1e-7"],
