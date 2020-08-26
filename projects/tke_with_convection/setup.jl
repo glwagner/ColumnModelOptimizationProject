@@ -5,10 +5,10 @@ using ColumnModelOptimizationProject.TKEMassFluxOptimization
 
 @free_parameters(RiDependentTKEParameters,
                  CᴷRiʷ, CᴷRiᶜ,
-                 Cᴷu⁻, Cᴷuᵟ,
-                 Cᴷc⁻, Cᴷcᵟ,
-                 Cᴷe⁻, Cᴷeᵟ,
-                 Cᴰ, Cᴸʷ, Cᴸᵇ, Cʷu★, CʷwΔ)
+                 Cᴷu⁺,
+                 Cᴷc⁻, Cᴷc⁺,
+                 Cᴷe⁻, Cᴷe⁺,
+                 Cᴰ, Cᴸᵇ, Cʷu★, CʷwΔ)
 
 @free_parameters(RiIndependentTKEParameters,
                  Cᴷu, Cᴷc, Cᴷe,
@@ -233,12 +233,9 @@ function get_bounds_and_variance(default_parameters)
     bounds = SomeFreeParameters(((0.001, 6.0) for p in default_parameters)...)
 
     # Some special bounds, in the cases they are included.
-    set_if_present!(bounds, :Cᴷu⁻, (0.001, 2.0))
-    set_if_present!(bounds, :Cᴷuᵟ, (-2.0, 2.0))
-    set_if_present!(bounds, :CᴷRiᶜ, (-2.0, 2.0))
-
-    set_if_present!(bounds, :Cᴷcᵟ, (-10.0, 10.0))
-    set_if_present!(bounds, :Cᴷeᵟ, (-10.0, 10.0))
+    set_if_present!(bounds, :Cᴷu⁺, (0.001, 2.0))
+    set_if_present!(bounds, :CᴷRiᶜ, (-1.0, 2.0))
+    set_if_present!(bounds, :CᴷRiʷ, (0.1, 2.0))
 
     variances = SomeFreeParameters((0.02 * (bound[2] - bound[1]) for bound in bounds)...)
 

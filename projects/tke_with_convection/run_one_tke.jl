@@ -3,8 +3,8 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-#LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
-LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
+LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+#LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
 
 # Optimization parameters
         casename = "convection, N²: 2e-6"

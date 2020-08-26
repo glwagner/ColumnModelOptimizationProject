@@ -3,8 +3,8 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-#LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
-LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
+LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+#LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
 
 LESdata = (
            LESbrary["kato, N²: 1e-7"],
@@ -32,7 +32,7 @@ function calibration_kwargs(datum)
                    last_target = datum.last,
                         fields = fields,
               relative_weights = relative_weights,
-            eddy_diffusivities = TKEMassFlux.RiDependentDiffusivities(),
+            eddy_diffusivities = TKEMassFlux.RiDependentDiffusivities(Cᴷu⁺=0.1),
                  mixing_length = TKEMassFlux.SimpleMixingLength(),
                 tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
                   tke_equation = TKEMassFlux.TKEParameters(),
@@ -59,22 +59,20 @@ batched_nll = BatchedNegativeLogLikelihood([nll for nll in batch], weights=weigh
 #default_parameters = DefaultFreeParameters(batch[1].model, RiDependentTKEParameters)
 
 default_parameters = RiDependentTKEParameters(
-                                              Cᴷu⁻  = 1.2,
-                                              Cᴷuᵟ  = 0.0,
+                                              Cᴷu⁺  = 0.2,
                                               Cᴷc⁻  = 5.0,
-                                              Cᴷcᵟ  = 0.0,
-                                              Cᴷe⁻  = 0.7,
-                                              Cᴷeᵟ  = 0.0,
-                                              CᴷRiᶜ = -1.0,
-                                              CᴷRiʷ = 0.1,
-                                              Cᴰ    = 4.0,
-                                              Cᴸʷ   = 1.0,
-                                              Cᴸᵇ   = 1.0,
-                                              Cʷu★  = 1.0,
-                                              CʷwΔ  = 1.9,
+                                              Cᴷc⁺  = 0.5,
+                                              Cᴷe⁻  = 2.0,
+                                              Cᴷe⁺  = 0.1,
+                                              CᴷRiᶜ = -0.1,
+                                              CᴷRiʷ = 0.2,
+                                              Cᴰ    = 5.1,
+                                              Cᴸᵇ   = 0.4,
+                                              Cʷu★  = 3.0,
+                                              CʷwΔ  = 3.0,
                                              )
 
-calibration = calibrate(batched_nll, default_parameters, samples=400, iterations=4);
+calibration = calibrate(batched_nll, default_parameters, samples=100, iterations=4);
 
 savename = @sprintf("tke_batch_calibration_dz%d_dt%d.jld2", batched_nll.batch[1].model.grid.Δc,
                     batched_nll.batch[1].model.Δt / minute)
