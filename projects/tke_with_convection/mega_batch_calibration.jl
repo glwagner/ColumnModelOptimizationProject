@@ -7,13 +7,13 @@ LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulation
 
 LESdata = (
            LESbrary["kato, N²: 1e-7"],
-           #LESbrary["kato, N²: 1e-6"],
+           LESbrary["kato, N²: 1e-6"],
            LESbrary["kato, N²: 1e-5"],
-           #LESbrary["kato, N²: 1e-4"],
+           LESbrary["kato, N²: 1e-4"],
            LESbrary["ekman, N²: 1e-7"],
-           #LESbrary["ekman, N²: 1e-6"],
+           LESbrary["ekman, N²: 1e-6"],
            LESbrary["ekman, N²: 1e-5"],
-           #LESbrary["ekman, N²: 1e-4"],
+           LESbrary["ekman, N²: 1e-4"],
            LESbrary["convection, N²: 2e-6"],
            LESbrary["convection, N²: 1e-5"],
           )
@@ -59,12 +59,13 @@ batched_nll = BatchedNegativeLogLikelihood([nll for nll in batch], weights=weigh
 
 default_parameters = RiDependentTKEParameters(
                                               Cᴷu⁻  = 1.2,
-                                              Cᴷuᵟ  = 0.1,
+                                              Cᴷuᵟ  = 0.0,
                                               Cᴷc⁻  = 5.0,
-                                              Cᴷcᵟ  = -3.0,
+                                              Cᴷcᵟ  = 0.0,
                                               Cᴷe⁻  = 0.7,
-                                              Cᴷeᵟ  = 0.7,
-                                              CᴷΔRi = 0.1,
+                                              Cᴷeᵟ  = 0.0,
+                                              CᴷRiᶜ = -1.0,
+                                              CᴷRiʷ = 0.1,
                                               Cᴰ    = 4.0,
                                               Cᴸʷ   = 1.0,
                                               Cᴸᵇ   = 1.0,
@@ -72,7 +73,7 @@ default_parameters = RiDependentTKEParameters(
                                               CʷwΔ  = 1.9,
                                              )
 
-calibration = calibrate(batched_nll, default_parameters, samples=1000, iterations=3);
+calibration = calibrate(batched_nll, default_parameters, samples=400, iterations=4);
 
 savename = @sprintf("tke_batch_calibration_dz%d_dt%d.jld2", batched_nll.batch[1].model.grid.Δc,
                     batched_nll.batch[1].model.Δt / minute)

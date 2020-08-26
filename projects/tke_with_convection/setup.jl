@@ -4,7 +4,7 @@ using OceanTurb, Dao, ColumnModelOptimizationProject
 using ColumnModelOptimizationProject.TKEMassFluxOptimization
 
 @free_parameters(RiDependentTKEParameters,
-                 CᴷΔRi,
+                 CᴷRiʷ, CᴷRiᶜ,
                  Cᴷu⁻, Cᴷuᵟ,
                  Cᴷc⁻, Cᴷcᵟ,
                  Cᴷe⁻, Cᴷeᵟ,
@@ -114,11 +114,21 @@ LESbrary = OrderedDict(
 ##### KPP functionality
 #####
 
-kpp_fields(datum) = !(datum.stressed) ? (:T,) : !(datum.rotating) ? (:T, :U) : (:T, :U, :V)
-kpp_relative_weights(datum) = !(datum.stressed) ? [1.0] : !(datum.rotating) ? [1.0, 1e-2] : [1.0, 1e-2, 1e-2]
+kpp_fields(datum) = !(datum.stressed) ? (:T,) : 
+                    !(datum.rotating) ? (:T, :U) :
+                                        (:T, :U, :V)
 
-tke_relative_weights(datum) = !(datum.stressed) ? [1.0, 1e-4] : !(datum.rotating) ? [1.0, 1e-2, 1e-4] : [1.0, 1e-2, 1e-2, 1e-4]
-tke_fields(datum) = !(datum.stressed) ? (:T, :e) : !(datum.rotating) ? (:T, :U, :e) : (:T, :U, :V, :e)
+kpp_relative_weights(datum) = !(datum.stressed) ? [1.0] : 
+                              !(datum.rotating) ? [1.0, 1e-4] :
+                                                  [1.0, 1e-2, 1e-4]
+
+tke_fields(datum) = !(datum.stressed) ? (:T, :e) : 
+                    !(datum.rotating) ? (:T, :U, :e) :
+                                        (:T, :U, :V, :e)
+
+tke_relative_weights(datum) = !(datum.stressed) ? [1.0, 1e-4] : 
+                              !(datum.rotating) ? [1.0, 1e-2, 1e-4] :
+                                                  [1.0, 1e-2, 1e-2, 1e-4]
 
 "Initialize a calibration run for KPP."
 function init_kpp_calibration(dataname; 
@@ -220,11 +230,12 @@ function get_bounds_and_variance(default_parameters)
     SomeFreeParameters = typeof(default_parameters).name.wrapper
 
     # Set bounds on free parameters
-    bounds = SomeFreeParameters(((0.001, 10.0) for p in default_parameters)...)
+    bounds = SomeFreeParameters(((0.001, 6.0) for p in default_parameters)...)
 
     # Some special bounds, in the cases they are included.
     set_if_present!(bounds, :Cᴷu⁻, (0.001, 2.0))
     set_if_present!(bounds, :Cᴷuᵟ, (-2.0, 2.0))
+    set_if_present!(bounds, :CᴷRiᶜ, (-2.0, 2.0))
 
     set_if_present!(bounds, :Cᴷcᵟ, (-10.0, 10.0))
     set_if_present!(bounds, :Cᴷeᵟ, (-10.0, 10.0))

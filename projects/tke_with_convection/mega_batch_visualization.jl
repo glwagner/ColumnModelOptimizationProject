@@ -55,7 +55,7 @@ c★ = optimal(chain).param
 ncases = length(calibration.negative_log_likelihood.batch)
 
 close("all")
-fig, axs = subplots(ncols=ncases, nrows=3, figsize=(16, 5))
+fig, axs = subplots(ncols=ncases, nrows=3, figsize=(18, 12))
 
 for i = 1:ncases
     nll = calibration.negative_log_likelihood.batch[i]
@@ -111,7 +111,6 @@ for i = 1:ncases
      plot_data_field!(ax, :U, data, ji, jf, default_datakwargs)
     plot_model_field!(ax, :U, model, default_modelkwargs)
 
-
     f != 0 && plot_model_field!(ax, :V, model, thin(default_modelkwargs))
     f != 0 &&  plot_data_field!(ax, :V, data, ji, jf, thin(default_datakwargs))
 
@@ -133,50 +132,36 @@ for i = 1:ncases
     ax.tick_params(left=false, labelleft=false, bottom=false, labelbottom=false)
     removespines("top", "right", "left", "bottom")
 
-    if i == 1 
-         text(0.5, -0.2,
-             @sprintf("\$ N^2 = 10^{%d} \\, \\, \\mathrm{s^{-2}}\$", log10(N²)),
-             color = color2, alpha=α,
-             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+    if i == 1
+        text(0.95, 0.90, L"e", transform=ax.transAxes, fontsize=fs, horizontalalignment="center")
+    end
 
-        text(0.5, -0.32,
-             @sprintf("\$ f = 0 \$"),
-             color = color2, alpha=α,
-             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+    text(0.5, -0.2,
+        @sprintf("\$ N^2 = 10^{%d} \\, \\, \\mathrm{s^{-2}}\$", log10(N²)),
+        color = color2, alpha=α,
+        transform=ax.transAxes, fontsize=10, horizontalalignment="center")
 
-    elseif i < 5
-        text(0.5, -0.2,
-             @sprintf("\$ 10^{%d} \$", log10(N²)),
-             color = color1,
-             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
-
-    elseif i == 5
-        text(0.5, -0.2, 
-             @sprintf("\$ N^2 = 10^{%d} \\, \\, \\mathrm{s^{-2}}\$", log10(N²)),
-             color = color1,
-             transform=ax.transAxes, fontsize=10, horizontalalignment="center")
-
+    if f > 0
         text(0.5, -0.32, 
              @sprintf("\$ f = 10^{%d} \\, \\, \\mathrm{s^{-1}}\$", log10(f)),
              color = color1,
              transform=ax.transAxes, fontsize=10, horizontalalignment="center")
-
-    elseif i > 8
-        text(0.5, -0.2,
-             @sprintf("\$ 10^{%d} \$", log10(N²)),
+    else
+        text(0.5, -0.32,
+             @sprintf("\$ f = 0 \$"),
              color = color2, alpha=α,
              transform=ax.transAxes, fontsize=10, horizontalalignment="center")
+    end
 
-        text(0.5, -0.32, 
+    if Qᵇ > 0
+        text(0.5, -0.44, 
              @sprintf("\$ Q^b = 10^{%d} \\, \\, \\mathrm{m^2 \\, s^{-3}}\$", log10(Qᵇ)),
              color = color1,
              transform=ax.transAxes, fontsize=10, horizontalalignment="center")
-
-
     else
-        text(0.5, -0.2,
-             @sprintf("\$ 10^{%d} \$", log10(N²)),
-             color = color2, alpha=α,
+        text(0.5, -0.44, 
+             @sprintf("\$ Q^b = 0 \$"),
+             color = color1,
              transform=ax.transAxes, fontsize=10, horizontalalignment="center")
     end
 
