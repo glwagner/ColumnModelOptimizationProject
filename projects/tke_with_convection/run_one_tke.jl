@@ -3,6 +3,9 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
+#LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
+
 # Optimization parameters
         casename = "convection, N²: 2e-6"
          samples = 1000
@@ -31,23 +34,19 @@ nll, _ = init_tke_calibration(LEScase.filename;
                               )
 
 initial_parameters = RiDependentTKEParameters(
-                                              Cᴷu⁰ = 0.2,
-                                              Cᴷuᵟ = 0.1,
-                                              Cᴷuʷ = 1.2,
-                                              Cᴷuᶜ = -0.1,
-                                              Cᴷc⁰ = 1.0,
-                                              Cᴷcᵟ = -0.8,
-                                              Cᴷcʷ = 0.1,
-                                              Cᴷcᶜ = 0.1,
-                                              Cᴷe⁰ = 2.0,
-                                              Cᴷeᵟ = -0.5,
-                                              Cᴷeʷ = 0.5,
-                                              Cᴷeᶜ = 0.1,
-                                              Cᴰ   = 3.0,
-                                              Cᴸʷ  = 1.2,
-                                              Cᴸᵇ  = 1.5,
-                                              Cʷu★ = 2.2,
-                                              CʷwΔ = 1.1,
+                                              Cᴷu⁻  = 1.2,
+                                              Cᴷuᵟ  = 0.0,
+                                              Cᴷc⁻  = 5.0,
+                                              Cᴷcᵟ  = 0.0,
+                                              Cᴷe⁻  = 0.7,
+                                              Cᴷeᵟ  = 0.0,
+                                              CᴷRiᶜ = -1.0,
+                                              CᴷRiʷ = 0.1,
+                                              Cᴰ    = 4.0,
+                                              Cᴸʷ   = 1.0,
+                                              Cᴸᵇ   = 1.0,
+                                              Cʷu★  = 1.0,
+                                              CʷwΔ  = 1.9,
                                              )
 
 # Run the case
@@ -65,7 +64,6 @@ chain = calibration.markov_chains[end]
 
 close("all")
 viz_fig, viz_axs = visualize_realizations(model, data, loss.targets[[1, end]], C★,
-                                           #fields = (:U, :V, :T, :e), 
                                            fields = (:T, :e), 
                                           figsize = (16, 6)) 
 
