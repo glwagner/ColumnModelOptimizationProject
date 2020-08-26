@@ -4,15 +4,16 @@ include("setup.jl")
 include("utils.jl")
 
          samples = 4000
-      iterations = 4
-              Δz = 2.0
-              Δt = 1minute
+      iterations = 3
+              Δz = 4.0
+              Δt = 2minute
 relative_weights = [1e+0, 1e-4, 1e-4, 1e-6]
 
 for casename in LESbrary.keys
 
     LEScase = LESbrary[casename]
 
+    #=
     println(
             """
 
@@ -27,7 +28,7 @@ for casename in LESbrary.keys
                            Δz, Δt/minute) 
 
     # Run the case
-    kpp_calibration = calibrate_kpp(joinpath(LESbrary_path, LEScase.filename), 
+    calibration = calibrate_kpp(joinpath(LESbrary_path, LEScase.filename), 
                                        samples = samples,
                                     iterations = iterations,
                                             Δz = Δz,
@@ -39,7 +40,8 @@ for casename in LESbrary.keys
                               profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
 
     # Save results
-    @save kpp_results kpp_calibration
+    @save kpp_results calibration
+    =#
 
     println(
             """
@@ -50,7 +52,7 @@ for casename in LESbrary.keys
            )
 
     # Place to store results
-    tke_results = @sprintf("tke_calibration_scaled_flux_%s_dz%d_dt%d.jld2",
+    tke_results = @sprintf("calibration_%s_dz%d_dt%d.jld2",
                            replace(replace(casename, ", " => "_"), ": " => ""),
                            Δz, Δt/minute)
 
@@ -65,8 +67,11 @@ for casename in LESbrary.keys
                                         fields = LEScase.rotating ? (:T, :U, :V, :e) : (:T, :U, :e),
                               relative_weights = LEScase.rotating ? relative_weights : relative_weights[[1, 2, 4]],
                                  mixing_length = TKEMassFlux.SimpleMixingLength(), 
-                                tke_wall_model = TKEMassFlux.ScaledPrescribedSurfaceTKEFlux(), 
-                              profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5))
+                            eddy_diffusivities = TKEMassFlux.RiDependentDiffusivities(),
+                                tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
+                                    parameters = RiDependentTKEParameters,
+                              #profile_analysis = GradientProfileAnalysis(gradient_weight=0.5, value_weight=0.5),
+                              )
 
     # Save results
     @save tke_results calibration

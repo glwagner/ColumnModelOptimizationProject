@@ -103,3 +103,47 @@ function continuation(child, parent_calibration, chunks; suffix="continuation")
 
     return child_continuation
 end
+
+get_position(ax) = [b for b in ax.get_position().bounds]
+
+function shift_up!(ax, shift)
+    pos = get_position(ax)
+    pos[2] += shift
+    ax.set_position(pos)
+    return nothing
+end
+
+function shift_down!(ax, shift)
+    pos = get_position(ax)
+    pos[2] -= shift
+    ax.set_position(pos)
+    return nothing
+end
+
+function shift_right!(ax, shift)
+    pos = get_position(ax)
+    pos[1] += shift
+    ax.set_position(pos)
+    return nothing
+end
+
+function shift_left!(ax, shift)
+    pos = get_position(ax)
+    pos[1] -= shift
+    ax.set_position(pos)
+    return nothing
+end
+
+function stretch_x!(ax, stretch)
+    pos = get_position(ax)
+    pos[3] += stretch
+    ax.set_position(pos)
+    return nothing
+end
+
+function stretch_y!(ax, stretch)
+    pos = get_position(ax)
+    pos[4] += stretch
+    ax.set_position(pos)
+    return nothing
+end

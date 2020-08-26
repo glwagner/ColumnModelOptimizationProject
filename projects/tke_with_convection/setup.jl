@@ -3,6 +3,17 @@ using OceanTurb, Dao, ColumnModelOptimizationProject
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization
 
+@free_parameters(RiDependentTKEParameters,
+                 CᴷΔRi,
+                 Cᴷu⁻, Cᴷuᵟ,
+                 Cᴷc⁻, Cᴷcᵟ,
+                 Cᴷe⁻, Cᴷeᵟ,
+                 Cᴰ, Cᴸʷ, Cᴸᵇ, Cʷu★, CʷwΔ)
+
+@free_parameters(RiIndependentTKEParameters,
+                 Cᴷu, Cᴷc, Cᴷe,
+                 Cᴰ, Cᴸʷ, Cᴸᵇ, Cʷu★, CʷwΔ)
+
 @free_parameters TKEParametersToOptimize Cᴷu Cᴷc Cᴷe Cᴰ Cᴸʷ Cᴸᵇ Cʷu★ CʷwΔ
 @free_parameters KPPWindMixingParameters CRi CSL Cτ
 @free_parameters KPPWindMixingOrConvectionParameters CRi CSL Cτ Cb_U Cb_T
@@ -138,7 +149,7 @@ end
 #####
 
 "Initialize a calibration run for the TKEMassFlux parameterization."
-function init_tke_calibration(dataname; 
+function init_tke_calibration(dataname;
                                               Δz = 4, 
                                               Δt = 1second, 
                                     first_target = 5, 
@@ -150,20 +161,24 @@ function init_tke_calibration(dataname;
                                    mixing_length = TKEMassFlux.SimpleMixingLength(),
                                   tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
                               eddy_diffusivities = TKEMassFlux.IndependentDiffusivities(),
+                                    tke_equation = TKEMassFlux.TKEParameters(),
+                                      parameters = TKEParametersToOptimize,
                                    unused_kwargs...
                               )
 
     data = init_LESbrary_data(dataname)
+
     model = TKEMassFluxOptimization.ColumnModel(data, Δt,
                                                                 Δz = Δz,
                                                      mixing_length = mixing_length,
                                                     tke_wall_model = tke_wall_model,
-                                                eddy_diffusivities = eddy_diffusivities
+                                                eddy_diffusivities = eddy_diffusivities,
+                                                      tke_equation = tke_equation,
                                                )
 
     return init_negative_log_likelihood(model, data, first_target, last_target,
                                         fields, relative_weights, profile_analysis,
-                                        TKEParametersToOptimize)
+                                        parameters)
 end
 
 #####
@@ -198,22 +213,27 @@ function init_LESbrary_data(dataname)
     return ColumnData(datapath)
 end
 
-set_bound!(bounds, name, bound) = name ∈ propertynames(bounds) && setproperty!(bounds, name, bound)
+set_if_present!(obj, name, field) = name ∈ propertynames(obj) && setproperty!(obj, name, field)
 
 function get_bounds_and_variance(default_parameters)
 
     SomeFreeParameters = typeof(default_parameters).name.wrapper
 
     # Set bounds on free parameters
-    bounds = SomeFreeParameters(((0.01, 4.0) for p in default_parameters)...)
+    bounds = SomeFreeParameters(((0.001, 10.0) for p in default_parameters)...)
 
     # Some special bounds, in the cases they are included.
-    set_bound!(bounds, :Cʷu★, (0.01, 10.0))
+    set_if_present!(bounds, :Cᴷu⁻, (0.001, 2.0))
+    set_if_present!(bounds, :Cᴷuᵟ, (-2.0, 2.0))
 
-    variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
-    variance = Array(variance)
+    set_if_present!(bounds, :Cᴷcᵟ, (-10.0, 10.0))
+    set_if_present!(bounds, :Cᴷeᵟ, (-10.0, 10.0))
 
-    return bounds, variance
+    variances = SomeFreeParameters((0.02 * (bound[2] - bound[1]) for bound in bounds)...)
+
+    variances = Array(variances)
+
+    return bounds, variances
 end
 
 function get_bounds_and_variance(kpp_parameters::KPPWindMixingParameters)
@@ -224,7 +244,7 @@ function get_bounds_and_variance(kpp_parameters::KPPWindMixingParameters)
     bounds = SomeFreeParameters(((0.01, 2.0) for p in kpp_parameters)...)
 
     # Some special bounds, in the cases they are included.
-    set_bound!(bounds, :CSL,  (0.01, 0.99))
+    set_if_present!(bounds, :CSL, (0.01, 0.99))
 
     variance = SomeFreeParameters((0.1 * (bound[2]-bound[1]) for bound in bounds)...)
     variance = Array(variance)
@@ -281,13 +301,13 @@ end
 function calibrate(nll, initial_parameters; samples=100, iterations=10,
 
                     annealing_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0,
-                                                                        final_scale = 1e-3,
+                                                                        final_scale = 1e-2,
                                                                    convergence_rate = 1.0, 
                                                                     rate_adaptivity = 1.5),
 
                    covariance_schedule = AdaptiveAlgebraicSchedule(   initial_scale = 1e+0,
                                                                         final_scale = 1e+0,
-                                                                   convergence_rate = 1e+0,
+                                                                   convergence_rate = 1.0,
                                                                     rate_adaptivity = 1.0), 
                    unused_kwargs...
                    )
