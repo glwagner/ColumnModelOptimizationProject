@@ -5,7 +5,7 @@ using ColumnModelOptimizationProject.TKEMassFluxOptimization
 
 @free_parameters(RiDependentTKEParameters,
                  CᴷRiʷ, CᴷRiᶜ,
-                 Cᴷu⁺,
+                 Cᴷu⁻, Cᴷu⁺,
                  Cᴷc⁻, Cᴷc⁺,
                  Cᴷe⁻, Cᴷe⁺,
                  Cᴰ, Cᴸᵇ, Cʷu★, CʷwΔ)
@@ -14,6 +14,7 @@ using ColumnModelOptimizationProject.TKEMassFluxOptimization
                  Cᴷu, Cᴷc, Cᴷe,
                  Cᴰ, Cᴸʷ, Cᴸᵇ, Cʷu★, CʷwΔ)
 
+@free_parameters TKEFreeConvectionParameters Cᴷc Cᴷe Cᴰ Cᴸʷ Cᴸᵇ CʷwΔ
 @free_parameters TKEParametersToOptimize Cᴷu Cᴷc Cᴷe Cᴰ Cᴸʷ Cᴸᵇ Cʷu★ CʷwΔ
 @free_parameters KPPWindMixingParameters CRi CSL Cτ
 @free_parameters KPPWindMixingOrConvectionParameters CRi CSL Cτ Cb_U Cb_T
@@ -233,7 +234,10 @@ function get_bounds_and_variance(default_parameters)
     bounds = SomeFreeParameters(((0.001, 6.0) for p in default_parameters)...)
 
     # Some special bounds, in the cases they are included.
-    set_if_present!(bounds, :Cᴷu⁺, (0.001, 2.0))
+    set_if_present!(bounds, :Cᴷu⁺, (0.001, 0.1))
+    set_if_present!(bounds, :Cᴷc⁺, (0.001, 0.1))
+    set_if_present!(bounds, :Cᴷe⁺, (0.001, 0.1))
+
     set_if_present!(bounds, :CᴷRiᶜ, (-1.0, 2.0))
     set_if_present!(bounds, :CᴷRiʷ, (0.1, 2.0))
 

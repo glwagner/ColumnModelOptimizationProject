@@ -146,9 +146,9 @@ uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 
 [[Distributions]]
 deps = ["FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "SpecialFunctions", "Statistics", "StatsBase", "StatsFuns"]
-git-tree-sha1 = "dec9607adfa6a82399cce0bd9b8557f8cc3b7bcd"
+git-tree-sha1 = "f5fedf30cbc2492649da086f43634f5271571409"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
-version = "0.23.9"
+version = "0.23.10"
 
 [[ExprTools]]
 git-tree-sha1 = "6f0517056812fd6aa3af23d4b70d5325a2ae4e95"
@@ -399,7 +399,7 @@ version = "0.10.2"
 
 [[OceanTurb]]
 deps = ["LinearAlgebra", "OffsetArrays", "Plots", "Printf", "StaticArrays", "Statistics", "Test"]
-git-tree-sha1 = "8e2bc1197d33c7904c7588cbe74e84cb20c49ac1"
+git-tree-sha1 = "8b20b6ad602870e9c7a1d3727c5171c540226154"
 repo-rev = "better-tke-diffusivity-defaults"
 repo-url = "https://github.com/glwagner/OceanTurb.jl.git"
 uuid = "d848d694-35fd-11e9-1c91-9995598ac29e"

@@ -32,14 +32,14 @@ nll, _ = init_tke_calibration(LEScase.filename;
                                     tke_equation = TKEMassFlux.TKEParameters(),
                                       parameters = RiDependentTKEParameters,
                               )
-
+#=
 initial_parameters = RiDependentTKEParameters(
                                               Cᴷu⁻  = 1.2,
-                                              Cᴷuᵟ  = 0.0,
+                                              Cᴷu⁺  = 1.2,
                                               Cᴷc⁻  = 5.0,
-                                              Cᴷcᵟ  = 0.0,
+                                              Cᴷc⁺  = 5.0,
                                               Cᴷe⁻  = 0.7,
-                                              Cᴷeᵟ  = 0.0,
+                                              Cᴷe⁺  = 0.7,
                                               CᴷRiᶜ = -1.0,
                                               CᴷRiʷ = 0.1,
                                               Cᴰ    = 4.0,
@@ -48,9 +48,19 @@ initial_parameters = RiDependentTKEParameters(
                                               Cʷu★  = 1.0,
                                               CʷwΔ  = 1.9,
                                              )
+=#
+
+initial_parameters = TKEFreeConvectionParameters(
+                                                 Cᴷc = 1.0,
+                                                 Cᴷe = 1.0,
+                                                 Cᴰ = 2.0,
+                                                 Cᴸʷ = 1.0,
+                                                 Cᴸb = 1.0,
+                                                 CʷwΔ = 1.0
+                                                )
 
 # Run the case
-calibration = calibrate(nll, initial_parameters, samples = 1000, iterations = 4)
+calibration = calibrate(nll, initial_parameters, samples = 100, iterations = 4)
 
 # Save results
 @save results calibration
