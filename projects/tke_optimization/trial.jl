@@ -18,7 +18,7 @@ files = [
     "stress_driven_Nsq1.0e-06_f1.0e-04_Qu4.0e-04_Nh256_Nz256_averages.jld2",
     "stress_driven_Nsq1.0e-07_f1.0e-04_Qu4.0e-04_Nh256_Nz256_averages.jld2",
 ]
-##
+## Oceananigans
 file = files[1]
 filename = LESbrary_path * file
 jldfile = jldopen(filename)
@@ -54,6 +54,33 @@ end
 
 T_bottom = (T[1][2] - T[1][1]) / Δz
 
+## OceanTurb
+N = length(T[1])        # Model resolution
+H = abs(jldfile["grid"]["zF"][1])        # Vertical extent of the model domain
+Qᶿ = T_top       # Surface buoyancy flux (positive implies cooling)
+dTdz = T_bottom       # Interior/initial temperature gradient
+Δt = 1minute
+constants = Constants(f=1e-4)
+
+# Build the model with a Backward Euler timestepper
+model = TKEMassFlux.Model(              grid = UniformGrid(N=N, H=H), 
+                                     stepper = :BackwardEuler,
+                                   constants = constants)
+
+# Set initial condition
+model.solution.T.data[1:N] .= copy(T[1])
+
+# Set boundary conditions
+model.bcs.T.top = FluxBoundaryCondition(Qᶿ)
+model.bcs.T.bottom = GradientBoundaryCondition(dTdz)
+##
+# Run the model
+TKE_T = []
+push!(TKE_T, model.solution.T.data[1 : N ])
+for i in 2:length(t)
+    run_until!(model, Δt, t[i])
+    push!(TKE_T, model.solution.T.data[1 : N ])
+end
 ##
 using GLMakie, Printf
 
@@ -65,8 +92,9 @@ time_node = timeslider.value
 
 ax1 = fig[1, 1] = Axis(fig, title = "Temperature", titlesize = 50)
 state = @lift(T[$time_node])
+tke_state = @lift(TKE_T[$time_node])
 line1 = GLMakie.lines!(ax1, state, zC, color = :blue, linewidth = 3)
-line2 = GLMakie.lines!(ax1, T[end], zC, color = :red, linewidth = 3)
+line2 = GLMakie.lines!(ax1, tke_state, zC, color = :red, linewidth = 3)
 ax1.xlabel = "Temperature [ᵒC]"
 ax1.xlabelsize = 40
 ax1.ylabel = "Depth [m]"
@@ -76,10 +104,9 @@ timestring = @lift(@sprintf("Day %0.1f", t[$time_node] / 86400))
 fig[1, end+1] = vgrid!(
     Legend(fig,
     [line1, line2, ],
-    ["Current Temperature", "Final Temperature"]),
+    ["LES Temperature", "TKE Temperature"]),
     Label(fig, timestring, width = nothing),
     timeslider,
 )
-
 
 display(fig)
