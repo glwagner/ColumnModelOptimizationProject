@@ -9,7 +9,7 @@ using Statistics: mean
 
 using ColumnModelOptimizationProject.TKEMassFluxOptimization
 
-datadir = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
+datadir = "/Users/andresouza/Dropbox/greg-andre/BoundaryLayerTurbulenceData/"
 
 #datapath = "stress_driven_Nsq1.0e-05_Qu_1.0e-03_Nh128_Nz128_averages.jld2"
 #dataname = "stress_driven_Nsq1.6e-05_f0.0e+00_Qu1.0e-04_Nh128_Nz128_averages.jld2"

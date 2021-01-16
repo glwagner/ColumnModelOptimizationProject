@@ -3,8 +3,7 @@ using ColumnModelOptimizationProject
 include("setup.jl")
 include("utils.jl")
 
-LESbrary_path = "/Users/gregorywagner/Projects/BoundaryLayerTurbulenceSimulations/idealized/data"
-#LESbrary_path = "/home/glwagner/BoundaryLayerTurbulenceSimulations/idealized/data"
+LESbrary_path = "/Users/andresouza/Dropbox/greg-andre/BoundaryLayerTurbulenceData"
 
 # Optimization parameters
         casename = "convection, N²: 2e-6"
@@ -55,7 +54,7 @@ initial_parameters = TKEFreeConvectionParameters(
                                                  Cᴷe = 1.0,
                                                  Cᴰ = 2.0,
                                                  Cᴸʷ = 1.0,
-                                                 Cᴸb = 1.0,
+                                                 Cᴸᵇ = 1.0,
                                                  CʷwΔ = 1.0
                                                 )
 
