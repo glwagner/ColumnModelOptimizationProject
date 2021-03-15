@@ -3,7 +3,7 @@
 #####
 
 mutable struct ColumnModel{M<:AbstractModel, T}
-    model :: M
+    model :: M # OceanTurb
        Δt :: T
 end
 
@@ -60,9 +60,10 @@ end
 A time series of horizontally-averaged observational or LES data
 gridded as OceanTurb fields.
 """
-struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT}
+# struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT}
+struct ColumnData{F, G, C, D, UU, VV, TΘ, SS, EE, TT}
    boundary_conditions :: F
-    initial_conditions :: ICS
+    # initial_conditions :: ICS
                   grid :: G
              constants :: C
          diffusivities :: D
@@ -133,55 +134,15 @@ function ColumnData(datapath)
     T = [ CellField(get_data("T", datapath, iter), grid) for iter in iters ]
     e = [ CellField(get_data("e", datapath, iter), grid) for iter in iters ]
 
-    # Retrieve parameters for initial condition
-    global_attributes = Dict()
-    jldopen(datapath, "r") do file
-        for parameter_name in keys(file["parameters"])
-            global_attributes[parameter_name] = file["parameters/$parameter_name"]
-        end
-    end
-    function thermocline_structure_function(thermocline_type, z_transition, θ_transition, z_deep, θ_deep, dθdz_surface_layer, dθdz_thermocline, dθdz_deep)
-        if thermocline_type == "linear"
-            return z -> θ_transition + dθdz_thermocline * (z - z_transition)
-
-        elseif thermocline_type == "cubic"
-            p1 = (z_transition, θ_transition)
-            p2 = (z_deep, θ_deep)
-            coeffs = fit_cubic(p1, p2, dθdz_surface_layer, dθdz_deep)
-            return z -> poly(z, coeffs)
-
-        else
-            @error "Invalid thermocline type: $thermocline"
-        end
-    end
-    θ_thermocline = thermocline_structure_function(global_attributes["thermocline_type"],
-                                global_attributes["z_transition"],
-                                global_attributes["θ_transition"],
-                                global_attributes["z_deep"],
-                                global_attributes["θ_deep"],
-                                global_attributes["dθdz_surface_layer"],
-                                global_attributes["dθdz_thermocline"],
-                                global_attributes["dθdz_deep"])
-    Ξ(z) = rand() * exp(z / 8)
-    function initial_temperature(z)
-
-        noise = 1e-6 * Ξ(z) * global_attributes["dθdz_surface_layer"] * get_parameter(datapath, "grid", "Lz", 0.0)
-
-        if global_attributes["z_transition"] < z <= 0
-            return global_attributes["θ_surface"] + global_attributes["dθdz_surface_layer"] * z + noise
-
-        elseif global_attributes["z_deep"] < z <= global_attributes["z_transition"]
-            return θ_thermocline(z) + noise
-
-        else
-            return global_attributes["θ_deep"] + global_attributes["dθdz_deep"] * (z - global_attributes["z_deep"]) + noise
-
-        end
-    end
+    S = nothing
+    try
+        S = [ CellField(get_data("S", datapath, iter), grid) for iter in iters ]
+    catch end
 
     # Uᵢ = U[:,1]
     # Vᵢ = V[:,1]
     # Tᵢ = T[:,1]
+
 
     for (i, iter) in enumerate(iters)
         u² = get_data("uu", datapath, iter)
@@ -192,21 +153,20 @@ function ColumnData(datapath)
                                 + 1/2 * (w²[1:N] + w²[2:N+1]) ) / 2
     end
 
-    S = nothing
-
-    try
-        S = [ CellField(get_data("S", datapath, iter), grid) for iter in iters ]
-    catch end
-
     t = get_times(datapath)
+
+    boundary_conditions = (Qᶿ=Qᶿ, Qᵘ=Qᵘ, Qᵉ=0.0, dθdz_bottom=dθdz_bottom, dudz_bottom=dudz_bottom)
+    return ColumnData(boundary_conditions,
+                      grid, constants, (ν=background_ν, κ=background_κ),
+                      U, V, T, S, e, t)
 
     # return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵛ=Qᵛ, Qᵉ=0.0), (dTdz=dTdz, dSdz=dSdz),
     #                   grid, constants, (ν=background_ν, κ=background_κ),
     #                   U, V, T, S, e, t)
 
-    return ColumnData((Qᶿ=Qᶿ, Qᵘ=Qᵘ, Qᵉ=0.0, dθdz_bottom=dθdz_bottom, dudz_bottom=dudz_bottom), (initial_temperature=initial_temperature,),
-                      grid, constants, (ν=background_ν, κ=background_κ),
-                      U, V, T, S, e, t)
+    # return ColumnData((Qᶿ=Qᶿ, Qˢ=Qˢ, Qᵘ=Qᵘ, Qᵉ=0.0, dθdz_bottom=dθdz_bottom, dudz_bottom=dudz_bottom), (initial_temperature=initial_temperature,),
+    #                   grid, constants, (ν=background_ν, κ=background_κ),
+    #                   U, V, T, S, e, t)
 
 end
 
@@ -231,7 +191,7 @@ function ColumnData(data::ColumnData, grid)
     end
 
     return ColumnData(data.boundary_conditions,
-                      data.initial_conditions,
+                      # data.initial_conditions,
                       grid,
                       data.constants,
                       data.diffusivities,
