@@ -26,7 +26,7 @@ parameter_latex_guide = Dict(
 # Basic functionality
 #
 
-function set!(cm::ColumnModelOptimizationProject.ColumnModel{<:TKEMassFlux.Model}, 
+function set!(cm::ColumnModelOptimizationProject.ColumnModel{<:TKEMassFlux.Model},
               cd::ColumnData, i)
 
     set!(cm.model.solution.U, cd.U[i])
@@ -34,7 +34,7 @@ function set!(cm::ColumnModelOptimizationProject.ColumnModel{<:TKEMassFlux.Model
     set!(cm.model.solution.T, cd.T[i])
     set!(cm.model.solution.e, cd.e[i])
 
-    if cd.S === nothing 
+    if cd.S === nothing
         set!(cm.model.solution.S, 0)
     else
         set!(cm.model.solution.S, cd.S[i])
