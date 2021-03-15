@@ -38,13 +38,18 @@ export
 
     # loss_functions.jl
     evaluate!,
-    analyze_weighted_profile_discrepency,
+    analyze_weighted_profile_discrepancy,
     VarianceWeights,
     LossFunction,
     TimeSeriesAnalysis,
+    TimeAverage,
     ValueProfileAnalysis,
     GradientProfileAnalysis,
     on_grid,
+
+    # forward_map.jl
+    ForwardMapOutput,
+    forward_map,
 
     # data_analysis.jl
     removespines,
@@ -80,9 +85,9 @@ function Base.similar(p::FreeParameters{N, T}) where {N, T}
 end
 
 Base.show(io::IO, p::FreeParameters) = print(io, "$(typeof(p)):", '\n',
-                                             @sprintf("% 24s: ", "parameter names"), 
+                                             @sprintf("% 24s: ", "parameter names"),
                                              (@sprintf("%-8s", n) for n in propertynames(p))..., '\n',
-                                             @sprintf("% 24s: ", "values"), 
+                                             @sprintf("% 24s: ", "values"),
                                              (@sprintf("%-8.4f", pᵢ) for pᵢ in p)...)
 
 dictify(p) = Dict((k, getproperty(p, k)) for k in propertynames(p))
@@ -120,6 +125,7 @@ include("models_and_data.jl")
 include("loss_functions.jl")
 include("visualization.jl")
 include("data_analysis.jl")
+include("forward_map.jl")
 
 include("ModularKPPOptimization/ModularKPPOptimization.jl")
 include("TKEMassFluxOptimization/TKEMassFluxOptimization.jl")
