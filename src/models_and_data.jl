@@ -27,24 +27,29 @@ function get_free_parameters(cm::ColumnModel)
     return paramnames, paramtypes
 end
 
-function set!(cm::ColumnModel, freeparams::FreeParameters{N, T}) where {N, T}
+function set!(cm::ColumnModel, free_parameters::FreeParameters{N, T}) where {N, T}
 
     paramnames, paramtypes = get_free_parameters(cm)
     paramdicts = Dict(( ptypename, Dict{Symbol, T}() ) for ptypename in keys(paramtypes))
 
-    # Filter freeparams into their appropriate category
-    for pname in propertynames(freeparams)
-        for ptypename in keys(paramtypes)
-            pname ∈ paramnames[ptypename] && push!(paramdicts[ptypename],
-                                                   Pair(pname, getproperty(freeparams, pname))
-                                                  )
+    for ptypename in keys(paramtypes)
+
+        existing_parameters = getproperty(cm.model, ptypename)
+
+        for pname in propertynames(existing_parameters)
+
+            p = pname ∈ propertynames(free_parameters) ?
+                    getproperty(free_parameters, pname) : 
+                    getproperty(existing_parameters, pname)
+
+            paramdicts[ptypename][pname] = p
         end
     end
 
     # Set new parameters
     for (ptypename, PType) in paramtypes
-        params = PType(; paramdicts[ptypename]...)
-        setproperty!(cm.model, ptypename, params)
+        new_parameters = PType(; paramdicts[ptypename]...)
+        setproperty!(cm.model, ptypename, new_parameters)
     end
 
     return nothing
