@@ -48,8 +48,8 @@ export
     on_grid,
 
     # forward_map.jl
-    ForwardMapOutput,
-    forward_map,
+    ModelTimeSeries,
+    model_time_series,
 
     # data_analysis.jl
     removespines,

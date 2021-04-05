@@ -27,24 +27,29 @@ function get_free_parameters(cm::ColumnModel)
     return paramnames, paramtypes
 end
 
-function set!(cm::ColumnModel, freeparams::FreeParameters{N, T}) where {N, T}
+function set!(cm::ColumnModel, free_parameters::FreeParameters{N, T}) where {N, T}
 
     paramnames, paramtypes = get_free_parameters(cm)
     paramdicts = Dict(( ptypename, Dict{Symbol, T}() ) for ptypename in keys(paramtypes))
 
-    # Filter freeparams into their appropriate category
-    for pname in propertynames(freeparams)
-        for ptypename in keys(paramtypes)
-            pname ∈ paramnames[ptypename] && push!(paramdicts[ptypename],
-                                                   Pair(pname, getproperty(freeparams, pname))
-                                                  )
+    for ptypename in keys(paramtypes)
+
+        existing_parameters = getproperty(cm.model, ptypename)
+
+        for pname in propertynames(existing_parameters)
+
+            p = pname ∈ propertynames(free_parameters) ?
+                    getproperty(free_parameters, pname) :
+                    getproperty(existing_parameters, pname)
+
+            paramdicts[ptypename][pname] = p
         end
     end
 
     # Set new parameters
     for (ptypename, PType) in paramtypes
-        params = PType(; paramdicts[ptypename]...)
-        setproperty!(cm.model, ptypename, params)
+        new_parameters = PType(; paramdicts[ptypename]...)
+        setproperty!(cm.model, ptypename, new_parameters)
     end
 
     return nothing
@@ -60,7 +65,7 @@ end
 A time series of horizontally-averaged observational or LES data
 gridded as OceanTurb fields.
 """
-struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT}
+struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT, NN}
    boundary_conditions :: F
     initial_conditions :: ICS
                   grid :: G
@@ -72,6 +77,7 @@ struct ColumnData{F, ICS, G, C, D, UU, VV, TΘ, SS, EE, TT}
                      S :: SS
                      e :: EE
                      t :: TT
+                  name :: NN
 end
 
 """
@@ -117,6 +123,8 @@ function ColumnData(datapath)
     dθdz_bottom = get_parameter(datapath, "parameters", "boundary_condition_θ_bottom", 0.0)
     dudz_bottom = get_parameter(datapath, "parameters", "boundary_condition_u_bottom", 0.0)
 
+    name = get_parameter(datapath, "parameters", "name", "")
+
     # Grid
     N, L = get_grid_params(datapath)
     grid = UniformGrid(N, L)
@@ -133,51 +141,57 @@ function ColumnData(datapath)
     T = [ CellField(get_data("T", datapath, iter), grid) for iter in iters ]
     e = [ CellField(get_data("e", datapath, iter), grid) for iter in iters ]
 
-    # Retrieve parameters for initial condition
-    global_attributes = Dict()
-    jldopen(datapath, "r") do file
-        for parameter_name in keys(file["parameters"])
-            global_attributes[parameter_name] = file["parameters/$parameter_name"]
-        end
-    end
-    function thermocline_structure_function(thermocline_type, z_transition, θ_transition, z_deep, θ_deep, dθdz_surface_layer, dθdz_thermocline, dθdz_deep)
-        if thermocline_type == "linear"
-            return z -> θ_transition + dθdz_thermocline * (z - z_transition)
-
-        elseif thermocline_type == "cubic"
-            p1 = (z_transition, θ_transition)
-            p2 = (z_deep, θ_deep)
-            coeffs = fit_cubic(p1, p2, dθdz_surface_layer, dθdz_deep)
-            return z -> poly(z, coeffs)
-
-        else
-            @error "Invalid thermocline type: $thermocline"
-        end
-    end
-    θ_thermocline = thermocline_structure_function(global_attributes["thermocline_type"],
-                                global_attributes["z_transition"],
-                                global_attributes["θ_transition"],
-                                global_attributes["z_deep"],
-                                global_attributes["θ_deep"],
-                                global_attributes["dθdz_surface_layer"],
-                                global_attributes["dθdz_thermocline"],
-                                global_attributes["dθdz_deep"])
-    Ξ(z) = rand() * exp(z / 8)
-    function initial_temperature(z)
-
-        noise = 1e-6 * Ξ(z) * global_attributes["dθdz_surface_layer"] * get_parameter(datapath, "grid", "Lz", 0.0)
-
-        if global_attributes["z_transition"] < z <= 0
-            return global_attributes["θ_surface"] + global_attributes["dθdz_surface_layer"] * z + noise
-
-        elseif global_attributes["z_deep"] < z <= global_attributes["z_transition"]
-            return θ_thermocline(z) + noise
-
-        else
-            return global_attributes["θ_deep"] + global_attributes["dθdz_deep"] * (z - global_attributes["z_deep"]) + noise
-
-        end
-    end
+    # # Retrieve parameters for initial condition
+    # global_attributes = Dict()
+    # jldopen(datapath, "r") do file
+    #     for parameter_name in keys(file["parameters"])
+    #         global_attributes[parameter_name] = file["parameters/$parameter_name"]
+    #     end
+    # end
+    # function thermocline_structure_function(thermocline_type, z_transition, θ_transition, z_deep, θ_deep, dθdz_surface_layer, dθdz_thermocline, dθdz_deep)
+    #     if thermocline_type == "linear"
+    #         return z -> θ_transition + dθdz_thermocline * (z - z_transition)
+    #
+    #     elseif thermocline_type == "cubic"
+    #         p1 = (z_transition, θ_transition)
+    #         p2 = (z_deep, θ_deep)
+    #         coeffs = fit_cubic(p1, p2, dθdz_surface_layer, dθdz_deep)
+    #         return z -> poly(z, coeffs)
+    #
+    #     else
+    #         @error "Invalid thermocline type: $thermocline"
+    #     end
+    # end
+    #
+    # thermocline_type = "linear"
+    # if "thermocline_type" in keys(global_attributes)
+    #     thermocline_type = global_attributes["thermocline_type"]
+    # end
+    # θ_thermocline = thermocline_structure_function(
+    #                             thermocline_type,
+    #                             global_attributes["z_transition"],
+    #                             global_attributes["θ_transition"],
+    #                             global_attributes["z_deep"],
+    #                             global_attributes["θ_deep"],
+    #                             global_attributes["dθdz_surface_layer"],
+    #                             global_attributes["dθdz_thermocline"],
+    #                             global_attributes["dθdz_deep"])
+    # Ξ(z) = rand() * exp(z / 8)
+    # function initial_temperature(z)
+    #
+    #     noise = 1e-6 * Ξ(z) * global_attributes["dθdz_surface_layer"] * get_parameter(datapath, "grid", "Lz", 0.0)
+    #
+    #     if global_attributes["z_transition"] < z <= 0
+    #         return global_attributes["θ_surface"] + global_attributes["dθdz_surface_layer"] * z + noise
+    #
+    #     elseif global_attributes["z_deep"] < z <= global_attributes["z_transition"]
+    #         return θ_thermocline(z) + noise
+    #
+    #     else
+    #         return global_attributes["θ_deep"] + global_attributes["dθdz_deep"] * (z - global_attributes["z_deep"]) + noise
+    #
+    #     end
+    # end
 
     # Uᵢ = U[:,1]
     # Vᵢ = V[:,1]
@@ -204,9 +218,11 @@ function ColumnData(datapath)
     #                   grid, constants, (ν=background_ν, κ=background_κ),
     #                   U, V, T, S, e, t)
 
+    initial_temperature = nothing
+
     return ColumnData((Qᶿ=Qᶿ, Qᵘ=Qᵘ, Qᵉ=0.0, dθdz_bottom=dθdz_bottom, dudz_bottom=dudz_bottom), (initial_temperature=initial_temperature,),
                       grid, constants, (ν=background_ν, κ=background_κ),
-                      U, V, T, S, e, t)
+                      U, V, T, S, e, t, name)
 
 end
 
