@@ -47,7 +47,7 @@ function priorloss(ℒ, fcalls, priors; seed = 1234, progress = true)
     losses = []
     vals = []
     for i in 1:fcalls
-        guessparams = ParametersToOptimize(rand.(priors)...)
+        guessparams = rand.(priors)
         push!(vals, guessparams)
         currentloss = ℒ(guessparams)
         push!(losses, currentloss)
