@@ -144,7 +144,7 @@ function visualize_realizations(column_model, column_data, targets, params::Free
     return fig, axs
 end
 
-function plot_loss_function(loss, model, data, params...; 
+function plot_loss_function(loss, model, data, params...;
                             labels=["Parameter set $i" for i = 1:length(params)],
                             time_norm=:second)
 
@@ -205,11 +205,11 @@ function visualize_loss_function(loss, model, data, target_index, params...;
             end
 
             sca(axs[1, i])
-            plot(ϕmodel; linestyle="--", color=defaultcolors[iparam], 
+            plot(ϕmodel; linestyle="--", color=defaultcolors[iparam],
                     label="Model, " * labels[iparam])
 
             sca(axs[2, i])
-            error_label = @sprintf("Loss = %.2e, %s", loss.profile.analysis(loss.profile.discrepency), 
+            error_label = @sprintf("Loss = %.2e, %s", loss.profile.analysis(loss.profile.discrepency),
                                    labels[iparam])
 
             plot(ϕerror; linestyle="-", color=defaultcolors[iparam], label=error_label)

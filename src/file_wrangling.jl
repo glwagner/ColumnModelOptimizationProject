@@ -44,7 +44,7 @@ function get_data(varname, datapath, iter; reversed=false)
 
     reversed && reverse!(var)
 
-    return OffsetArray(var, 0:length(var)-1)
+    return var
 end
 
 function get_grid_params(datapath::String)
