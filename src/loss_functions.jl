@@ -202,7 +202,16 @@ end
 function max_variance(data, loss::LossFunction)
     max_variances = zeros(length(loss.fields))
     for (ifield, field) in enumerate(loss.fields)
-        max_variances[ifield] = get_weight(weight, ifield) * max_variance(data, field, loss.targets)
+        max_variances[ifield] = get_weight(loss.weights, ifield) * max_variance(data, field, loss.targets)
     end
     return max_variances
+end
+
+
+function mean_variance(data, loss::LossFunction)
+    mean_variance = zeros(length(loss.fields))
+    for (ifield, field) in enumerate(loss.fields)
+        mean_variance[ifield] = get_weight(loss.weights, ifield) * mean_variance(data, field, loss.targets)
+    end
+    return mean_variances
 end

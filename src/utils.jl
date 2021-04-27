@@ -33,6 +33,16 @@ function max_variance(data, field_name, targets=1:length(data.t))
     return maximum_variance
 end
 
+function mean_variance(data, field_name, targets=1:length(data.t))
+    total_variance = 0.0
+
+    for target in targets
+        total_variance += variance(data, field_name, target)
+    end
+
+    return total_variance / length(targets)
+end
+
 function max_gradient_variance(data, field_name, targets=1:length(data.t))
     maximum_variance = 0.0
 

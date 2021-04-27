@@ -10,6 +10,7 @@ export
     # utils
     variance,
     max_variance,
+    mean_variance,
     max_gradient_variance,
     initialize_forward_run!,
     initialize_and_run_until!,
