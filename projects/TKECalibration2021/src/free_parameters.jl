@@ -8,7 +8,7 @@
 
 @free_parameters(TKEParametersRiIndependent,
                  Cᴷu, Cᴷc, Cᴷe,
-                 Cᴰ, Cᴸʷ, Cᴸᵇ, Cʷu★, CʷwΔ)
+                 Cᴰ, Cᴸᵇ, Cʷu★, CʷwΔ) #Cᴸʷ
 
 @free_parameters(TKEParametersConvectiveAdjustmentRiDependent,
                   CᴷRiʷ, CᴷRiᶜ,
@@ -16,14 +16,15 @@
                   Cᴷc⁻, Cᴷc⁺,
                   Cᴷe⁻, Cᴷe⁺,
                   Cᴰ, Cᴸᵇ, Cʷu★, CʷwΔ,
-                  Cᴬ)
+                  Cᴬu, Cᴬc, Cᴬe)
 
 @free_parameters(TKEParametersConvectiveAdjustmentRiIndependent,
                   Cᴷu, Cᴷc, Cᴷe,
-                  Cᴰ, Cᴸʷ, Cᴸᵇ, Cʷu★, CʷwΔ,
-                  Cᴬ)
+                  Cᴰ, Cᴸᵇ, Cʷu★, CʷwΔ,
+                  Cᴬu, Cᴬc, Cᴬe) #Cᴸʷ
 
 @free_parameters KPPWindMixingParameters CRi CSL Cτ
+
 @free_parameters KPPWindMixingOrConvectionParameters CRi CSL Cτ Cb_U Cb_T
 
 ## For purely convective scenarios
@@ -37,9 +38,11 @@
                  CᴷRiʷ, CᴷRiᶜ,
                  Cᴷc⁻, Cᴷc⁺,
                  Cᴷe⁻, Cᴷe⁺,
-                 Cᴰ, Cᴸᵇ, CʷwΔ, Cᴬ)
+                 Cᴰ, Cᴸᵇ, CʷwΔ,
+                 Cᴬu, Cᴬc, Cᴬe)
 
 @free_parameters(TKEFreeConvectionConvectiveAdjustmentRiIndependent,
-                  Cᴷc, Cᴷe, Cᴰ, Cᴸᵇ, CʷwΔ, Cᴬ)
-                  
+                  Cᴷc, Cᴷe, Cᴰ, Cᴸᵇ, CʷwΔ,
+                  Cᴬu, Cᴬc, Cᴬe)
+
 @free_parameters TKEFreeConvectionRiIndependent Cᴷc Cᴷe Cᴰ Cᴸᵇ CʷwΔ

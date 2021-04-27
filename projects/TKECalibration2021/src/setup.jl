@@ -92,41 +92,119 @@ LESbrary = OrderedDict(
 # https://engaging-web.mit.edu/~alir/lesbrary/4DaySuite/
 FourDaySuite_path = "/Users/adelinehillier/.julia/dev/4DaySuite/"
 FourDaySuite = OrderedDict(
-                    "free_convection" => (
+                    "4d_free_convection" => (
                         filename = FourDaySuite_path*"free_convection/instantaneous_statistics.jld2",
                         stressed = false,
                         rotating = true,
-                           first = 121, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
+                           first = 13, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
                             last = nothing),
 
-                    "strong_wind" => (
+                    "4d_strong_wind" => (
                         filename = FourDaySuite_path*"strong_wind/instantaneous_statistics.jld2",
                         stressed = true,
                         rotating = true,
-                           first = 121,
+                           first = 13,
                             last = nothing),
 
-                    "strong_wind_no_rotation" => (
+                    "4d_strong_wind_no_rotation" => (
                         filename = FourDaySuite_path*"strong_wind_no_rotation/instantaneous_statistics.jld2",
                         stressed = true,
                         rotating = false,
-                           first = 121,
+                           first = 13,
                             last = nothing),
 
-                     "strong_wind_weak_cooling" => (
+                     "4d_strong_wind_weak_cooling" => (
                         filename = FourDaySuite_path*"strong_wind_weak_cooling/instantaneous_statistics.jld2",
                         stressed = true,
                         rotating = true,
-                           first = 121,
+                           first = 13,
                             last = nothing),
 
-                     "weak_wind_strong_cooling" => (
+                     "4d_weak_wind_strong_cooling" => (
                         filename = FourDaySuite_path*"weak_wind_strong_cooling/instantaneous_statistics.jld2",
                         stressed = true,
                         rotating = true,
-                           first = 121,
+                           first = 13,
                             last = nothing),
                  )
+
+# https://engaging-web.mit.edu/~alir/lesbrary/2DaySuite/
+TwoDaySuite_path = "/Users/adelinehillier/.julia/dev/2DaySuite/"
+TwoDaySuite = OrderedDict(
+                   "2d_free_convection" => (
+                       filename = TwoDaySuite_path*"free_convection/instantaneous_statistics.jld2",
+                       stressed = false,
+                       rotating = true,
+                          first = 13, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
+                           last = nothing),
+
+                   "2d_strong_wind" => (
+                       filename = TwoDaySuite_path*"strong_wind/instantaneous_statistics.jld2",
+                       stressed = true,
+                       rotating = true,
+                          first = 13,
+                           last = nothing),
+
+                   "2d_strong_wind_no_rotation" => (
+                       filename = TwoDaySuite_path*"strong_wind_no_rotation/instantaneous_statistics.jld2",
+                       stressed = true,
+                       rotating = false,
+                          first = 13,
+                           last = nothing),
+
+                    "2d_strong_wind_weak_cooling" => (
+                       filename = TwoDaySuite_path*"strong_wind_weak_cooling/instantaneous_statistics.jld2",
+                       stressed = true,
+                       rotating = true,
+                          first = 13,
+                           last = nothing),
+
+                    "2d_weak_wind_strong_cooling" => (
+                       filename = TwoDaySuite_path*"weak_wind_strong_cooling/instantaneous_statistics.jld2",
+                       stressed = true,
+                       rotating = true,
+                          first = 13,
+                           last = nothing),
+                )
+
+# https://engaging-web.mit.edu/~alir/lesbrary/2DaySuite/
+SixDaySuite_path = "/Users/adelinehillier/.julia/dev/6DaySuite/"
+SixDaySuite = OrderedDict(
+                 "6d_free_convection" => (
+                     filename = SixDaySuite_path*"free_convection/instantaneous_statistics.jld2",
+                     stressed = false,
+                     rotating = true,
+                        first = 13, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
+                         last = nothing),
+
+                 "6d_strong_wind" => (
+                     filename = SixDaySuite_path*"strong_wind/instantaneous_statistics.jld2",
+                     stressed = true,
+                     rotating = true,
+                        first = 13,
+                         last = nothing),
+
+                 "6d_strong_wind_no_rotation" => (
+                     filename = SixDaySuite_path*"strong_wind_no_rotation/instantaneous_statistics.jld2",
+                     stressed = true,
+                     rotating = false,
+                        first = 13,
+                         last = nothing),
+
+                  "6d_strong_wind_weak_cooling" => (
+                     filename = SixDaySuite_path*"strong_wind_weak_cooling/instantaneous_statistics.jld2",
+                     stressed = true,
+                     rotating = true,
+                        first = 13,
+                         last = nothing),
+
+                  "6d_weak_wind_strong_cooling" => (
+                     filename = SixDaySuite_path*"weak_wind_strong_cooling/instantaneous_statistics.jld2",
+                     stressed = true,
+                     rotating = true,
+                        first = 13,
+                         last = nothing),
+              )
 
 GeneralStrat_path = "/Users/adelinehillier/.julia/dev/8DayLinearStrat/"
 GeneralStrat = OrderedDict(
@@ -134,28 +212,28 @@ GeneralStrat = OrderedDict(
                        filename = GeneralStrat_path*"general_strat_4/instantaneous_statistics.jld2",
                        stressed = false,
                        rotating = true,
-                          first = 121, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
-                           last = nothing), # 2 days -- mixed layer depth reaches about 75 meters
+                          first = 37, # cut out the first 4 hours so targets = Int(Δt*12/60)+1 : Nt
+                           last = 288), # 2 days -- mixed layer depth reaches about 75 meters
 
                    "general_strat_8" => (
                        filename = GeneralStrat_path*"general_strat_8/instantaneous_statistics.jld2",
                        stressed = false,
                        rotating = true,
-                          first = 121,
-                           last = 288), # 2 days -- mixed layer depth reaches about 75 meters
+                          first = 13,
+                           last = 648), # 4 days -- mixed layer depth reaches about 75 meters
 
                    "general_strat_16" => (
                        filename = GeneralStrat_path*"general_strat_16/instantaneous_statistics.jld2",
                        stressed = false,
                        rotating = true,
-                          first = 121,
+                          first = 13,
                            last = nothing),
 
                     "general_strat_32" => (
                        filename = GeneralStrat_path*"general_strat_32/instantaneous_statistics.jld2",
                        stressed = false,
                        rotating = true,
-                          first = 121,
+                          first = 13,
                            last = nothing),
                 )
 
@@ -167,6 +245,9 @@ kpp_fields(datum) = !(datum.stressed) ? (:T,) :
                     !(datum.rotating) ? (:T, :U) :
                                         (:T, :U, :V)
 
+# kpp_relative_weights(datum) = !(datum.stressed) ? [1.0] :
+#                               !(datum.rotating) ? [1.0, 1e-4] :
+#                                                   [1.0, 1e-2, 1e-4]
 kpp_relative_weights(datum) = !(datum.stressed) ? [1.0] :
                               !(datum.rotating) ? [1.0, 1e-4] :
                                                   [1.0, 1e-2, 1e-4]
@@ -175,9 +256,15 @@ tke_fields(datum) = !(datum.stressed) ? (:T, :e) :
                     !(datum.rotating) ? (:T, :U, :e) :
                                         (:T, :U, :V, :e)
 
+# tke_relative_weights(datum) = !(datum.stressed) ? [1.0, 0.1] :
+#                               !(datum.rotating) ? [1.0, 0.5, 0.1] :
+#                                                   [1.0, 0.5, 0.5, 0.1]
 tke_relative_weights(datum) = !(datum.stressed) ? [1.0, 1e-4] :
                               !(datum.rotating) ? [1.0, 1e-2, 1e-4] :
                                                   [1.0, 1e-2, 1e-2, 1e-4]
+# tke_relative_weights(datum) = !(datum.stressed) ? [1.0, 1.0] :
+#                               !(datum.rotating) ? [1.0, 1.0, 1.0] :
+#                                                   [1.0, 1.0, 1.0, 1.0]
 
 "Initialize a calibration run for KPP."
 function init_kpp_calibration(datapath;
@@ -221,7 +308,7 @@ function init_tke_calibration(datapath;
                                   tke_wall_model = TKEMassFlux.PrescribedSurfaceTKEFlux(),
                               eddy_diffusivities = TKEMassFlux.IndependentDiffusivities(),
                                     tke_equation = TKEMassFlux.TKEParameters(),
-                           convective_adjustment = nothing, # or TKEMassFlux.FluxProportionalConvectiveAdjustment()
+                           convective_adjustment = nothing, # or TKEMassFlux.VariablePrandtlConvectiveAdjustment()
                                    unused_kwargs...
                               )
 

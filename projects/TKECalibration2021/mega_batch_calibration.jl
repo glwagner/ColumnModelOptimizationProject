@@ -5,26 +5,13 @@ weights = [1.0 for d in LESdata]
 
 RelevantParameters = TKEParametersConvectiveAdjustmentRiIndependent
 ParametersToOptimize = TKEParametersConvectiveAdjustmentRiIndependent
+dname = "calibrate_FourDaySuiteGeneralStrat"
 # RiIndependentTKEParameters
 # RiIndependentTKEParametersConvectiveAdjustment
 # TKEFreeConvectionConvectiveAdjustmentRiIndependent
 # TKEFreeConvectionRiIndependent
 
 nll, initial_parameters = custom_tke_calibration(LESdata, RelevantParameters, ParametersToOptimize)
-
-cdata = ColumnData(LESdata["free_convection"].filename)
-using OceanTurb: TKEMassFlux
-using ColumnModelOptimizationProject: TKEMassFluxOptimization, ColumnModel
-model = TKEMassFluxOptimization.ColumnModel(cdata, 60.0, N=32,
-                    convective_adjustment = TKEMassFlux.FluxProportionalConvectiveAdjustment(),
-                    eddy_diffusivities = TKEMassFlux.IndependentDiffusivities()
-                    )
-get_free_parameters(model)
-                    # TKEMassFluxOptimization.ColumnModel(data, Δt,
-                    #                                                N = 32,
-                    #                                eddy_diffusivities = TKEMassFlux.IndependentDiffusivities(),
-                    #                             convective_adjustment = TKEMassFlux.FluxProportionalConvectiveAdjustment(),
-                    #                               )
 
 directory = pwd() * "/TKECalibration2021Results/compare_calibration_algorithms/$(dname)/$(RelevantParameters)/"
 

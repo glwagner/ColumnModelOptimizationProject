@@ -24,7 +24,7 @@ nll = init_tke_calibration(datapath;
                                     fields = tke_fields(LEScase),
                           relative_weights = tke_relative_weights(LEScase),
                         eddy_diffusivities = TKEMassFlux.IndependentDiffusivities(),
-                     convective_adjustment = TKEMassFlux.FluxProportionalConvectiveAdjustment(),
+                     convective_adjustment = TKEMassFlux.VariablePrandtlConvectiveAdjustment(),
                         )
 
 model = nll.model
