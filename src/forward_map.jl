@@ -7,43 +7,6 @@ mutable struct ModelTimeSeries{UU, VV, TΘ, SS, EE}
                      e :: EE
 end
 
-# function model_time_series(parameters, model_plus_Δt, data, loss) # loss is needed for targets -- that's all
-#
-#     initialize_forward_run!(model_plus_Δt, data, parameters, loss.targets[1])
-#
-#     grid = model_plus_Δt.grid
-#
-#     output = ForwardMapOutput([CellField(grid) for i = 1:length(loss.targets)],
-#                               [CellField(grid) for i = 1:length(loss.targets)],
-#                               [CellField(grid) for i = 1:length(loss.targets)],
-#                               [CellField(grid) for i = 1:length(loss.targets)],
-#                               [CellField(grid) for i = 1:length(loss.targets)])
-#
-#     U = model_plus_Δt.solution.U
-#     V = model_plus_Δt.solution.V
-#     T = model_plus_Δt.solution.T
-#     S = model_plus_Δt.solution.S
-#     e = model_plus_Δt.solution.e
-#
-#     for (i, target) in enumerate(loss.targets)
-#         run_until!(model_plus_Δt.model, model_plus_Δt.Δt, data.t[target])
-#
-#         U_snapshot = output.U[i].data
-#         V_snapshot = output.V[i].data
-#         T_snapshot = output.T[i].data
-#         S_snapshot = output.S[i].data
-#         e_snapshot = output.e[i].data
-#
-#         U_snapshot .= U.data
-#         V_snapshot .= V.data
-#         T_snapshot .= T.data
-#         S_snapshot .= S.data
-#         e_snapshot .= e.data
-#     end
-#
-#     return output
-# end
-
 function model_time_series(parameters, model_plus_Δt, data)
 
     Nt = length(data.t)
@@ -52,7 +15,7 @@ function model_time_series(parameters, model_plus_Δt, data)
 
     grid = model_plus_Δt.grid
 
-    output = ForwardMapOutput([CellField(grid) for i = 1:Nt],
+    output = ModelTimeSeries([CellField(grid) for i = 1:Nt],
                               [CellField(grid) for i = 1:Nt],
                               [CellField(grid) for i = 1:Nt],
                               [CellField(grid) for i = 1:Nt],
