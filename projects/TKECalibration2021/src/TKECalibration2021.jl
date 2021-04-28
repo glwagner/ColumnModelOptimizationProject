@@ -8,6 +8,7 @@ using ColumnModelOptimizationProject.TKEMassFlux: VariablePrandtlConvectiveAdjus
 using Optim
 using Dao: AdaptiveAlgebraicSchedule
 using Statistics, Distributions
+using OrderedCollections
 
 using LinearAlgebra
 using Random
@@ -27,11 +28,12 @@ export
        init_kpp_calibration,
        init_tke_calibration,
 
-       CalibrationExperiment,
-       DataSet,
        get_nll,
        Parameters,
-       validation_loss_reduction,
+       DataSet,
+       dataset,
+       CalibrationExperiment,
+       # validation_loss_reduction,
 
        # utils_writing_output.jl
        saveplot,
@@ -132,12 +134,9 @@ function custom_defaults(model, RelevantParameters)
     set_if_present!(defaults, :Cᴷu, 0.1243)
 
     # Convective Adjustment
-    # set_if_present!(defaults, :Cᴬc, 31.66)
-    # set_if_present!(defaults, :Cᴬu, 0.02946)
-    # set_if_present!(defaults, :Cᴬe, 416.9)
-    set_if_present!(defaults, :Cᴬc, 31.66)
-    set_if_present!(defaults, :Cᴬu, 0.01)
-    set_if_present!(defaults, :Cᴬe, 416.9)
+    set_if_present!(defaults, :Cᴬc, 0.6706)
+    set_if_present!(defaults, :Cᴬu, 0.0057)
+    set_if_present!(defaults, :Cᴬe, 0.2717)
 
     set_if_present!(defaults, :CᴷRiʷ, 0.5)
     set_if_present!(defaults, :CᴷRiᶜ, -0.73)
@@ -157,15 +156,15 @@ Base.@kwdef struct Parameters{T <: UnionAll}
     ParametersToOptimize::T
 end
 
-struct DataSet{OD <: OrderedCollections.OrderedDict, D <: Dict, NLL <: NegativeLogLikelihood, F <: Function, FP <: FreeParameters}
-        LESdata::OD
+struct DataSet{T, D, NLL, F, FP}
+        LESdata::T
         relative_weights::D # field weights
         nll::NLL
         nll_wrapper::F
         default_parameters::FP
 end
 
-struct CalibrationExperiment{DS <: DataSet, P <: Parameters, FP <: FreeParameters}
+struct CalibrationExperiment{DS, P, FP}
         calibration::DS
         validation::DS
         parameters::P
@@ -175,20 +174,6 @@ end
 
 function CalibrationExperiment(calibration, validation, parameters)
     CalibrationExperiment(calibration, validation, parameters, calibration.default_parameters)
-end
-
-function validation_loss_reduction(ce::CalibrationExperiment, parameters::FreeParameters)
-    validation_loss = ce.validation.nll(parameters)
-    calibration_loss = ce.calibration.nll(parameters)
-
-    default_validation_loss = ce.validation.nll(ce.default_parameters)
-    default_calibration_loss = ce.calibration.nll(ce.default_parameters)
-
-    validation_loss_reduction = validation_loss/default_validation_loss
-    println("Validation loss reduction: $(validation_loss_reduction)")
-    println("Training loss reduction: $(calibration_loss/default_calibration_loss)")
-
-    return validation_loss_reduction
 end
 
 function get_nll(LEScase, p::Parameters, relative_weights)
@@ -216,89 +201,30 @@ function get_nll(LEScase, p::Parameters, relative_weights)
     return nll, default_parameters
 end
 
-function DataSet(LESdata, p::Parameters, relative_weights = relative_weights)
+function dataset(LESdata, p::Parameters{UnionAll}; relative_weights = Dict(:T => 1.0, :U => 1.0, :V => 1.0, :e => 1.0))
 
-    # Single simulation
-    if typeof(LESdata) <: OrderedCollections.OrderedDict
+    if typeof(LESdata) <: NamedTuple
+
+        # Single simulation
         nll, default_parameters = get_nll(LESdata, p, relative_weights)
-    end
 
-    # Batched
-    batch = []
-    default_parameters = nothing
-    for LEScase in values(LESdata)
-        nll, default_parameters = get_nll(LEScase, p, relative_weights)
-        push!(batch, nll)
-    end
-    nll = BatchedNegativeLogLikelihood([nll for nll in batch],
-                                        weights=[1.0 for d in LESdata])
+    else
 
-    # define wrapper here cause ParametersToOptimize has to be in the global scope
-    # function loss_closure(nll)
-    #         ℒ(parameters::ParametersToOptimize) = nll(parameters)
-    #         ℒ(parameters::Vector) = nll(ParametersToOptimize([parameters...]))
-    #         return ℒ
-    # end
+        # Batched
+        batch = []
+        default_parameters = nothing
+        for LEScase in values(LESdata)
+            nll, default_parameters = get_nll(LEScase, p, relative_weights)
+            push!(batch, nll)
+        end
+        nll = BatchedNegativeLogLikelihood([nll for nll in batch],
+                                            weights=[1.0 for d in LESdata])
+    end
 
     # Velossiwrapper 🐉 wrapper for calibration algorithms that take only take vectors
-    nll_wrapper(θ::Vector) = nll(ParametersToOptimize(θ))
-
-    println(typeof(LESdata))
-    println(typeof(relative_weights))
-    println(typeof(nll))
-    println(typeof(nll_wrapper))
-    println(typeof(default_parameters))
+    nll_wrapper(θ::Vector) = nll(p.ParametersToOptimize(θ))
 
     return DataSet(LESdata, relative_weights, nll, nll_wrapper, default_parameters)
-end
-
-"""
-This is an extension to `init_tke_calibration` for specific cases used in March 2021 calibration experiments.
-If LESdata is just a path (String), will return the NegativeLogLikelihood object for that simulation;
-If LESdata is one of the OrderedDicts from "utils.jl", will return the BatchedNegativeLogLikelihood object for those simulations.
-"""
-# function custom_tke_calibration(LESdata, RelevantParameters, ParametersToOptimize;
-#                                     # loss_closure = nothing,
-#                                     relative_weights = Dict(f => 1.0 for f in (:T, :U, :V, :e)))
-#
-#     # Single simulation
-#     if typeof(LESdata) <: NamedTuple
-#         return get_nll(LESdata, RelevantParameters, ParametersToOptimize, relative_weights)
-#     end
-#
-#     # Batched
-#     batch = []
-#     initial_parameters = nothing
-#     for LEScase in values(LESdata)
-#         nll, initial_parameters = get_nll(LEScase, RelevantParameters, ParametersToOptimize, relative_weights)
-#         push!(batch, nll)
-#     end
-#
-#     batched_nll = BatchedNegativeLogLikelihood([nll for nll in batch],
-#                                         weights=[1.0 for d in LESdata])
-#     return batched_nll, initial_parameters
-# end
-
-function visualize_and_save(ce::CalibrationExperiment, parameters, directory)
-
-        function get_Δt(Nt)
-                Δt = 90
-                if Nt > 400; Δt = 240; end
-                if Nt > 800; Δt = 360; end
-                return Δt
-        end
-
-        path = directory*"Plots/"
-        mkpath(path)
-
-        for LEScase in values(ce.calibration.LESdata) + values(ce.validation.LESdata)
-                nll = get_nll(LESdata, RelevantParameters, ParametersToOptimize, relative_weights)
-                set!(nll.model, parameters)
-                Nt = length(nll.data)
-                p = visualize_realizations(nll.model, nll.data, 60:get_Δt(Nt):length(nll.data), best_parameters, fields = nll.loss.fields)
-                PyPlot.savefig(path*"$(Nt)_$(case_nll.data.name).png")
-        end
-
 end
 
 end # module

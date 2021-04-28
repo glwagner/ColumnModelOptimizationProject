@@ -96,7 +96,7 @@ FourDaySuite = OrderedDict(
                         filename = FourDaySuite_path*"free_convection/instantaneous_statistics.jld2",
                         stressed = false,
                         rotating = true,
-                           first = 13, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
+                           first = 13, # cut out the first 2 hours
                             last = nothing),
 
                     "4d_strong_wind" => (
@@ -135,7 +135,7 @@ TwoDaySuite = OrderedDict(
                        filename = TwoDaySuite_path*"free_convection/instantaneous_statistics.jld2",
                        stressed = false,
                        rotating = true,
-                          first = 13, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
+                          first = 13, # cut out the first 2 hours
                            last = nothing),
 
                    "2d_strong_wind" => (
@@ -174,7 +174,7 @@ SixDaySuite = OrderedDict(
                      filename = SixDaySuite_path*"free_convection/instantaneous_statistics.jld2",
                      stressed = false,
                      rotating = true,
-                        first = 13, # cut out the first 2 hours so targets = Int(Δt*12/60)+1 : Nt
+                        first = 13, # cut out the first 2 hours
                          last = nothing),
 
                  "6d_strong_wind" => (
@@ -212,7 +212,7 @@ GeneralStrat = OrderedDict(
                        filename = GeneralStrat_path*"general_strat_4/instantaneous_statistics.jld2",
                        stressed = false,
                        rotating = true,
-                          first = 37, # cut out the first 4 hours so targets = Int(Δt*12/60)+1 : Nt
+                          first = 37, # cut out the first 6 hours
                            last = 288), # 2 days -- mixed layer depth reaches about 75 meters
 
                    "general_strat_8" => (

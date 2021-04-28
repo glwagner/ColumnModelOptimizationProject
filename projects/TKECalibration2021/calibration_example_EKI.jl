@@ -5,40 +5,32 @@ using Distributions
 using LinearAlgebra
 using Random
 using Plots
+using EnsembleKalmanProcesses.EnsembleKalmanProcessModule
+using EnsembleKalmanProcesses.ParameterDistributionStorage
 
-LESdata = TwoDaySuite # Calibration set
-LESdata_validation = FourDaySuite # Validation set
-RelevantParameters = TKEParametersRiIndependent
-ParametersToOptimize = TKEParametersRiIndependent
+@free_parameters(ConvectiveAdjustmentParameters,
+                 Cᴬu, Cᴬc, Cᴬe)
 
-# define closure here cause ParametersToOptimize has to be in the global scope
-function loss_closure(nll)
-        ℒ(parameters::ParametersToOptimize) = nll(parameters)
-        ℒ(parameters::Vector) = nll(ParametersToOptimize([parameters...]))
-        return ℒ
-end
+include("compare_calibration_algorithms_setup.jl")
 
-nll, initial_parameters = custom_tke_calibration(LESdata, RelevantParameters, ParametersToOptimize; loss_closure = loss_closure, relative_weights = relative_weights)
-initial_parameters = ParametersToOptimize([0.1320799067908237, 0.21748565946199314, 0.051363488558909924, 0.5477193236638974, 0.8559038503413254, 3.681157252463703, 2.4855193201082426])
+p = Parameters(RelevantParameters = TKEParametersConvectiveAdjustmentRiIndependent,
+               ParametersToOptimize = ConvectiveAdjustmentParameters
+              )
 
-nll(initial_parameters)
-# ℱ = model_time_series(default_parameters, model, cdata, loss_function)
-# myloss(ℱ) = loss_function(ℱ, cdata)
-# myloss(ℱ)
-
-##
+calibration = dataset(FourDaySuite["4d_strong_wind_weak_cooling"], p; relative_weights = relative_weight_options["uniform"]);
 
 """
-nll
-initial_parameters
+Arguments
+nll: loss function
+initial_parameters: where to begin the optimization
 
 Keyword Arguments
-set_prior_means_to_initial_parameters:
+set_prior_means_to_initial_parameters: whether to set the parameter prior means to the center of the parameter bounds or to given initial_parameters
 n_obs: Number of synthetic observations from G(u)
 noise_level: Observation noise level
 N_ens: number of ensemble members, J
 N_iter: number of EKI iterations, Ns
-stds_within_bounds:
+stds_within_bounds: number of (parameter prior) standard deviations spanned by the parameter bounds
 """
 function ensemble_kalman_inversion(nll, initial_parameters;
                                                     set_prior_means_to_initial_parameters = true,
@@ -60,7 +52,7 @@ function ensemble_kalman_inversion(nll, initial_parameters;
     Γy = noise_level * Matrix(I, n_obs, n_obs)
     noise = MvNormal(zeros(n_obs), Γy)
 
-    # Loss Function
+    # We let Forward map = Loss Function evaluation
     G(u) = nll(u)
 
     # Loss Function Minimum
@@ -87,17 +79,16 @@ function ensemble_kalman_inversion(nll, initial_parameters;
         update_ensemble!(ekiobj, g_ens)
     end
 
-    losses = [G([mean(ekiobj.u[i].stored_data, dims=2)...]) for i in 1:N_iter]
+    # losses = [G([mean(ekiobj.u[i].stored_data, dims=2)...]) for i in 1:N_iter]
+    # A(i) = ekiobj.u[i].stored_data
+    # mean_vars = [mean(sum((A(i) .- params).^2, dims=1)) for i in 1:N_iter]
+    # get_u(ekiobj)
 
-    A(i) = ekiobj.u[i].stored_data
     params = mean(ekiobj.u[end].stored_data, dims=2)
-    mean_vars = [mean(sum((A(i) .- params).^2, dims=1)) for i in 1:N_iter]
+    params = transform_unconstrained_to_constrained(prior, params)
+    params = [params...] # matrix → vector
 
-    params = get_u(ekiobj)
-
-    transform_unconstrained_to_constrained(pd::ParameterDistribution, xarray::Array{Real})
-
-    return params, losses, mean_vars
+    return params
 end
 
 function loss_reduction(kwargs)
@@ -107,6 +98,14 @@ function loss_reduction(kwargs)
     println(losses[end] / losses[1])
     return losses[end] / losses[1]
 end
+
+## Test
+nll = calibration.nll_wrapper
+initial_parameters = calibration.default_parameters
+nll([initial_parameters...])
+
+params = ensemble_kalman_inversion(nll, initial_parameters; N_iter=20, set_prior_means_to_initial_parameters=false, stds_within_bounds=3)
+nll(params)
 
 ## Distance from final parameter mean
 params, losses, mean_vars = ensemble_kalman_inversion(nll, initial_parameters; N_iter=50, set_prior_means_to_initial_parameters=false, stds_within_bounds=5)

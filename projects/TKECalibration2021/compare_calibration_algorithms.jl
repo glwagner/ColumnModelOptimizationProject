@@ -5,39 +5,27 @@ using Plots
 @free_parameters(ConvectiveAdjustmentParameters,
                  Cᴬu, Cᴬc, Cᴬe)
 
-relative_weights = Dict(
-                "all_e" => Dict(:T => 0.0, :U => 0.0, :V => 0.0, :e => 1.0),
-                "all_T" => Dict(:T => 1.0, :U => 0.0, :V => 0.0, :e => 0.0),
-                "uniform" => Dict(:T => 1.0, :U => 1.0, :V => 1.0, :e => 1.0)
-)
+include("compare_calibration_algorithms_setup.jl")
 
 p = Parameters(RelevantParameters = TKEParametersConvectiveAdjustmentRiIndependent,
                ParametersToOptimize = ConvectiveAdjustmentParameters
               )
 
-calibration = DataSet(FourDaySuite, p; relative_weights = relative_weights["all_e"])
-
-typeof(relative_weights["all_e"])
-using OrderedCollections
-typeof(FourDaySuite) <: OrderedCollections.OrderedDict
-
-validation = DataSet(merge(TwoDaySuite, SixDaySuite), p, relative_weights["uniform"])
+calibration = dataset(FourDaySuite, p; relative_weights = relative_weight_options["all_e"]);
+validation = dataset(merge(TwoDaySuite, SixDaySuite), p; relative_weights = relative_weight_options["uniform"]);
 
 ce = CalibrationExperiment(calibration, validation, p)
 
-macro free_parameters(GroupName, parameter_names...)
-    N = length(parameter_names)
-    parameter_exprs = [:($name :: T; ) for name in parameter_names]
-    return esc(quote
-        Base.@kwdef mutable struct $GroupName{T} <: FreeParameters{$N, T}
-            $(parameter_exprs...)
-        end
-    end)
-end
+ce.validation.nll(initial_parameters)
 
-initial_parameters = ParametersToOptimize([0.0057, 0.6706, 0.2717])
-initial_parameters = ParametersToOptimize([0.0024, 0.7355, 1.4574])
-initial_parameters = ParametersToOptimize([0.0057, 0.005, 0.005])
+loss = calibration.nll_wrapper
+
+# @time ce.validation.nll_wrapper([initial_parameters...])
+# @time ce.calibration.nll_wrapper([initial_parameters...])
+# single = dataset(FourDaySuite["4d_free_convection"], p; relative_weights = relative_weight_options["all_e"]);
+# @time single.nll_wrapper([initial_parameters...])
+
+initial_parameters = ce.default_parameters
 
 validation_loss_reduction(ce, initial_parameters)
 ce.validation.nll(initial_parameters)
@@ -97,30 +85,30 @@ dname = "calibrate_FourDaySuite_validate_TwoDaySuiteSixDaySuite/prior_mean_optim
 # writeout3(o, "Gradient_Descent", parameters)
 # println("Gradient_Descent", parameters)
 #
-
-@info "Running Nelder-Mead from Optim.jl..."
-parameters = nelder_mead(nll, initial_parameters)
-writeout3(o, "Nelder_Mead", parameters)
-
-nll(initial_parameters)
-nll([parameters...])
-nll_validation(initial_parameters)
-nll_validation([parameters...])
-
-@info "Running L-BFGS from Optim.jl..."
-parameters = l_bfgs(nll, initial_parameters)
-writeout3(o, "L_BFGS", parameters)
-
-stds_within_bounds = 5
-@info "Running Iterative Simulated Annealing..."
-prob = simulated_annealing(nll, initial_parameters; samples = 500, iterations = 3,
-                                initial_scale = 1e1,
-                                final_scale = 1e-1,
-                                set_prior_means_to_initial_parameters = set_prior_means_to_initial_parameters,
-                                stds_within_bounds = stds_within_bounds)
-parameters = Dao.optimal(prob.markov_chains[end]).param
-writeout3(o, "Annealing", parameters)
-println([parameters...])
+#
+# @info "Running Nelder-Mead from Optim.jl..."
+# parameters = nelder_mead(nll, initial_parameters)
+# writeout3(o, "Nelder_Mead", parameters)
+#
+# nll(initial_parameters)
+# nll([parameters...])
+# nll_validation(initial_parameters)
+# nll_validation([parameters...])
+#
+# @info "Running L-BFGS from Optim.jl..."
+# parameters = l_bfgs(nll, initial_parameters)
+# writeout3(o, "L_BFGS", parameters)
+#
+# stds_within_bounds = 5
+# @info "Running Iterative Simulated Annealing..."
+# prob = simulated_annealing(nll, initial_parameters; samples = 500, iterations = 3,
+#                                 initial_scale = 1e1,
+#                                 final_scale = 1e-1,
+#                                 set_prior_means_to_initial_parameters = set_prior_means_to_initial_parameters,
+#                                 stds_within_bounds = stds_within_bounds)
+# parameters = Dao.optimal(prob.markov_chains[end]).param
+# writeout3(o, "Annealing", parameters)
+# println([parameters...])
 
 
 
