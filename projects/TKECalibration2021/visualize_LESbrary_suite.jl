@@ -134,7 +134,7 @@ function animate_(name)
     return anim
 end
 
-for name in ["u", "v", "T"]
+for name in ["u", "v", "T", "e"]
     anim = animate_(name)
     gif(anim, output_directory*"/$(name).gif", fps=20)
 end
@@ -152,21 +152,22 @@ cell_field = f["T"](Ts["free_convection"])
 Nt = length(cell_field)
 Nz = cell_field[1].grid.N
 z = parent(cell_field[1].grid.zc[1:Nz])
-X = Ts["strong_wind_weak_cooling"]
+# X = Ts["strong_wind_weak_cooling"]
 function animate_(name)
-    cell_field = f[name](X) # f["T"](Ts["free_convection"])
+    # cell_field = f[name](X) # f["T"](Ts["free_convection"])
     anim = @animate for i=12:Nt
-        profile = cell_field[i].data[1:Nz-1]
         p = Plots.plot(xlabel=x_labels[name], ylabel="Depth (m)", palette=:darkrainbow, legend=false, foreground_color_grid=:white, plot_titlefontsize=20)
-        plot!(profile.*scaling_factor[name], z[1:Nz-1], title = titles[name], linewidth=5, xlims = x_lims[name])
-        plot!(size=(400,500))
-        p
+        for (file, X) in Ts
+            cell_field = f[name](X)
+            profile = cell_field[i].data[1:Nz-1]
+            plot!(profile.*scaling_factor[name], z[1:Nz-1], title = titles[name], linewidth=5, xlims = x_lims[name])
+            plot!(size=(400,500))
+        end
     end
     return anim
 end
 
-# for name in ["u", "v", "T", "e"]
-for name in ["e",]
+for name in ["u", "v", "T", "e"]
     anim = animate_(name)
-    gif(anim, output_directory*"/$(name)_strong_wind_weak_cooling.gif", fps=40)
+    gif(anim, output_directory*"/$(name).gif", fps=40)
 end
