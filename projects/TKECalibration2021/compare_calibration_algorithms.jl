@@ -2,13 +2,13 @@
 using TKECalibration2021
 using Plots
 
-@free_parameters(ConvectiveAdjustmentParameters,
-                 Cᴬu, Cᴬc, Cᴬe)
+# @free_parameters(ConvectiveAdjustmentParameters,
+#                  Cᴬu, Cᴬc, Cᴬe)
 
 include("compare_calibration_algorithms_setup.jl")
 
 p = Parameters(RelevantParameters = TKEParametersConvectiveAdjustmentRiIndependent,
-               ParametersToOptimize = ConvectiveAdjustmentParameters
+               ParametersToOptimize = TKEParametersConvectiveAdjustmentRiIndependent
               )
 
 calibration = dataset(FourDaySuite, p; relative_weights = relative_weight_options["all_e"]);
@@ -30,9 +30,6 @@ initial_parameters = ce.default_parameters
 validation_loss_reduction(ce, initial_parameters)
 ce.validation.nll(initial_parameters)
 
-typeof(TKEParametersConvectiveAdjustmentRiIndependent) <: FreeParameters
-parent(initial_parameters)
-
 ## Large search
 # set_prior_means_to_initial_parameters = false
 # stds_within_bounds = 5
@@ -41,7 +38,7 @@ parent(initial_parameters)
 ## Small search
 set_prior_means_to_initial_parameters = true
 stds_within_bounds = 3
-dname = "calibrate_FourDaySuite_validate_TwoDaySuiteSixDaySuite/prior_mean_optimal/$(relative_weights_option)_weights"
+# dname = "calibrate_FourDaySuite_validate_TwoDaySuiteSixDaySuite/prior_mean_optimal/$(relative_weights_option)_weights"
 
 # xs = collect(0.001:0.001:0.025)
 # ll = Dict()
@@ -89,6 +86,8 @@ dname = "calibrate_FourDaySuite_validate_TwoDaySuiteSixDaySuite/prior_mean_optim
 # @info "Running Nelder-Mead from Optim.jl..."
 # parameters = nelder_mead(nll, initial_parameters)
 # writeout3(o, "Nelder_Mead", parameters)
+# println(parameters)
+# println(validation_loss_reduction(ce, ce.parameters.ParametersToOptimize(parameters)))
 #
 # nll(initial_parameters)
 # nll([parameters...])
@@ -100,17 +99,16 @@ dname = "calibrate_FourDaySuite_validate_TwoDaySuiteSixDaySuite/prior_mean_optim
 # writeout3(o, "L_BFGS", parameters)
 #
 # stds_within_bounds = 5
-# @info "Running Iterative Simulated Annealing..."
-# prob = simulated_annealing(nll, initial_parameters; samples = 500, iterations = 3,
-#                                 initial_scale = 1e1,
-#                                 final_scale = 1e-1,
-#                                 set_prior_means_to_initial_parameters = set_prior_means_to_initial_parameters,
-#                                 stds_within_bounds = stds_within_bounds)
-# parameters = Dao.optimal(prob.markov_chains[end]).param
-# writeout3(o, "Annealing", parameters)
-# println([parameters...])
-
-
+@info "Running Iterative Simulated Annealing..."
+prob = simulated_annealing(nll, initial_parameters; samples = 10, iterations = 3,
+                                initial_scale = 1e1,
+                                final_scale = 1e-1,
+                                set_prior_means_to_initial_parameters = set_prior_means_to_initial_parameters,
+                                stds_within_bounds = stds_within_bounds)
+parameters = Dao.optimal(prob.markov_chains[end]).param
+writeout3(o, "Annealing", parameters)
+println([parameters...])
+println(validation_loss_reduction(ce, ce.parameters.ParametersToOptimize(parameters)))
 
 # initial_parameters = ParametersToOptimize([0.029469308779054255, 31.6606181722508, 416.89781702903394])
 # propertynames(initial_parameters)
@@ -121,6 +119,9 @@ dname = "calibrate_FourDaySuite_validate_TwoDaySuiteSixDaySuite/prior_mean_optim
 # println([parameters...])
 #
 # @info "Running Ensemble Kalman Inversion..."
+
+throw(exception)
+
 parameters = ensemble_kalman_inversion(nll, initial_parameters; N_ens = 50, N_iter = 10,
                                 set_prior_means_to_initial_parameters = set_prior_means_to_initial_parameters,
                                 stds_within_bounds = 10)

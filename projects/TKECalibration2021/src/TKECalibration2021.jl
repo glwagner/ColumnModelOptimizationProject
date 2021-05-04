@@ -35,6 +35,9 @@ export
        CalibrationExperiment,
        # validation_loss_reduction,
 
+       # visuals.jl
+       visualize_and_save,
+
        # utils_writing_output.jl
        saveplot,
        open_output_file,
@@ -67,7 +70,8 @@ export
        # ColumnModelOptimizationProject
        visualize_realizations,
        FreeParameters,
-       @free_parameters
+       @free_parameters,
+       set!
 
 include("../../../src/ColumnModelOptimizationProject.jl")
 include("setup.jl")
@@ -75,6 +79,7 @@ include("utils.jl")
 include("utils_writing_output.jl")
 include("free_parameters.jl")
 include("algorithms.jl")
+include("visuals.jl")
 
 ID = OceanTurb.TKEMassFlux.IndependentDiffusivities()
 DD = OceanTurb.TKEMassFlux.RiDependentDiffusivities()
@@ -221,7 +226,7 @@ function dataset(LESdata, p::Parameters{UnionAll}; relative_weights = Dict(:T =>
                                             weights=[1.0 for d in LESdata])
     end
 
-    # Velossiwrapper 🐉 wrapper for calibration algorithms that take only take vectors
+    # Velossiwrapper 🐉 wrapper for vector input
     nll_wrapper(θ::Vector) = nll(p.ParametersToOptimize(θ))
 
     return DataSet(LESdata, relative_weights, nll, nll_wrapper, default_parameters)
