@@ -31,7 +31,7 @@ calibration = dataset(FourDaySuite, p; relative_weights = relative_weight_option
 validation = dataset(merge(TwoDaySuite, SixDaySuite), p; relative_weights = relative_weight_options["all_but_e"]);
 ce = CalibrationExperiment(calibration, validation, p)
 
-directory = "EKI/$(free_parameter_type)_$(relative_weight_option)/mu0var6e-1/"
+directory = "EKI/$(free_parameter_type)_$(relative_weight_option)/"
 isdir(directory) || mkpath(directory)
 
 nll = ce.calibration.nll_wrapper

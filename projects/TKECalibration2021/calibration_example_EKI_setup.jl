@@ -155,16 +155,16 @@ end
 
 ## Prior Variance
 function plot_prior_variance(nll, nll_validation, initial_parameters, directory; xrange=0.1:0.1:1.0)
-    var_loss_reductions = Dict()
-    var_val_loss_reductions = Dict()
+    loss_reductions = Dict()
+    val_loss_reductions = Dict()
     for variance = xrange
         train_loss_reduction, val_loss_reduction = loss_reduction(nll, nll_validation, initial_parameters, (stds_within_bounds = variance,))
-        var_loss_reductions[variance] = train_loss_reduction
-        var_val_loss_reductions[variance] = val_loss_reduction
+        loss_reductions[variance] = train_loss_reduction
+        val_loss_reductions[variance] = val_loss_reduction
     end
     p = Plots.plot(title="Loss reduction versus prior variance", ylabel="Loss reduction (Final / Initial)", xlabel="Prior variance")
-    plot!(var_loss_reductions, label="training", lw=4, color=:purple)
-    plot!(var_val_loss_reductions, label="validation", lw=4, color=:blue)
+    plot!(loss_reductions, label="training", lw=4, color=:purple)
+    plot!(val_loss_reductions, label="validation", lw=4, color=:blue)
     Plots.savefig(p, directory*"variance.pdf")
     v = argmin(var_val_loss_reductions)
     println("loss-minimizing variance: $(v)")
@@ -203,10 +203,10 @@ function plot_observation_noise_level(nll, nll_validation, initial_parameters, d
     Plots.savefig(p, directory*"obs_noise_level.pdf")
     nl = argmin(val_loss_reductions)
     println("loss-minimizing obs noise level: $(nl)")
-    return nl
+    return 10^nl
 end
 
-function plot_prior_variance_and_obs_noise_level(nll, nll_validation, initial_parameters, directory; vrange=0.50:0.05:0.9, nlrange=-2.6:0.2:1.0)
+function plot_prior_variance_and_obs_noise_level(nll, nll_validation, initial_parameters, directory; vrange=0.40:0.025:0.90, nlrange=-2.5:0.1:0.5)
     Γθs = collect(vrange)
     Γys = 10 .^ collect(nlrange)
     losses = zeros((length(Γθs), length(Γys)))
